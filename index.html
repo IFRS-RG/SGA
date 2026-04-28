@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SGA — Login · IFRS Rio Grande</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-logo">SGA</div>
+    <div class="login-title">Sistema de Gestão de Ações</div>
+    <div class="login-sub">IFRS Campus Rio Grande</div>
+
+    <div id="login-error"></div>
+
+    <div id="loading-session" style="display:none" class="spinner-wrap">
+      <div class="spinner"></div>
+      <span>Verificando sessão...</span>
+    </div>
+
+    <div id="login-actions">
+      <!-- Google button rendered here -->
+      <div id="g-btn-wrap" style="display:flex;justify-content:center;margin-bottom:.75rem"></div>
+      <p style="font-size:.78rem;color:var(--gray-400);margin-top:.5rem">
+        Clique no botão acima para entrar com sua conta Google institucional.
+      </p>
+    </div>
+
+    <div class="login-domains">
+      Domínios aceitos: @riogrande.ifrs.edu.br e @aluno.riogrande.ifrs.edu.br
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="https://accounts.google.com/gsi/client" async></script>
+<script>
+  window.addEventListener('load', async () => {
+    // Check existing session
+    const session = loadSession();
+    if (session && session.roleInfo) {
+      redirectByRole(session.roleInfo.role);
+      return;
+    }
+
+    // Initialize Google auth when library loads
+    const waitForGoogle = setInterval(() => {
+      if (typeof google !== 'undefined' && google.accounts) {
+        clearInterval(waitForGoogle);
+        initGoogleAuth(onCredential);
+        renderGoogleButton('g-btn-wrap');
+      }
+    }, 100);
+  });
+
+  async function onCredential(token, userInfo) {
+    const errEl = document.getElementById('login-error');
+    errEl.style.display = 'none';
+    document.getElementById('loading-session').style.display = 'flex';
+    document.getElementById('login-actions').style.display = 'none';
+
+    try {
+      const roleInfo = await API.getRole();
+
+      if (roleInfo.role === 'denied') {
+        errEl.textContent = roleInfo.reason || 'Acesso negado.';
+        errEl.style.display = 'block';
+        document.getElementById('loading-session').style.display = 'none';
+        document.getElementById('login-actions').style.display = 'block';
+        return;
+      }
+
+      saveSession(token, userInfo, roleInfo);
+      redirectByRole(roleInfo.role);
+    } catch (e) {
+      errEl.textContent = 'Erro ao verificar acesso: ' + e.message;
+      errEl.style.display = 'block';
+      document.getElementById('loading-session').style.display = 'none';
+      document.getElementById('login-actions').style.display = 'block';
+    }
+  }
+
+  function redirectByRole(role) {
+    const map = { admin: 'admin.html', coordenador: 'coordenador.html', participante: 'bolsista.html' };
+    if (map[role]) window.location.href = map[role];
+  }
+</script>
+</body>
+</html>

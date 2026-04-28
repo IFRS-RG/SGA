@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SGA — Coordenador · IFRS Rio Grande</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">SGA <span>Sistema de Gestão de Ações</span></div>
+  <div class="topbar-user">
+    <img id="user-photo" src="" alt="" style="display:none">
+    <span id="user-name"></span>
+    <span id="user-role" class="badge badge-blue"></span>
+    <button class="btn-logout" onclick="signOut()">Sair</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="perfil">Meu Perfil</button>
+  <button class="tab-btn" data-tab="projetos">Meus Projetos</button>
+  <button class="tab-btn" data-tab="assiduidade">Registrar Assiduidade</button>
+  <button class="tab-btn" data-tab="historico">Histórico de Assiduidade</button>
+  <button class="tab-btn" data-tab="relatorios">Relatórios</button>
+</div>
+
+<!-- ══ PERFIL ════════════════════════════════════════════════ -->
+<div id="tab-perfil" class="tab-content active" style="padding:1.5rem">
+  <div id="perfil-container"></div>
+</div>
+
+<!-- ══ PROJETOS ══════════════════════════════════════════════ -->
+<div id="tab-projetos" class="tab-content" style="padding:1.5rem">
+  <div class="construction"><h3>Em construção</h3><p>Esta funcionalidade estará disponível em breve.</p></div>
+</div>
+
+<!-- ══ REGISTRAR ASSIDUIDADE ═════════════════════════════════ -->
+<div id="tab-assiduidade" class="tab-content" style="padding:1.5rem">
+  <div id="period-banner"></div>
+
+  <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem;flex-wrap:wrap">
+    <label class="form-label" style="margin:0;white-space:nowrap">Mês de referência:</label>
+    <select class="form-select" id="ass-mes-ref" style="width:200px" onchange="Coord.loadAssiduidade()"></select>
+  </div>
+
+  <div id="ass-acoes-list"></div>
+</div>
+
+<!-- ══ HISTÓRICO ═════════════════════════════════════════════ -->
+<div id="tab-historico" class="tab-content" style="padding:1.5rem">
+  <div id="historico-list"></div>
+</div>
+
+<!-- ══ RELATÓRIOS ════════════════════════════════════════════ -->
+<div id="tab-relatorios" class="tab-content" style="padding:1.5rem">
+  <div class="construction"><h3>Em construção</h3><p>Esta funcionalidade estará disponível em breve.</p></div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="js/coordenador.js"></script>
+<script>
+  window.addEventListener('load', () => {
+    if (!requireAuth('coordenador')) return;
+    const session = loadSession();
+    populateTopbar(session.userInfo, 'Coordenador');
+    Coord.init(session);
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SGA — Admin · IFRS Rio Grande</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="topbar-brand">SGA <span>Sistema de Gestão de Ações</span></div>
+  <div class="topbar-user">
+    <img id="user-photo" src="" alt="" style="display:none">
+    <span id="user-name"></span>
+    <span id="user-role" class="badge badge-blue"></span>
+    <button class="btn-logout" onclick="signOut()">Sair</button>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab-btn active" data-tab="cadastros">Cadastros</button>
+  <button class="tab-btn" data-tab="todas-acoes">Todas as Ações</button>
+  <button class="tab-btn" data-tab="assiduidade">Assiduidade</button>
+  <button class="tab-btn" data-tab="configuracoes">Configurações</button>
+  <button class="tab-btn" data-tab="logs">Logs / Auditoria</button>
+</div>
+
+<!-- ══ CADASTROS ══════════════════════════════════════════════ -->
+<div id="tab-cadastros" class="tab-content active">
+  <div class="subtabs">
+    <button class="subtab-btn active" data-subtab="coord">Coordenadores</button>
+    <button class="subtab-btn" data-subtab="editais">Editais</button>
+    <button class="subtab-btn" data-subtab="editais-bolsas">Editais de Bolsas</button>
+    <button class="subtab-btn" data-subtab="acoes">Ações</button>
+    <button class="subtab-btn" data-subtab="bolsistas">Bolsistas</button>
+    <button class="subtab-btn" data-subtab="voluntarios">Voluntários</button>
+    <button class="subtab-btn" data-subtab="cursos">Cursos</button>
+  </div>
+
+  <div id="subtab-coord" class="tab-content active" style="padding:1.25rem">
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="Admin.Coord.openAdd()">+ Adicionar</button>
+      <input class="form-control" style="width:220px" placeholder="Buscar..." id="search-coord" oninput="Admin.Coord.render()">
+      <select class="form-select" style="width:130px" id="filter-coord-status" onchange="Admin.Coord.render()">
+        <option value="">Todos</option><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option>
+      </select>
+      <div class="toolbar-right">
+        <button class="btn btn-ghost btn-sm" onclick="Admin.Coord.exportXLS()">XLS</button>
+        <button class="btn btn-ghost btn-sm" onclick="Admin.Coord.exportPDF()">PDF</button>
+      </div>
+    </div>
+    <div class="table-wrap"><div id="table-coord"></div></div>
+  </div>
+
+  <div id="subtab-editais" class="tab-content" style="padding:1.25rem">
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="Admin.Editais.openAdd()">+ Adicionar</button>
+      <input class="form-control" style="width:220px" placeholder="Buscar..." id="search-editais" oninput="Admin.Editais.render()">
+      <select class="form-select" style="width:130px" id="filter-editais-status" onchange="Admin.Editais.render()">
+        <option value="">Todos</option><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option>
+      </select>
+      <select class="form-select" style="width:140px" id="filter-editais-seg" onchange="Admin.Editais.render()">
+        <option value="">Segmento</option>
+        <option>Ensino</option><option>Pesquisa</option><option>Extensão</option><option>Indissociável</option><option>Conjunto</option>
+      </select>
+      <div class="toolbar-right">
+        <button class="btn btn-ghost btn-sm" onclick="Admin.Editais.exportXLS()">XLS</button>
+        <button class="btn btn-ghost btn-sm" onclick="Admin.Editais.exportPDF()">PDF</button>
+      </div>
+    </div>
+    <div class="table-wrap"><div id="table-editais"></div></div>
+  </div>
+
+  <div id="subtab-editais-bolsas" class="tab-content" style="padding:1.25rem">
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="Admin.EditaisBolsas.openAdd()">+ Adicionar</button>
+      <input class="form-control" style="width:220px" placeholder="Buscar..." id="search-eb" oninput="Admin.EditaisBolsas.render()">
+      <select class="form-select" style="width:130px" id="filter-eb-status" onchange="Admin.EditaisBolsas.render()">
+        <option value="">Todos</option><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option>
+      </select>
+      <div class="toolbar-right">
+        <button class="btn btn-ghost btn-sm" onclick="Admin.EditaisBolsas.exportXLS()">XLS</button>
+        <button class="btn btn-ghost btn-sm" onclick="Admin.EditaisBolsas.exportPDF()">PDF</button>
+      </div>
+    </div>
+    <div class="table-wrap"><div id="table-eb"></div></div>
+  </div>
+
+  <div id="subtab-acoes" class="tab-content" style="padding:1.25rem">
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="Admin.Acoes.openAdd()">+ Adicionar</button>
+      <input class="form-control" style="width:220px" placeholder="Buscar..." id="search-acoes" oninput="Admin.Acoes.render()">
+      <select class="form-select" style="width:130px" id="filter-acoes-status" onchange="Admin.Acoes.render()">
+        <option value="">Todos</option><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option>
+      </select>
+      <select class="form-select" style="width:140px" id="filter-acoes-seg" onchange="Admin.Acoes.render()">
+        <option value="">Segmento</option>
+        <option>Ensino</option><option>Pesquisa</option><option>Extensão</option><option>Indissociável</option><option>Conjunto</option>
+      </select>
+      <div class="toolbar-right">
+        <button class="btn btn-ghost btn-sm" onclick="Admin.Acoes.exportXLS()">XLS</button>
+        <button class="btn btn-ghost btn-sm" onclick="Admin.Acoes.exportPDF()">PDF</button>
+      </div>
+    </div>
+    <div class="table-wrap"><div id="table-acoes"></div></div>
+  </div>
+
+  <div id="subtab-bolsistas" class="tab-content" style="padding:1.25rem">
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="Admin.Bolsistas.openAdd()">+ Adicionar</button>
+      <input class="form-control" style="width:220px" placeholder="Buscar..." id="search-bolsistas" oninput="Admin.Bolsistas.render()">
+      <select class="form-select" style="width:130px" id="filter-bolsistas-status" onchange="Admin.Bolsistas.render()">
+        <option value="">Todos</option><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option>
+      </select>
+      <div class="toolbar-right">
+        <button class="btn btn-ghost btn-sm" onclick="Admin.Bolsistas.exportXLS()">XLS</button>
+        <button class="btn btn-ghost btn-sm" onclick="Admin.Bolsistas.exportPDF()">PDF</button>
+      </div>
+    </div>
+    <div class="table-wrap"><div id="table-bolsistas"></div></div>
+  </div>
+
+  <div id="subtab-voluntarios" class="tab-content" style="padding:1.25rem">
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="Admin.Voluntarios.openAdd()">+ Adicionar</button>
+      <input class="form-control" style="width:220px" placeholder="Buscar..." id="search-voluntarios" oninput="Admin.Voluntarios.render()">
+      <select class="form-select" style="width:130px" id="filter-voluntarios-status" onchange="Admin.Voluntarios.render()">
+        <option value="">Todos</option><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option>
+      </select>
+      <div class="toolbar-right">
+        <button class="btn btn-ghost btn-sm" onclick="Admin.Voluntarios.exportXLS()">XLS</button>
+        <button class="btn btn-ghost btn-sm" onclick="Admin.Voluntarios.exportPDF()">PDF</button>
+      </div>
+    </div>
+    <div class="table-wrap"><div id="table-voluntarios"></div></div>
+  </div>
+
+  <div id="subtab-cursos" class="tab-content" style="padding:1.25rem">
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="Admin.Cursos.openAdd()">+ Adicionar</button>
+      <input class="form-control" style="width:220px" placeholder="Buscar..." id="search-cursos" oninput="Admin.Cursos.render()">
+      <div class="toolbar-right">
+        <button class="btn btn-ghost btn-sm" onclick="Admin.Cursos.exportXLS()">XLS</button>
+        <button class="btn btn-ghost btn-sm" onclick="Admin.Cursos.exportPDF()">PDF</button>
+      </div>
+    </div>
+    <div class="table-wrap"><div id="table-cursos"></div></div>
+  </div>
+</div>
+
+<!-- ══ TODAS AS AÇÕES ═════════════════════════════════════════ -->
+<div id="tab-todas-acoes" class="tab-content" style="padding:1.25rem">
+  <div class="filters">
+    <select class="form-select" id="fa-mes"><option value="">Mês</option></select>
+    <select class="form-select" id="fa-seg">
+      <option value="">Segmento</option>
+      <option>Ensino</option><option>Pesquisa</option><option>Extensão</option><option>Indissociável</option><option>Conjunto</option>
+    </select>
+    <select class="form-select" id="fa-envio">
+      <option value="">Envio</option><option>Enviados</option><option>Não enviados</option>
+    </select>
+    <select class="form-select" id="fa-valid">
+      <option value="">Validação</option><option>Validados</option><option>Pendentes</option>
+    </select>
+    <button class="btn btn-primary btn-sm" onclick="Admin.TodasAcoes.load()">Filtrar</button>
+    <div style="margin-left:auto;display:flex;gap:.5rem">
+      <button class="btn btn-ghost btn-sm" onclick="Admin.TodasAcoes.exportXLS()">XLS</button>
+      <button class="btn btn-ghost btn-sm" onclick="Admin.TodasAcoes.exportPDF()">PDF</button>
+    </div>
+  </div>
+  <div id="todas-acoes-list"></div>
+</div>
+
+<!-- ══ ASSIDUIDADE ════════════════════════════════════════════ -->
+<div id="tab-assiduidade" class="tab-content" style="padding:1.25rem">
+  <div class="filters">
+    <select class="form-select" id="ass-mes"><option value="">Mês</option></select>
+    <select class="form-select" id="ass-seg">
+      <option value="">Segmento</option>
+      <option>Ensino</option><option>Pesquisa</option><option>Extensão</option><option>Indissociável</option><option>Conjunto</option>
+    </select>
+    <select class="form-select" id="ass-envio">
+      <option value="">Envio</option><option>Enviados</option><option>Não enviados</option>
+    </select>
+    <select class="form-select" id="ass-valid">
+      <option value="">Validação</option><option>Validados</option><option>Pendentes</option>
+    </select>
+    <button class="btn btn-primary btn-sm" onclick="Admin.Assiduidade.load()">Filtrar</button>
+    <div style="margin-left:auto;display:flex;gap:.5rem">
+      <button class="btn btn-ghost btn-sm" onclick="Admin.Assiduidade.exportXLS()">XLS</button>
+      <button class="btn btn-ghost btn-sm" onclick="Admin.Assiduidade.exportPDF()">PDF</button>
+    </div>
+  </div>
+  <div id="assiduidade-list"></div>
+</div>
+
+<!-- ══ CONFIGURAÇÕES ══════════════════════════════════════════ -->
+<div id="tab-configuracoes" class="tab-content" style="padding:1.25rem">
+  <div class="subtabs">
+    <button class="subtab-btn active" data-subtab="notif">Notificações</button>
+  </div>
+  <div id="subtab-notif" class="tab-content active" style="padding:1rem 0">
+
+    <!-- Período -->
+    <div class="card" style="max-width:520px;margin-bottom:1.25rem">
+      <div class="card-header expanded" style="cursor:default">
+        <span class="card-title">Período de Respostas</span>
+        <span id="period-status-badge"></span>
+      </div>
+      <div class="card-body open">
+        <div id="period-info" class="period-alert closed mb-2"></div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">*Dia de início (X)</label>
+            <input class="form-control" type="number" min="1" max="31" id="period-ini" placeholder="Ex: 25">
+          </div>
+          <div class="form-group">
+            <label class="form-label">*Dia de fim (Y)</label>
+            <input class="form-control" type="number" min="1" max="31" id="period-fim" placeholder="Ex: 10">
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="Admin.Configuracoes.savePeriodo()">Salvar Período</button>
+      </div>
+    </div>
+
+    <!-- Lembrete Manual -->
+    <div class="card" style="max-width:640px;margin-bottom:1.25rem">
+      <div class="card-header expanded" style="cursor:default">
+        <span class="card-title">Lembrete Manual</span>
+      </div>
+      <div class="card-body open">
+        <div class="form-row mb-2">
+          <div class="form-group">
+            <label class="form-label">Segmento</label>
+            <select class="form-select" id="lem-seg">
+              <option value="Todos">Todos</option>
+              <option>Ensino</option><option>Pesquisa</option><option>Extensão</option><option>Indissociável</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Destinatários</label>
+            <select class="form-select" id="lem-dest">
+              <option value="Todos">Todos</option>
+              <option value="Enviaram">Já enviaram</option>
+              <option value="Não enviaram">Não enviaram</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mensagem</label>
+          <textarea class="form-control" id="lem-msg" rows="3">Lembramos que o prazo para registro de assiduidade está em aberto. Acesse o SGA e registre as informações da sua equipe.</textarea>
+        </div>
+        <button class="btn btn-primary" onclick="Admin.Configuracoes.sendLembreteManual()">Enviar agora</button>
+      </div>
+    </div>
+
+    <!-- Lembretes Automáticos -->
+    <div class="card" style="max-width:700px">
+      <div class="card-header expanded" style="cursor:default;justify-content:space-between">
+        <span class="card-title">Lembretes Automáticos</span>
+        <button class="btn btn-primary btn-sm" onclick="Admin.Configuracoes.openAddLembrete()">+ Adicionar</button>
+      </div>
+      <div class="card-body open">
+        <div id="lembretes-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LOGS ═══════════════════════════════════════════════════ -->
+<div id="tab-logs" class="tab-content" style="padding:1.25rem">
+  <div class="toolbar">
+    <select class="form-select" style="width:160px" id="log-perfil" onchange="Admin.Logs.render()">
+      <option value="">Perfil</option><option>Admin</option><option>Coordenador</option><option>Bolsista</option><option>Sistema</option>
+    </select>
+    <input class="form-control" style="width:220px" placeholder="Buscar ação..." id="log-search" oninput="Admin.Logs.render()">
+    <button class="btn btn-ghost btn-sm" onclick="Admin.Logs.load()">↻ Atualizar</button>
+  </div>
+  <div class="table-wrap"><div id="table-logs"></div></div>
+</div>
+
+<!-- ══ MODAIS ════════════════════════════════════════════════ -->
+<div id="modal-overlay" class="modal-overlay">
+  <div class="modal" id="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">Formulário</span>
+      <button class="modal-close" onclick="Admin.closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="js/admin.js"></script>
+<script>
+  window.addEventListener('load', () => {
+    if (!requireAuth('admin')) return;
+    const session = loadSession();
+    populateTopbar(session.userInfo, 'Admin');
+    Admin.init();
+  });
+</script>
+</body>
+</html>
