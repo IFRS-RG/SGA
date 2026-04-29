@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push *)",
+      "Bash(gh auth *)",
+      "Bash(npm list *)",
+      "Bash(gcloud version *)",
+      "Bash(git config *)",
+      "Bash(git -C \"C:\\\\Users\\\\user\\\\OneDrive\\\\Área de Trabalho\\\\SGA - Sistema de Gestão de Ações do IFRS Campus Rio Grande\" remote -v)",
+      "PowerShell(winget --version 2>&1)",
+      "Bash(npm install *)",
+      "Bash('/c/Program Files/GitHub CLI/gh.exe' --version)",
+      "Bash('/c/Program Files/GitHub CLI/gh.exe' auth status)",
+      "Bash(git remote *)",
+      "Bash('/c/Users/user/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gcloud.cmd' auth login --brief --no-launch-browser)"
+    ]
+  }
+}
