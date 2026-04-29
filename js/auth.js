@@ -76,7 +76,7 @@ function renderGoogleButton(elementId) {
 
 // ── Logout ────────────────────────────────────────────────────
 function signOut() {
-  google.accounts.id.disableAutoSelect();
+  try { google.accounts.id.disableAutoSelect(); } catch(e) {}
   _credential = null;
   _userInfo   = null;
   _roleInfo   = null;

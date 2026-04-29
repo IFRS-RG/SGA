@@ -18,40 +18,37 @@ async function gasCall(action, extra = {}) {
   return data;
 }
 
-// ── Auth ──────────────────────────────────────────────────────
 const API = {
-  getRole:    () => gasCall('getRole'),
+  getRole: () => gasCall('getRole'),
 
   // Coordenadores
-  getCoordenadores:        ()       => gasCall('getCoordenadores'),
-  addCoordenador:          (payload)       => gasCall('addCoordenador', { payload }),
-  updateCoordenador:       (payload)       => gasCall('updateCoordenador', { payload }),
-  toggleCoordenador:       (id, status)    => gasCall('toggleCoordenador', { id, status }),
-  updatePerfilCoordenador: (payload)       => gasCall('updatePerfilCoordenador', { payload }),
+  getCoordenadores:        ()            => gasCall('getCoordenadores'),
+  addCoordenador:          (payload)     => gasCall('addCoordenador', { payload }),
+  updateCoordenador:       (payload)     => gasCall('updateCoordenador', { payload }),
+  toggleCoordenador:       (id, status)  => gasCall('toggleCoordenador', { id, status }),
+  deleteCoordenador:       (id)          => gasCall('deleteCoordenador', { id }),
+  updatePerfilCoordenador: (payload)     => gasCall('updatePerfilCoordenador', { payload }),
 
   // Editais
-  getEditais:   ()            => gasCall('getEditais'),
-  addEdital:    (payload)     => gasCall('addEdital', { payload }),
-  updateEdital: (id, payload) => gasCall('updateEdital', { id, payload }),
-  toggleEdital: (id, status)  => gasCall('toggleEdital', { id, status }),
-
-  // Editais Bolsas
-  getEditaisBolsas:    ()            => gasCall('getEditaisBolsas'),
-  addEditalBolsas:     (payload)     => gasCall('addEditalBolsas', { payload }),
-  updateEditalBolsas:  (id, payload) => gasCall('updateEditalBolsas', { id, payload }),
-  toggleEditalBolsas:  (id, status)  => gasCall('toggleEditalBolsas', { id, status }),
+  getEditais:    ()            => gasCall('getEditais'),
+  addEdital:     (payload)     => gasCall('addEdital', { payload }),
+  updateEdital:  (id, payload) => gasCall('updateEdital', { id, payload }),
+  toggleEdital:  (id, status)  => gasCall('toggleEdital', { id, status }),
+  deleteEdital:  (id)          => gasCall('deleteEdital', { id }),
 
   // Ações
   getAcoes:    ()            => gasCall('getAcoes'),
   addAcao:     (payload)     => gasCall('addAcao', { payload }),
   updateAcao:  (id, payload) => gasCall('updateAcao', { id, payload }),
   toggleAcao:  (id, status)  => gasCall('toggleAcao', { id, status }),
+  deleteAcao:  (id)          => gasCall('deleteAcao', { id }),
 
   // Bolsistas
   getBolsistas:          ()            => gasCall('getBolsistas'),
   addBolsista:           (payload)     => gasCall('addBolsista', { payload }),
   updateBolsista:        (id, payload) => gasCall('updateBolsista', { id, payload }),
   toggleBolsista:        (id, status)  => gasCall('toggleBolsista', { id, status }),
+  deleteBolsista:        (id)          => gasCall('deleteBolsista', { id }),
   updatePerfilBolsista:  (payload)     => gasCall('updatePerfilBolsista', { payload }),
 
   // Voluntários
@@ -59,6 +56,7 @@ const API = {
   addVoluntario:           (payload)     => gasCall('addVoluntario', { payload }),
   updateVoluntario:        (id, payload) => gasCall('updateVoluntario', { id, payload }),
   toggleVoluntario:        (id, status)  => gasCall('toggleVoluntario', { id, status }),
+  deleteVoluntario:        (id)          => gasCall('deleteVoluntario', { id }),
   updatePerfilVoluntario:  (payload)     => gasCall('updatePerfilVoluntario', { payload }),
 
   // Cursos
@@ -66,11 +64,12 @@ const API = {
   addCurso:     (payload)     => gasCall('addCurso', { payload }),
   updateCurso:  (id, payload) => gasCall('updateCurso', { id, payload }),
   toggleCurso:  (id, status)  => gasCall('toggleCurso', { id, status }),
+  deleteCurso:  (id)          => gasCall('deleteCurso', { id }),
 
   // Assiduidade
-  enviarAssiduidade:  (payload)         => gasCall('enviarAssiduidade', { payload }),
-  getAssiduidades:    (filters)         => gasCall('getAssiduidades', { filters }),
-  validarAssiduidade: (id)              => gasCall('validarAssiduidade', { id }),
+  enviarAssiduidade:  (payload) => gasCall('enviarAssiduidade', { payload }),
+  getAssiduidades:    (filters) => gasCall('getAssiduidades', { filters }),
+  validarAssiduidade: (id)      => gasCall('validarAssiduidade', { id }),
 
   // Período
   getPeriodo:  ()        => gasCall('getPeriodo'),

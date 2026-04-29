@@ -33,13 +33,13 @@
   <div class="subtabs">
     <button class="subtab-btn active" data-subtab="coord">Coordenadores</button>
     <button class="subtab-btn" data-subtab="editais">Editais</button>
-    <button class="subtab-btn" data-subtab="editais-bolsas">Editais de Bolsas</button>
     <button class="subtab-btn" data-subtab="acoes">Ações</button>
     <button class="subtab-btn" data-subtab="bolsistas">Bolsistas</button>
     <button class="subtab-btn" data-subtab="voluntarios">Voluntários</button>
     <button class="subtab-btn" data-subtab="cursos">Cursos</button>
   </div>
 
+  <!-- Coordenadores -->
   <div id="subtab-coord" class="tab-content active" style="padding:1.25rem">
     <div class="toolbar">
       <button class="btn btn-primary" onclick="Admin.Coord.openAdd()">+ Adicionar</button>
@@ -55,6 +55,7 @@
     <div class="table-wrap"><div id="table-coord"></div></div>
   </div>
 
+  <!-- Editais -->
   <div id="subtab-editais" class="tab-content" style="padding:1.25rem">
     <div class="toolbar">
       <button class="btn btn-primary" onclick="Admin.Editais.openAdd()">+ Adicionar</button>
@@ -74,32 +75,21 @@
     <div class="table-wrap"><div id="table-editais"></div></div>
   </div>
 
-  <div id="subtab-editais-bolsas" class="tab-content" style="padding:1.25rem">
-    <div class="toolbar">
-      <button class="btn btn-primary" onclick="Admin.EditaisBolsas.openAdd()">+ Adicionar</button>
-      <input class="form-control" style="width:220px" placeholder="Buscar..." id="search-eb" oninput="Admin.EditaisBolsas.render()">
-      <select class="form-select" style="width:130px" id="filter-eb-status" onchange="Admin.EditaisBolsas.render()">
-        <option value="">Todos</option><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option>
-      </select>
-      <div class="toolbar-right">
-        <button class="btn btn-ghost btn-sm" onclick="Admin.EditaisBolsas.exportXLS()">XLS</button>
-        <button class="btn btn-ghost btn-sm" onclick="Admin.EditaisBolsas.exportPDF()">PDF</button>
-      </div>
-    </div>
-    <div class="table-wrap"><div id="table-eb"></div></div>
-  </div>
-
+  <!-- Ações -->
   <div id="subtab-acoes" class="tab-content" style="padding:1.25rem">
-    <div class="toolbar">
+    <div class="toolbar" style="flex-wrap:wrap;gap:.5rem">
       <button class="btn btn-primary" onclick="Admin.Acoes.openAdd()">+ Adicionar</button>
-      <input class="form-control" style="width:220px" placeholder="Buscar..." id="search-acoes" oninput="Admin.Acoes.render()">
-      <select class="form-select" style="width:130px" id="filter-acoes-status" onchange="Admin.Acoes.render()">
-        <option value="">Todos</option><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option>
+      <input class="form-control" style="width:200px" placeholder="Buscar..." id="search-acoes">
+      <select class="form-select" style="width:130px" id="filter-acoes-status">
+        <option value="">Status</option><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option>
       </select>
-      <select class="form-select" style="width:140px" id="filter-acoes-seg" onchange="Admin.Acoes.render()">
+      <select class="form-select" style="width:140px" id="filter-acoes-seg">
         <option value="">Segmento</option>
         <option>Ensino</option><option>Pesquisa</option><option>Extensão</option><option>Indissociável</option><option>Conjunto</option>
       </select>
+      <select class="form-select" style="width:180px" id="filter-acoes-coord"><option value="">Coordenador</option></select>
+      <select class="form-select" style="width:200px" id="filter-acoes-edital"><option value="">Edital</option></select>
+      <button class="btn btn-primary btn-sm" onclick="Admin.Acoes.render()">Filtrar</button>
       <div class="toolbar-right">
         <button class="btn btn-ghost btn-sm" onclick="Admin.Acoes.exportXLS()">XLS</button>
         <button class="btn btn-ghost btn-sm" onclick="Admin.Acoes.exportPDF()">PDF</button>
@@ -108,13 +98,16 @@
     <div class="table-wrap"><div id="table-acoes"></div></div>
   </div>
 
+  <!-- Bolsistas -->
   <div id="subtab-bolsistas" class="tab-content" style="padding:1.25rem">
-    <div class="toolbar">
+    <div class="toolbar" style="flex-wrap:wrap;gap:.5rem">
       <button class="btn btn-primary" onclick="Admin.Bolsistas.openAdd()">+ Adicionar</button>
-      <input class="form-control" style="width:220px" placeholder="Buscar..." id="search-bolsistas" oninput="Admin.Bolsistas.render()">
-      <select class="form-select" style="width:130px" id="filter-bolsistas-status" onchange="Admin.Bolsistas.render()">
-        <option value="">Todos</option><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option>
+      <input class="form-control" style="width:200px" placeholder="Buscar..." id="search-bolsistas">
+      <select class="form-select" style="width:130px" id="filter-bolsistas-status">
+        <option value="">Status</option><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option>
       </select>
+      <select class="form-select" style="width:200px" id="filter-bolsistas-acao"><option value="">Ação</option></select>
+      <button class="btn btn-primary btn-sm" onclick="Admin.Bolsistas.render()">Filtrar</button>
       <div class="toolbar-right">
         <button class="btn btn-ghost btn-sm" onclick="Admin.Bolsistas.exportXLS()">XLS</button>
         <button class="btn btn-ghost btn-sm" onclick="Admin.Bolsistas.exportPDF()">PDF</button>
@@ -123,13 +116,16 @@
     <div class="table-wrap"><div id="table-bolsistas"></div></div>
   </div>
 
+  <!-- Voluntários -->
   <div id="subtab-voluntarios" class="tab-content" style="padding:1.25rem">
-    <div class="toolbar">
+    <div class="toolbar" style="flex-wrap:wrap;gap:.5rem">
       <button class="btn btn-primary" onclick="Admin.Voluntarios.openAdd()">+ Adicionar</button>
-      <input class="form-control" style="width:220px" placeholder="Buscar..." id="search-voluntarios" oninput="Admin.Voluntarios.render()">
-      <select class="form-select" style="width:130px" id="filter-voluntarios-status" onchange="Admin.Voluntarios.render()">
-        <option value="">Todos</option><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option>
+      <input class="form-control" style="width:200px" placeholder="Buscar..." id="search-voluntarios">
+      <select class="form-select" style="width:130px" id="filter-voluntarios-status">
+        <option value="">Status</option><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option>
       </select>
+      <select class="form-select" style="width:200px" id="filter-voluntarios-acao"><option value="">Ação</option></select>
+      <button class="btn btn-primary btn-sm" onclick="Admin.Voluntarios.render()">Filtrar</button>
       <div class="toolbar-right">
         <button class="btn btn-ghost btn-sm" onclick="Admin.Voluntarios.exportXLS()">XLS</button>
         <button class="btn btn-ghost btn-sm" onclick="Admin.Voluntarios.exportPDF()">PDF</button>
@@ -138,10 +134,19 @@
     <div class="table-wrap"><div id="table-voluntarios"></div></div>
   </div>
 
+  <!-- Cursos -->
   <div id="subtab-cursos" class="tab-content" style="padding:1.25rem">
-    <div class="toolbar">
+    <div class="toolbar" style="flex-wrap:wrap;gap:.5rem">
       <button class="btn btn-primary" onclick="Admin.Cursos.openAdd()">+ Adicionar</button>
-      <input class="form-control" style="width:220px" placeholder="Buscar..." id="search-cursos" oninput="Admin.Cursos.render()">
+      <input class="form-control" style="width:200px" placeholder="Buscar..." id="search-cursos">
+      <select class="form-select" style="width:160px" id="filter-cursos-mod">
+        <option value="">Modalidade</option>
+        <option>Integrado</option><option>Subsequente</option><option>Superior</option><option>Especialização</option><option>Licenciatura</option>
+      </select>
+      <select class="form-select" style="width:130px" id="filter-cursos-status">
+        <option value="">Status</option><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option>
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="Admin.Cursos.render()">Filtrar</button>
       <div class="toolbar-right">
         <button class="btn btn-ghost btn-sm" onclick="Admin.Cursos.exportXLS()">XLS</button>
         <button class="btn btn-ghost btn-sm" onclick="Admin.Cursos.exportPDF()">PDF</button>
@@ -154,16 +159,13 @@
 <!-- ══ TODAS AS AÇÕES ═════════════════════════════════════════ -->
 <div id="tab-todas-acoes" class="tab-content" style="padding:1.25rem">
   <div class="filters">
-    <select class="form-select" id="fa-mes"><option value="">Mês</option></select>
     <select class="form-select" id="fa-seg">
       <option value="">Segmento</option>
       <option>Ensino</option><option>Pesquisa</option><option>Extensão</option><option>Indissociável</option><option>Conjunto</option>
     </select>
-    <select class="form-select" id="fa-envio">
-      <option value="">Envio</option><option>Enviados</option><option>Não enviados</option>
-    </select>
-    <select class="form-select" id="fa-valid">
-      <option value="">Validação</option><option>Validados</option><option>Pendentes</option>
+    <select class="form-select" style="width:180px" id="fa-coord"><option value="">Coordenador</option></select>
+    <select class="form-select" id="fa-status">
+      <option value="">Status</option><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option>
     </select>
     <button class="btn btn-primary btn-sm" onclick="Admin.TodasAcoes.load()">Filtrar</button>
     <div style="margin-left:auto;display:flex;gap:.5rem">
