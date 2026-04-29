@@ -28,10 +28,10 @@ const COL = {
   Bolsistas:     { ID:0, Nome:1, Email:2, AcaoID:3, CargaHoraria:4, EditalID:5, CPF:6, Telefone:7, Curso:8, Status:9, DriveFolder:10,
                    DataNascimento:11, Endereco:12, EmailPessoal:13, Banco:14, Agencia:15, Conta:16, TipoConta:17,
                    Matricula:18, AnoSemestreIngresso:19, SemestreAtual:20, DataInicio:21, CursoID:22 },
-  // Voluntarios: cols 0-8 admin; cols 9-19 preenchidos pelo voluntário
-  Voluntarios:   { ID:0, Nome:1, Email:2, AcaoID:3, CursoID:4, CPF:5, Telefone:6, Status:7, DriveFolder:8,
-                   DataNascimento:9, Endereco:10, EmailPessoal:11, Banco:12, Agencia:13, Conta:14, TipoConta:15,
-                   Matricula:16, AnoSemestreIngresso:17, SemestreAtual:18, DataInicio:19 },
+  // Voluntarios: cols 0-9 admin; cols 10-20 preenchidos pelo voluntário
+  Voluntarios:   { ID:0, Nome:1, Email:2, AcaoID:3, CargaHoraria:4, CursoID:5, CPF:6, Telefone:7, Status:8, DriveFolder:9,
+                   DataNascimento:10, Endereco:11, EmailPessoal:12, Banco:13, Agencia:14, Conta:15, TipoConta:16,
+                   Matricula:17, AnoSemestreIngresso:18, SemestreAtual:19, DataInicio:20 },
   Cursos:        { ID:0, Nome:1, Modalidade:2, Status:3 },
   Assiduidades:  { ID:0, AcaoID:1, CoordenadorEmail:2, MesAno:3, Snapshot:4, Timestamp:5, ForaPrazo:6, Validado:7, ValidadoPor:8, TimestampValidacao:9 },
   Periodo:       { DiaInicio:0, DiaFim:1 },
@@ -483,7 +483,7 @@ function addVoluntario(p, email) {
       driveId = criarPastasParticipante(acao.DriveFolder, p.nome);
     }
   } catch (e) {}
-  sh.appendRow([id, p.nome, p.email, p.acaoId, p.cursoId || '', '', '', 'Ativo', driveId]);
+  sh.appendRow([id, p.nome, p.email, p.acaoId, p.cargaHoraria || '', '', '', '', 'Ativo', driveId]);
   audit('Admin', email.split('@')[0], email, 'Adicionar Voluntário', p.nome);
   return { ok: true, id };
 }
@@ -492,9 +492,9 @@ function updateVoluntario(id, p, email) {
   const sh  = getSheet('Voluntarios');
   const idx = findRowIndex('Voluntarios', id);
   if (idx < 0) return { error: 'Não encontrado' };
-  const row = sh.getRange(idx, 1, 1, 9).getValues()[0];
-  sh.getRange(idx, 1, 1, 9).setValues([[
-    id, p.nome, p.email, p.acaoId, p.cursoId || row[4], row[5], row[6], p.status || row[7], row[8]
+  const row = sh.getRange(idx, 1, 1, 10).getValues()[0];
+  sh.getRange(idx, 1, 1, 10).setValues([[
+    id, p.nome, p.email, p.acaoId, p.cargaHoraria || row[4], row[5], row[6], row[7], p.status || row[8], row[9]
   ]]);
   audit('Admin', email.split('@')[0], email, 'Editar Voluntário', p.nome);
   return { ok: true };
@@ -825,7 +825,7 @@ function initSheets() {
     Bolsistas:     ['ID','Nome','Email','AcaoID','CargaHoraria','EditalID','CPF','Telefone','Curso','Status','DriveFolder',
                     'DataNascimento','Endereco','EmailPessoal','Banco','Agencia','Conta','TipoConta',
                     'Matricula','AnoSemestreIngresso','SemestreAtual','DataInicio','CursoID'],
-    Voluntarios:   ['ID','Nome','Email','AcaoID','CursoID','CPF','Telefone','Status','DriveFolder',
+    Voluntarios:   ['ID','Nome','Email','AcaoID','CargaHoraria','CursoID','CPF','Telefone','Status','DriveFolder',
                     'DataNascimento','Endereco','EmailPessoal','Banco','Agencia','Conta','TipoConta',
                     'Matricula','AnoSemestreIngresso','SemestreAtual','DataInicio'],
     Cursos:        ['ID','Nome','Modalidade','Status'],

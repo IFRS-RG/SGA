@@ -544,12 +544,12 @@ const Admin = (() => {
       const el   = document.getElementById('table-voluntarios');
       if (!rows.length) { showEmpty('table-voluntarios'); return; }
       el.innerHTML = `<table><thead><tr>
-        <th>Nome</th><th>E-mail</th><th>Ação</th><th>Curso</th><th>Status</th><th>Ações</th>
+        <th>Nome</th><th>E-mail</th><th>Ação</th><th>Carga Horária</th><th>Status</th><th>Ações</th>
       </tr></thead>
       <tbody>${rows.map(r=>`<tr>
         <td>${esc(r.Nome)}</td><td>${esc(r.Email)}</td>
         <td>${esc(r.acaoTitulo||r.AcaoID)}</td>
-        <td>${esc(r.cursoLabel||r.CursoID)}</td><td>${statusBadge(r.Status)}</td>
+        <td>${esc(r.CargaHoraria||'—')}</td><td>${statusBadge(r.Status)}</td>
         <td class="td-actions">
           <button class="btn btn-ghost btn-xs" onclick="Admin.Voluntarios.verPerfil('${r.ID}')">Ver perfil</button>
           <button class="btn btn-ghost btn-xs" onclick="Admin.Voluntarios.openEdit('${r.ID}')">Editar</button>
@@ -561,11 +561,12 @@ const Admin = (() => {
     openAdd(){openModal('Adicionar Voluntário',this._form(),async()=>{await this._save();});},
     openEdit(id){const r=state.voluntarios.find(x=>x.ID===id);openModal('Editar Voluntário',this._form(r),async()=>{await this._save(id);});},
     async _save(id) {
+      const ch = document.getElementById('f-ch')?.value;
       const p = {
-        nome:    document.getElementById('f-nome')?.value,
-        email:   document.getElementById('f-email')?.value,
-        acaoId:  document.getElementById('f-acao')?.value,
-        cursoId: document.getElementById('f-curso')?.value || ''
+        nome:         document.getElementById('f-nome')?.value,
+        email:        document.getElementById('f-email')?.value,
+        acaoId:       document.getElementById('f-acao')?.value,
+        cargaHoraria: ch === 'Outra' ? document.getElementById('f-ch-other')?.value : ch
       };
       if (!validateForm([{el:document.getElementById('f-nome')},{el:document.getElementById('f-email')}])) return;
       setBusy(true);
@@ -607,14 +608,17 @@ const Admin = (() => {
     },
     _form(r) {
       const acOpts = state.acoes.filter(a=>a.Status==='Ativo').map(a=>`<option value="${a.ID}" ${r?.AcaoID===a.ID?'selected':''}>${esc(a.Titulo)}</option>`).join('');
-      const cursosOpts = state.cursos.filter(c=>c.Status==='Ativo').map(c=>`<option value="${c.ID}" ${r?.CursoID===c.ID?'selected':''}>${esc(c.Nome)} — ${esc(c.Modalidade)}</option>`).join('');
+      const chs = ['4h','8h','12h','16h','20h','Outra'].map(h=>`<option ${r?.CargaHoraria===h?'selected':''}>${h}</option>`).join('');
       return `<div class="form-group"><label class="form-label">*Nome completo</label><input class="form-control" id="f-nome" value="${esc(r?.Nome||'')}"></div>
       <div class="form-group"><label class="form-label">*E-mail institucional</label><input class="form-control" id="f-email" type="email" value="${esc(r?.Email||'')}"></div>
       <div class="form-group"><label class="form-label">*Ação</label><select class="form-select" id="f-acao">${acOpts}</select></div>
-      <div class="form-group"><label class="form-label">Curso</label><select class="form-select" id="f-curso"><option value="">Sem curso</option>${cursosOpts}</select></div>
-      <div class="text-muted text-small" style="margin-top:.25rem">CPF, Telefone e demais dados são preenchidos pelo próprio voluntário.</div>`;
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">*Carga Horária</label>
+          <select class="form-select" id="f-ch" onchange="document.getElementById('f-ch-other').style.display=this.value==='Outra'?'block':'none'">${chs}</select>
+          <input class="form-control mt-1" id="f-ch-other" placeholder="Especifique" style="display:${r?.CargaHoraria==='Outra'?'block':'none'}"></div>
+      </div>`;
     },
-    exportXLS(){exportXLS(['Nome','E-mail','Ação','Curso','Status'],this.filtered().map(r=>[r.Nome,r.Email,r.acaoTitulo,r.cursoLabel,r.Status]),'Voluntarios');},
+    exportXLS(){exportXLS(['Nome','E-mail','Ação','Carga Horária','Status'],this.filtered().map(r=>[r.Nome,r.Email,r.acaoTitulo,r.CargaHoraria||'',r.Status]),'Voluntarios');},
     exportPDF(){exportPDF('Voluntários',['Nome','E-mail','Ação','Status'],this.filtered().map(r=>[r.Nome,r.Email,r.acaoTitulo,r.Status]));}
   };
 

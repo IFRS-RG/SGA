@@ -9,6 +9,8 @@ const Bolsista = (() => {
   let _mesVols      = [];
   let _cursos       = [];
   let _profileComplete = false;
+  let _editMode     = true;
+  let _viewMasked   = true;
 
   const TIPOS_CONTA = ['Corrente','Poupança','Salário'];
 
@@ -52,7 +54,7 @@ const Bolsista = (() => {
     const base = me.DataNascimento && me.CPF && me.Endereco && me.Telefone &&
                  me.EmailPessoal && me.Matricula && me.DataInicio;
     if (!base) return false;
-    const cursoOk = tipo === 'bolsista' ? !!me.CursoID : !!(me.CursoID);
+    const cursoOk = !!(me.CursoID);
     if (tipo === 'bolsista') {
       return !!(base && cursoOk && me.Banco && me.Agencia && me.Conta && me.TipoConta);
     }
@@ -78,6 +80,7 @@ const Bolsista = (() => {
       const firstRec     = _mesBolsistas[0] || _mesVols[0] || {};
 
       _profileComplete = isComplete(firstRec, tipo);
+      _editMode        = !_profileComplete;
       setTabsEnabled(_profileComplete);
 
       renderPerfilForm(user, firstRec, tipo);
@@ -91,14 +94,13 @@ const Bolsista = (() => {
     const role       = _session?.roleInfo || {};
     const isBolsista = tipo === 'bolsista';
 
-    const hasBolsista  = _mesBolsistas.length > 0;
+    const hasBolsista   = _mesBolsistas.length > 0;
     const hasVoluntario = _mesVols.length > 0;
     const roleLabel = hasBolsista && hasVoluntario ? 'Bolsista · Voluntário'
       : hasBolsista ? 'Bolsista' : 'Voluntário';
 
     const photoHtml = user.picture ? `<img src="${esc(user.picture)}" class="profile-avatar" alt="Foto">` : '';
 
-    // Participations
     const participacoes = [
       ..._mesBolsistas.map(b => `
         <div class="participant-row">
@@ -113,14 +115,91 @@ const Bolsista = (() => {
         </div>`)
     ].join('') || '<div class="text-muted text-small">Nenhuma participação ativa.</div>';
 
-    // Course dropdown
-    const cursoId  = me.CursoID || '';
+    const headerHtml = `
+      <div style="text-align:center;margin-bottom:1.25rem">
+        ${photoHtml}
+        <div class="profile-name">${esc(role.nome || user.name || user.email)}</div>
+        <div class="profile-email">${esc(user.email)}</div>
+        <div class="profile-role">${roleLabel}</div>
+      </div>
+      <div style="margin-bottom:1.25rem">
+        <div class="section-subtitle">Minhas participações</div>
+        ${participacoes}
+      </div>`;
+
+    if (_editMode) {
+      container.innerHTML = _renderEditMode(user, me, tipo, isBolsista, headerHtml);
+      setTimeout(() => {
+        bindMask(document.getElementById('p-cpf'), maskCPF);
+        bindMask(document.getElementById('p-tel'), maskTelefone);
+      }, 0);
+    } else {
+      container.innerHTML = _renderViewMode(user, me, isBolsista, headerHtml);
+    }
+  }
+
+  function _renderViewMode(user, me, isBolsista, headerHtml) {
+    const maskIcon  = _viewMasked ? '👁' : '🙈';
+    const maskTitle = _viewMasked ? 'Exibir dados sensíveis' : 'Ocultar dados sensíveis';
+    const cpf     = _viewMasked ? (me.CPF     ? '***.***.***-**'    : '—') : (me.CPF     || '—');
+    const tel     = _viewMasked ? (me.Telefone? '(**) * ****-****'  : '—') : (me.Telefone|| '—');
+    const agencia = _viewMasked ? (me.Agencia ? '****'              : '—') : (me.Agencia || '—');
+    const conta   = _viewMasked ? (me.Conta   ? '****-*'            : '—') : (me.Conta   || '—');
+
+    const curso = _cursos.find(c => c.ID === me.CursoID);
+    const cursoLabel = me.Curso || (curso ? `${curso.Nome} — ${curso.Modalidade}` : me.CursoID || '—');
+
+    function row(label, val) {
+      return `<div class="profile-data-row"><span class="text-muted text-small">${label}</span><span>${esc(String(val || '—'))}</span></div>`;
+    }
+
+    const bancario = (isBolsista || me.Banco) ? `
+      <div class="form-section-title" style="margin-top:1.25rem">
+        Dados Bancários${!isBolsista ? ' <span class="text-muted text-small">(opcional)</span>' : ''}
+      </div>
+      ${row('Banco', me.Banco)}
+      ${row('Tipo de Conta', me.TipoConta)}
+      ${row('Agência', agencia)}
+      ${row('Conta', conta)}` : '';
+
+    return `
+      <div class="profile-card" style="max-width:560px;text-align:left">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:.5rem;gap:.5rem">
+          <button type="button" class="btn btn-ghost btn-sm" title="${maskTitle}" onclick="Bolsista.toggleMaskPerfil()">${maskIcon}</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="Bolsista.editPerfil()">Editar dados complementares</button>
+        </div>
+        ${headerHtml}
+
+        <div class="form-section-title">Dados Pessoais</div>
+        ${row('Data de Nascimento', me.DataNascimento)}
+        ${row('CPF', cpf)}
+        ${row('Endereço', me.Endereco)}
+        ${row('Telefone', tel)}
+        ${row('E-mail Pessoal', me.EmailPessoal)}
+        ${row('E-mail Institucional', user.email)}
+
+        ${bancario}
+
+        <div class="form-section-title" style="margin-top:1.25rem">Dados Acadêmicos</div>
+        ${row('Curso / Modalidade', cursoLabel)}
+        ${row('Matrícula', me.Matricula)}
+        ${row('Ano/Semestre de Ingresso', me.AnoSemestreIngresso)}
+        ${row('Semestre/Ano Atual', me.SemestreAtual)}
+
+        <div class="form-section-title" style="margin-top:1.25rem">Dados da Atividade</div>
+        ${row('Início das Atividades', me.DataInicio)}
+
+        ${_buildDocumentos()}
+      </div>`;
+  }
+
+  function _renderEditMode(user, me, tipo, isBolsista, headerHtml) {
+    const cursoId   = me.CursoID || '';
     const cursoOpts = _cursos.map(c => {
       const sel = c.ID === cursoId;
       return `<option value="${esc(c.ID)}" ${sel ? 'selected' : ''}>${esc(c.Nome)} — ${esc(c.Modalidade)}</option>`;
     }).join('');
 
-    // Tipo de conta options
     const tipoContaOpts = TIPOS_CONTA.map(t =>
       `<option ${me.TipoConta === t ? 'selected' : ''}>${t}</option>`
     ).join('');
@@ -131,25 +210,16 @@ const Bolsista = (() => {
          </div>`
       : '';
 
-    container.innerHTML = `
-      <div class="profile-card" style="max-width:560px;text-align:left">
-        <div style="text-align:center;margin-bottom:1.25rem">
-          ${photoHtml}
-          <div class="profile-name">${esc(role.nome || user.name || user.email)}</div>
-          <div class="profile-email">${esc(user.email)}</div>
-          <div class="profile-role">${roleLabel}</div>
-        </div>
+    const cancelBtn = _profileComplete
+      ? `<button type="button" class="btn btn-ghost" style="margin-left:.5rem" onclick="Bolsista.cancelEditPerfil()">Cancelar</button>`
+      : '';
 
+    return `
+      <div class="profile-card" style="max-width:560px;text-align:left">
+        ${headerHtml}
         ${incompleteMsg}
 
-        <div style="margin-bottom:1.25rem">
-          <div class="section-subtitle">Minhas participações</div>
-          ${participacoes}
-        </div>
-
         <form id="perfil-form">
-
-          <!-- Dados Pessoais -->
           <div class="form-section-title">Dados Pessoais</div>
           <div class="form-row">
             <div class="form-group">
@@ -180,7 +250,6 @@ const Bolsista = (() => {
             <input class="form-control" value="${esc(user.email)}" disabled style="opacity:.6">
           </div>
 
-          <!-- Dados Bancários -->
           <div class="form-section-title" style="margin-top:1.25rem">
             Dados Bancários${!isBolsista ? ' <span class="text-muted text-small">(opcional para voluntários)</span>' : ''}
           </div>
@@ -207,7 +276,6 @@ const Bolsista = (() => {
             </div>
           </div>
 
-          <!-- Dados Acadêmicos -->
           <div class="form-section-title" style="margin-top:1.25rem">Dados Acadêmicos</div>
           <div class="form-group">
             <label class="form-label">*Curso / Modalidade</label>
@@ -230,7 +298,6 @@ const Bolsista = (() => {
             <input class="form-control" id="p-semestre-atual" value="${esc(me.SemestreAtual||'')}" placeholder="Ex: 4º semestre / 2026">
           </div>
 
-          <!-- Dados da Atividade -->
           <div class="form-section-title" style="margin-top:1.25rem">Dados da Atividade</div>
           <div class="form-group">
             <label class="form-label">*Data de Início das Atividades</label>
@@ -239,25 +306,49 @@ const Bolsista = (() => {
 
           <div style="margin-top:1.5rem">
             <button type="button" class="btn btn-primary" onclick="Bolsista.savePerfil()">Salvar dados complementares</button>
+            ${cancelBtn}
           </div>
         </form>
 
-        <!-- Documentos -->
-        <div style="margin-top:2rem">
-          <div class="form-section-title">Documentos (PDF)</div>
-          <div class="text-muted text-small" style="margin-bottom:.75rem">Tamanho máximo por arquivo: 8 MB</div>
-          ${_buildUploadRow('doc-cpf',       'Cópia do CPF',                   'CPF.pdf')}
-          ${_buildUploadRow('doc-matricula', 'Comprovante de Matrícula',        'Comprovante_Matricula.pdf')}
-          ${_buildUploadRow('doc-residencia','Comprovante de Residência',        'Comprovante_Residencia.pdf')}
-          ${_buildUploadRow('doc-auxilio',   'Comprovante de Beneficiário de Auxílio (se aplicável)', 'Comprovante_Auxilio.pdf', true)}
-        </div>
+        ${_buildDocumentos()}
       </div>`;
+  }
 
-    // Apply masks
-    setTimeout(() => {
-      bindMask(document.getElementById('p-cpf'), maskCPF);
-      bindMask(document.getElementById('p-tel'), maskTelefone);
-    }, 0);
+  function _buildDocumentos() {
+    return `
+      <div style="margin-top:2rem">
+        <div class="form-section-title">Documentos (PDF)</div>
+        <div class="text-muted text-small" style="margin-bottom:.75rem">Tamanho máximo por arquivo: 8 MB</div>
+        ${_buildUploadRow('doc-cpf',       'Cópia do CPF',                   'CPF.pdf')}
+        ${_buildUploadRow('doc-matricula', 'Comprovante de Matrícula',        'Comprovante_Matricula.pdf')}
+        ${_buildUploadRow('doc-residencia','Comprovante de Residência',        'Comprovante_Residencia.pdf')}
+        ${_buildUploadRow('doc-auxilio',   'Comprovante de Beneficiário de Auxílio (se aplicável)', 'Comprovante_Auxilio.pdf', true)}
+      </div>`;
+  }
+
+  function editPerfil() {
+    _editMode = true;
+    const user = _session?.userInfo || {};
+    const isBolsista = _mesBolsistas.length > 0;
+    const tipo = isBolsista ? 'bolsista' : 'voluntario';
+    renderPerfilForm(user, _mesBolsistas[0] || _mesVols[0] || {}, tipo);
+  }
+
+  function cancelEditPerfil() {
+    if (!_profileComplete) return;
+    _editMode = false;
+    const user = _session?.userInfo || {};
+    const isBolsista = _mesBolsistas.length > 0;
+    const tipo = isBolsista ? 'bolsista' : 'voluntario';
+    renderPerfilForm(user, _mesBolsistas[0] || _mesVols[0] || {}, tipo);
+  }
+
+  function toggleMaskPerfil() {
+    _viewMasked = !_viewMasked;
+    const user = _session?.userInfo || {};
+    const isBolsista = _mesBolsistas.length > 0;
+    const tipo = isBolsista ? 'bolsista' : 'voluntario';
+    renderPerfilForm(user, _mesBolsistas[0] || _mesVols[0] || {}, tipo);
   }
 
   function _buildUploadRow(inputId, label, fileName, optional = false) {
@@ -276,9 +367,7 @@ const Bolsista = (() => {
   async function savePerfil() {
     const user = _session?.userInfo || {};
     const isBolsista = _mesBolsistas.length > 0;
-    const tipo = isBolsista ? 'bolsista' : 'voluntario';
 
-    // Gather values
     const cpf          = document.getElementById('p-cpf')?.value?.trim() || '';
     const tel          = document.getElementById('p-tel')?.value?.trim() || '';
     const nascimento   = document.getElementById('p-nascimento')?.value || '';
@@ -294,7 +383,6 @@ const Bolsista = (() => {
     const conta        = document.getElementById('p-conta')?.value?.trim() || '';
     const tipoConta    = document.getElementById('p-tipo-conta')?.value || '';
 
-    // Validations
     if (!nascimento) { toast('Informe a data de nascimento.', 'warning'); return; }
     if (!cpf)        { toast('Informe o CPF.', 'warning'); return; }
     if (!validateCPF(cpf)) { toast('CPF inválido.', 'error'); document.getElementById('p-cpf')?.classList.add('error'); return; }
@@ -313,14 +401,13 @@ const Bolsista = (() => {
       toast('Preencha todos os Dados Bancários (obrigatório para bolsistas).', 'warning'); return;
     }
 
-    // Curso label for bolsista text field
     const curso = _cursos.find(c => c.ID === cursoId);
     const cursoLabel = curso ? `${curso.Nome} — ${curso.Modalidade}` : '';
 
     const payload = {
       cpf, telefone: tel, dataNascimento: nascimento, endereco, emailPessoal,
       cursoId, curso: cursoLabel, matricula,
-      anoSemestreIngresso: ingresso, semestreAtual, dataInicio: dataInicio,
+      anoSemestreIngresso: ingresso, semestreAtual, dataInicio,
       banco, agencia, conta, tipoConta
     };
 
@@ -417,6 +504,6 @@ const Bolsista = (() => {
   }
 
   // ── Public ────────────────────────────────────────────────
-  return { init, savePerfil, uploadDoc };
+  return { init, savePerfil, uploadDoc, editPerfil, cancelEditPerfil, toggleMaskPerfil };
 
 })();
