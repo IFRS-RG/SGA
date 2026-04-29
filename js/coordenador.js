@@ -4,12 +4,14 @@
 
 const Coord = (() => {
 
-  let _session   = null;
-  let _acoes     = [];
-  let _bolsistas = [];
+  let _session     = null;
+  let _acoes       = [];
+  let _bolsistas   = [];
   let _voluntarios = [];
-  let _enviados  = [];
-  let _periodo   = null;
+  let _enviados    = [];
+  let _periodo     = null;
+  let _meCoord     = null;
+  let _perfilMasked = true;
 
   function init(session) {
     _session = session;
@@ -37,12 +39,10 @@ const Coord = (() => {
     const sel  = document.getElementById('ass-mes-ref');
     const opts = buildMesAnoOptions({ year: 2026, month: 1 }, { year: 2028, month: 3 });
     const now  = new Date();
-    // Default: previous month (you report last month's activity)
     const prev = now.getMonth() === 0
       ? { year: now.getFullYear() - 1, month: 12 }
       : { year: now.getFullYear(), month: now.getMonth() };
     const prevVal = `${prev.year}-${String(prev.month).padStart(2,'0')}`;
-
     opts.forEach(o => {
       const opt = document.createElement('option');
       opt.value = o.value; opt.textContent = o.label;
@@ -56,43 +56,118 @@ const Coord = (() => {
     const container = document.getElementById('perfil-container');
     const user = _session?.userInfo || {};
     const role = _session?.roleInfo || {};
-
     try {
       const coords = await API.getCoordenadores();
-      const me = coords.find(c => c.Email === user.email);
-
-      container.innerHTML = `
-        <div class="profile-card">
-          ${user.picture ? `<img src="${esc(user.picture)}" class="profile-avatar" alt="Foto">` : ''}
-          <div class="profile-name">${esc(role.nome || user.name || user.email)}</div>
-          <div class="profile-email">${esc(user.email)}</div>
-          <div class="profile-role">Coordenador</div>
-
-          <form id="perfil-form">
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">CPF</label>
-                <input class="form-control" id="p-cpf" value="${esc(me?.CPF || '')}" placeholder="000.000.000-00">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Telefone</label>
-                <input class="form-control" id="p-tel" value="${esc(me?.Telefone || '')}" placeholder="(53) 9 9999-9999">
-              </div>
-            </div>
-            <button type="button" class="btn btn-primary" onclick="Coord.savePerfil()">Salvar dados complementares</button>
-          </form>
-        </div>`;
+      _meCoord = coords.find(c => c.Email === user.email) || null;
+      const isFirstAccess = !_meCoord?.CPF;
+      renderPerfil(user, role, isFirstAccess ? 'edit' : 'view');
     } catch (e) {
       container.innerHTML = `<div class="empty-state text-danger">Erro ao carregar perfil: ${esc(e.message)}</div>`;
     }
   }
 
+  function renderPerfil(user, role, mode) {
+    const container = document.getElementById('perfil-container');
+    const me = _meCoord || {};
+    const u  = user  || _session?.userInfo || {};
+    const r  = role  || _session?.roleInfo || {};
+
+    const cpfVal = me.CPF      || '';
+    const telVal = me.Telefone || '';
+    const masked = _perfilMasked;
+
+    const photoHtml = u.picture ? `<img src="${esc(u.picture)}" class="profile-avatar" alt="Foto">` : '';
+
+    if (mode === 'view') {
+      const cpfShow = masked && cpfVal ? '***.***.***-**'       : esc(cpfVal || '—');
+      const telShow = masked && telVal ? '(**) * ****-****'     : esc(telVal || '—');
+      container.innerHTML = `
+        <div class="profile-card">
+          ${photoHtml}
+          <div class="profile-name">${esc(r.nome || u.name || u.email)}</div>
+          <div class="profile-email">${esc(u.email)}</div>
+          <div class="profile-role">Coordenador</div>
+          <div style="margin:1.25rem 0;text-align:left;width:100%;max-width:380px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+              <span style="font-size:.8rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.05em">Dados complementares</span>
+              <button class="btn btn-ghost btn-xs" title="${masked?'Exibir':'Ocultar'} dados sensíveis" onclick="Coord.toggleMaskPerfil()">
+                ${masked ? '👁' : '🙈'}
+              </button>
+            </div>
+            <div class="profile-data-row"><span class="text-muted text-small">CPF</span><span style="color:var(--gray-400);font-variant-numeric:tabular-nums">${cpfShow}</span></div>
+            <div class="profile-data-row" style="margin-top:.4rem"><span class="text-muted text-small">Telefone</span><span style="color:var(--gray-400)">${telShow}</span></div>
+          </div>
+          <button class="btn btn-outline btn-sm" style="margin-top:.5rem" onclick="Coord.editPerfil()">Editar dados complementares</button>
+        </div>`;
+    } else {
+      const isFirst = !cpfVal;
+      container.innerHTML = `
+        <div class="profile-card">
+          ${photoHtml}
+          <div class="profile-name">${esc(r.nome || u.name || u.email)}</div>
+          <div class="profile-email">${esc(u.email)}</div>
+          <div class="profile-role">Coordenador</div>
+          ${isFirst ? '<div class="text-muted text-small mb-2" style="color:var(--warning)">⚠ Preencha seus dados complementares para continuar usando o sistema.</div>' : ''}
+          <form id="perfil-form" style="width:100%;max-width:380px;margin-top:1rem;text-align:left">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">*CPF</label>
+                <input class="form-control" id="p-cpf" value="${esc(cpfVal)}" placeholder="000.000.000-00" maxlength="14">
+              </div>
+              <div class="form-group">
+                <label class="form-label">*Telefone</label>
+                <input class="form-control" id="p-tel" value="${esc(telVal)}" placeholder="(53) 9 9999-9999" maxlength="16">
+              </div>
+            </div>
+            <div style="display:flex;gap:.5rem;margin-top:.5rem">
+              <button type="button" class="btn btn-primary" onclick="Coord.savePerfil()">Salvar</button>
+              ${!isFirst ? `<button type="button" class="btn btn-ghost" onclick="Coord.cancelEditPerfil()">Cancelar</button>` : ''}
+            </div>
+          </form>
+        </div>`;
+      // Apply masks after render
+      setTimeout(() => {
+        bindMask(document.getElementById('p-cpf'), maskCPF);
+        bindMask(document.getElementById('p-tel'), maskTelefone);
+      }, 0);
+    }
+  }
+
+  function editPerfil() {
+    renderPerfil(null, null, 'edit');
+  }
+
+  function cancelEditPerfil() {
+    renderPerfil(null, null, 'view');
+  }
+
+  function toggleMaskPerfil() {
+    _perfilMasked = !_perfilMasked;
+    renderPerfil(null, null, 'view');
+  }
+
   async function savePerfil() {
-    const cpf = document.getElementById('p-cpf')?.value?.trim();
-    const tel = document.getElementById('p-tel')?.value?.trim();
+    const cpfEl = document.getElementById('p-cpf');
+    const telEl = document.getElementById('p-tel');
+    const cpf = cpfEl?.value?.trim() || '';
+    const tel = telEl?.value?.trim() || '';
+
+    if (!cpf) { cpfEl?.classList.add('error'); toast('Informe o CPF.', 'warning'); return; }
+    if (!validateCPF(cpf)) { cpfEl?.classList.add('error'); toast('CPF inválido.', 'error'); return; }
+    cpfEl?.classList.remove('error');
+
+    if (!tel) { telEl?.classList.add('error'); toast('Informe o Telefone.', 'warning'); return; }
+    if (!validateTelefone(tel)) { telEl?.classList.add('error'); toast('Telefone inválido (mínimo 10 dígitos).', 'error'); return; }
+    telEl?.classList.remove('error');
+
     try {
       await API.updatePerfilCoordenador({ cpf, telefone: tel });
       toast('Dados salvos com sucesso.', 'success');
+      // Refresh from server
+      const coords = await API.getCoordenadores();
+      _meCoord = coords.find(c => c.Email === (_session?.userInfo?.email)) || null;
+      _perfilMasked = true;
+      renderPerfil(null, null, 'view');
     } catch (e) { toast(e.message, 'error'); }
   }
 
@@ -100,19 +175,16 @@ const Coord = (() => {
   async function loadAssiduidade() {
     const mesAno = document.getElementById('ass-mes-ref')?.value;
     showLoading('ass-acoes-list', 'Carregando ações...');
-
     try {
       const [acoes, bolsistas, voluntarios, assiduidades, periodo] = await Promise.all([
         API.getAcoes(), API.getBolsistas(), API.getVoluntarios(),
         API.getAssiduidades({}), API.getPeriodo()
       ]);
-
-      _acoes      = (acoes || []).filter(a => a.Status === 'Ativo' && a.CoordenadorEmail === _session?.roleInfo?.email);
-      _bolsistas  = bolsistas  || [];
+      _acoes       = (acoes || []).filter(a => a.Status === 'Ativo' && a.CoordenadorEmail === _session?.roleInfo?.email);
+      _bolsistas   = bolsistas   || [];
       _voluntarios = voluntarios || [];
-      _enviados   = (assiduidades || []).filter(a => a.CoordenadorEmail === _session?.roleInfo?.email);
-      _periodo    = periodo;
-
+      _enviados    = (assiduidades || []).filter(a => a.CoordenadorEmail === _session?.roleInfo?.email);
+      _periodo     = periodo;
       renderPeriodBanner(periodo);
       renderAcoes(mesAno);
     } catch (e) {
@@ -132,16 +204,11 @@ const Coord = (() => {
   function renderAcoes(mesAno) {
     const el = document.getElementById('ass-acoes-list');
     if (!_acoes.length) { showEmpty('ass-acoes-list', 'Nenhuma ação ativa vinculada a você.'); return; }
-
-    // Group by segmento
     const bySegmento = {};
     _acoes.forEach(a => {
       if (!bySegmento[a.Segmento]) bySegmento[a.Segmento] = [];
       bySegmento[a.Segmento].push(a);
     });
-
-    const enviado = _enviados.find(e => e.MesAno === mesAno);
-
     el.innerHTML = Object.keys(bySegmento).sort().map(seg => `
       <div class="segmento-group">
         <div class="segmento-header">${esc(seg)}</div>
@@ -154,7 +221,7 @@ const Coord = (() => {
     const snap = jaEnviado?.snapshot || (jaEnviado?.Snapshot ? JSON.parse(jaEnviado.Snapshot) : null);
     const foraPrazo = jaEnviado && isTrue(jaEnviado.ForaPrazo);
 
-    const bolsistas  = _bolsistas.filter(b  => b.AcaoID === acao.ID && b.Status === 'Ativo');
+    const bolsistas   = _bolsistas.filter(b  => b.AcaoID === acao.ID && b.Status === 'Ativo');
     const voluntarios = _voluntarios.filter(v => v.AcaoID === acao.ID && v.Status === 'Ativo');
     const participantes = [
       ...bolsistas.map(b => ({ ...b, tipo: 'bolsista' })),
@@ -170,9 +237,10 @@ const Coord = (() => {
     }
 
     const badgeFora = foraPrazo ? `<span class="badge-fora-prazo">⚠ Enviado fora do prazo · ${isoToBR(jaEnviado.Timestamp)}</span>` : '';
+    const mesLabel  = mesAnoLabel(mesAno);
 
+    // ── Read-only view (already sent) ──
     if (jaEnviado && snap) {
-      // Read-only view
       const validado = isTrue(jaEnviado.Validado);
       return `<div class="card mb-1">
         <div class="card-header expanded" onclick="this.nextElementSibling.classList.toggle('open');this.classList.toggle('expanded')">
@@ -201,26 +269,42 @@ const Coord = (() => {
       </div>`;
     }
 
-    // Form for input
-    const rows = participantes.map(p => `
-      <div class="participant-row" id="pr-${acao.ID}-${p.ID}">
-        <span class="participant-name fw-bold">${esc(p.Nome)}</span>
-        <span class="badge ${p.tipo === 'bolsista' ? 'badge-blue' : 'badge-gray'} participant-badge">${p.tipo}</span>
-        <div class="radio-group">
-          <label><input type="radio" name="ass-${acao.ID}-${p.ID}" value="sim" onchange="Coord.toggleObs('${acao.ID}','${p.ID}',true)" checked> Sim</label>
-          <label><input type="radio" name="ass-${acao.ID}-${p.ID}" value="nao" onchange="Coord.toggleObs('${acao.ID}','${p.ID}',false)"> Não</label>
-        </div>
-      </div>
-      <div id="obs-${acao.ID}-${p.ID}" style="display:none;padding:.4rem .5rem .6rem 2rem">
-        <textarea class="form-control" id="obstext-${acao.ID}-${p.ID}" rows="2" placeholder="Observação obrigatória ao marcar Não..."></textarea>
-      </div>`).join('');
+    // ── Form for input ──
+    const rows = participantes.map(p => {
+      const tipoArtigo = p.tipo === 'bolsista' ? 'O bolsista' : 'O voluntário';
+      return `
+        <div style="border-bottom:1px solid var(--gray-100);padding:.75rem 0" id="pr-wrap-${acao.ID}-${p.ID}">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.5rem">
+            <div>
+              <span class="participant-name fw-bold">${esc(p.Nome)}</span>
+              <span class="badge ${p.tipo === 'bolsista' ? 'badge-blue' : 'badge-gray'} participant-badge">${p.tipo}</span>
+            </div>
+            <div>
+              <div class="text-muted text-small" style="margin-bottom:.4rem">
+                ${tipoArtigo} cumpriu as atividades no mês de <strong>${mesLabel}</strong>?
+              </div>
+              <div class="radio-group">
+                <label><input type="radio" name="ass-${acao.ID}-${p.ID}" value="sim" onchange="Coord.toggleObs('${acao.ID}','${p.ID}',true)" checked> Sim</label>
+                <label><input type="radio" name="ass-${acao.ID}-${p.ID}" value="nao" onchange="Coord.toggleObs('${acao.ID}','${p.ID}',false)"> Não</label>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:.5rem">
+            <textarea class="form-control" id="obstext-${acao.ID}-${p.ID}" rows="2"
+              placeholder="Observação (opcional)..." style="font-size:.85rem"></textarea>
+            <div class="text-muted text-small" style="margin-top:.2rem;font-style:italic">
+              ⚠ As observações ficam visíveis para o respectivo bolsista/voluntário.
+            </div>
+          </div>
+        </div>`;
+    }).join('');
 
     return `<div class="card mb-1">
       <div class="card-header expanded" onclick="this.nextElementSibling.classList.toggle('open');this.classList.toggle('expanded')">
         <div class="card-header-left">
           <span class="dot dot-yellow"></span>
           <div><div class="card-title">${esc(acao.Titulo)}</div>
-            <div class="card-sub">${participantes.length} participante(s) · ${esc(mesAnoLabel(mesAno))}</div>
+            <div class="card-sub">${participantes.length} participante(s) · ${esc(mesLabel)}</div>
           </div>
         </div>
         <span class="badge badge-yellow">Pendente</span>
@@ -235,8 +319,10 @@ const Coord = (() => {
   }
 
   function toggleObs(acaoId, particId, cumpriu) {
-    const el = document.getElementById(`obs-${acaoId}-${particId}`);
-    if (el) el.style.display = cumpriu ? 'none' : 'block';
+    const obsEl = document.getElementById(`obstext-${acaoId}-${particId}`);
+    if (!obsEl) return;
+    obsEl.placeholder = cumpriu ? 'Observação (opcional)...' : 'Observação (obrigatória quando Não)...';
+    if (cumpriu) obsEl.classList.remove('error');
   }
 
   async function enviar(acaoId, mesAno) {
@@ -254,10 +340,10 @@ const Coord = (() => {
     let valid = true;
 
     participantes.forEach(p => {
-      const radio = document.querySelector(`input[name="ass-${acaoId}-${p.ID}"]:checked`);
+      const radio   = document.querySelector(`input[name="ass-${acaoId}-${p.ID}"]:checked`);
       const cumpriu = !radio || radio.value === 'sim';
-      const obsEl = document.getElementById(`obstext-${acaoId}-${p.ID}`);
-      const obs = obsEl ? obsEl.value.trim() : '';
+      const obsEl   = document.getElementById(`obstext-${acaoId}-${p.ID}`);
+      const obs     = obsEl ? obsEl.value.trim() : '';
 
       if (!cumpriu && !obs) {
         obsEl?.classList.add('error');
@@ -267,7 +353,7 @@ const Coord = (() => {
         return;
       }
       if (obsEl) obsEl.classList.remove('error');
-      payload.participantes.push({ id: p.ID, nome: p.Nome, cumpriu, observacao: obs });
+      payload.participantes.push({ id: p.ID, nome: p.Nome, email: p.Email, tipo: p.tipo, cumpriu, observacao: obs });
     });
 
     if (!valid) return;
@@ -289,7 +375,7 @@ const Coord = (() => {
   async function loadHistorico() {
     showLoading('historico-list', 'Carregando histórico...');
     try {
-      const ass = await API.getAssiduidades({});
+      const ass  = await API.getAssiduidades({});
       const meus = (ass || []).filter(a => a.CoordenadorEmail === _session?.roleInfo?.email)
         .sort((a, b) => (a.MesAno || '').localeCompare(b.MesAno || ''));
 
@@ -335,6 +421,6 @@ const Coord = (() => {
   }
 
   // ── Public ────────────────────────────────────────────────
-  return { init, savePerfil, loadAssiduidade, toggleObs, enviar };
+  return { init, savePerfil, editPerfil, cancelEditPerfil, toggleMaskPerfil, loadAssiduidade, toggleObs, enviar };
 
 })();

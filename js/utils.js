@@ -175,3 +175,40 @@ function statusBadge(status) {
 
 // ── Bool / checkbox helpers ───────────────────────────────────
 function isTrue(v) { return v === true || v === 'TRUE' || v === 'true'; }
+
+// ── CPF / Telefone masks (system-wide) ────────────────────────
+function maskCPF(val) {
+  return val.replace(/\D/g,'').slice(0,11)
+    .replace(/(\d{3})(\d)/,'$1.$2')
+    .replace(/(\d{3})(\d)/,'$1.$2')
+    .replace(/(\d{3})(\d{1,2})$/,'$1-$2');
+}
+
+function maskTelefone(val) {
+  const d = val.replace(/\D/g,'').slice(0,11);
+  if (d.length <= 10) return d.replace(/(\d{2})(\d{0,4})(\d{0,4})/,(_,a,b,c)=>a?(b?(c?`(${a}) ${b}-${c}`:`(${a}) ${b}`):`(${a})`): '');
+  return d.replace(/(\d{2})(\d{5})(\d{0,4})/,(_,a,b,c)=>c?`(${a}) ${b}-${c}`:`(${a}) ${b}`);
+}
+
+function validateCPF(cpf) {
+  const d = cpf.replace(/\D/g,'');
+  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+  let s = 0;
+  for (let i = 0; i < 9; i++) s += +d[i] * (10 - i);
+  let r = (s * 10) % 11; if (r >= 10) r = 0;
+  if (r !== +d[9]) return false;
+  s = 0;
+  for (let i = 0; i < 10; i++) s += +d[i] * (11 - i);
+  r = (s * 10) % 11; if (r >= 10) r = 0;
+  return r === +d[10];
+}
+
+function validateTelefone(tel) {
+  return tel.replace(/\D/g,'').length >= 10;
+}
+
+function bindMask(el, maskFn) {
+  if (!el) return;
+  el.addEventListener('input', () => { const s = el.selectionStart; el.value = maskFn(el.value); });
+  el.value = maskFn(el.value);
+}

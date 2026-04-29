@@ -453,11 +453,29 @@ const Admin = (() => {
         <td>${esc(r.editalLabel||'—')}</td>
         <td>${esc(r.CargaHoraria)}</td><td>${statusBadge(r.Status)}</td>
         <td class="td-actions">
+          <button class="btn btn-ghost btn-xs" onclick="Admin.Bolsistas.verPerfil('${r.ID}')">Ver perfil</button>
           <button class="btn btn-ghost btn-xs" onclick="Admin.Bolsistas.openEdit('${r.ID}')">Editar</button>
           <button class="btn ${r.Status==='Ativo'?'btn-warning':'btn-success'} btn-xs" onclick="Admin.Bolsistas.toggle('${r.ID}','${r.Status==='Ativo'?'Inativo':'Ativo'}')">
             ${r.Status==='Ativo'?'Inativar':'Ativar'}</button>
           <button class="btn btn-danger btn-xs" onclick="Admin.Bolsistas.delete_('${r.ID}')">Excluir</button>
         </td></tr>`).join('')}</tbody></table>`;
+    },
+    verPerfil(id) {
+      const r = state.bolsistas.find(x => x.ID === id);
+      if (!r) return;
+      const rows = [
+        ['CPF', r.CPF], ['Telefone', r.Telefone], ['Nascimento', r.DataNascimento],
+        ['Endereço', r.Endereco], ['E-mail Pessoal', r.EmailPessoal],
+        ['Curso', r.Curso || r.editalLabel], ['Matrícula', r.Matricula],
+        ['Ingresso', r.AnoSemestreIngresso], ['Semestre Atual', r.SemestreAtual],
+        ['Início Atividades', r.DataInicio],
+        ['Banco', r.Banco], ['Agência', r.Agencia], ['Conta', r.Conta], ['Tipo Conta', r.TipoConta]
+      ].filter(([,v]) => v).map(([k,v]) =>
+        `<tr><td class="text-muted text-small" style="padding:.35rem .5rem;white-space:nowrap">${k}</td><td style="padding:.35rem .5rem">${esc(String(v))}</td></tr>`
+      ).join('');
+      openModal(`Perfil — ${esc(r.Nome)}`,
+        `<table style="width:100%">${rows || '<tr><td class="text-muted">Dados ainda não preenchidos pelo bolsista.</td></tr>'}</table>`,
+        () => closeModal(), 'Fechar');
     },
     openAdd(){openModal('Adicionar Bolsista',this._form(),async()=>{await this._save();});},
     openEdit(id){const r=state.bolsistas.find(x=>x.ID===id);openModal('Editar Bolsista',this._form(r),async()=>{await this._save(id);});},
@@ -533,6 +551,7 @@ const Admin = (() => {
         <td>${esc(r.acaoTitulo||r.AcaoID)}</td>
         <td>${esc(r.cursoLabel||r.CursoID)}</td><td>${statusBadge(r.Status)}</td>
         <td class="td-actions">
+          <button class="btn btn-ghost btn-xs" onclick="Admin.Voluntarios.verPerfil('${r.ID}')">Ver perfil</button>
           <button class="btn btn-ghost btn-xs" onclick="Admin.Voluntarios.openEdit('${r.ID}')">Editar</button>
           <button class="btn ${r.Status==='Ativo'?'btn-warning':'btn-success'} btn-xs" onclick="Admin.Voluntarios.toggle('${r.ID}','${r.Status==='Ativo'?'Inativo':'Ativo'}')">
             ${r.Status==='Ativo'?'Inativar':'Ativar'}</button>
@@ -543,14 +562,12 @@ const Admin = (() => {
     openEdit(id){const r=state.voluntarios.find(x=>x.ID===id);openModal('Editar Voluntário',this._form(r),async()=>{await this._save(id);});},
     async _save(id) {
       const p = {
-        nome: document.getElementById('f-nome')?.value,
-        email: document.getElementById('f-email')?.value,
-        telefone: document.getElementById('f-tel')?.value,
-        cpf: document.getElementById('f-cpf')?.value,
-        acaoId: document.getElementById('f-acao')?.value,
-        cursoId: document.getElementById('f-curso')?.value
+        nome:    document.getElementById('f-nome')?.value,
+        email:   document.getElementById('f-email')?.value,
+        acaoId:  document.getElementById('f-acao')?.value,
+        cursoId: document.getElementById('f-curso')?.value || ''
       };
-      if (!validateForm([{el:document.getElementById('f-nome')},{el:document.getElementById('f-email')},{el:document.getElementById('f-tel')},{el:document.getElementById('f-cpf')}])) return;
+      if (!validateForm([{el:document.getElementById('f-nome')},{el:document.getElementById('f-email')}])) return;
       setBusy(true);
       try {
         id ? await API.updateVoluntario(id, p) : await API.addVoluntario(p);
@@ -571,17 +588,31 @@ const Admin = (() => {
         this.render();
       } catch(e){toast(e.message,'error');}
     },
+    verPerfil(id) {
+      const r = state.voluntarios.find(x => x.ID === id);
+      if (!r) return;
+      const rows = [
+        ['CPF', r.CPF], ['Telefone', r.Telefone], ['Nascimento', r.DataNascimento],
+        ['Endereço', r.Endereco], ['E-mail Pessoal', r.EmailPessoal],
+        ['Curso', r.cursoLabel || r.CursoID], ['Matrícula', r.Matricula],
+        ['Ingresso', r.AnoSemestreIngresso], ['Semestre Atual', r.SemestreAtual],
+        ['Início Atividades', r.DataInicio],
+        ['Banco', r.Banco], ['Agência', r.Agencia], ['Conta', r.Conta], ['Tipo Conta', r.TipoConta]
+      ].filter(([,v]) => v).map(([k,v]) =>
+        `<tr><td class="text-muted text-small" style="padding:.35rem .5rem;white-space:nowrap">${k}</td><td style="padding:.35rem .5rem">${esc(String(v))}</td></tr>`
+      ).join('');
+      openModal(`Perfil — ${esc(r.Nome)}`,
+        `<table style="width:100%">${rows || '<tr><td class="text-muted">Dados ainda não preenchidos pelo voluntário.</td></tr>'}</table>`,
+        () => closeModal(), 'Fechar');
+    },
     _form(r) {
       const acOpts = state.acoes.filter(a=>a.Status==='Ativo').map(a=>`<option value="${a.ID}" ${r?.AcaoID===a.ID?'selected':''}>${esc(a.Titulo)}</option>`).join('');
       const cursosOpts = state.cursos.filter(c=>c.Status==='Ativo').map(c=>`<option value="${c.ID}" ${r?.CursoID===c.ID?'selected':''}>${esc(c.Nome)} — ${esc(c.Modalidade)}</option>`).join('');
       return `<div class="form-group"><label class="form-label">*Nome completo</label><input class="form-control" id="f-nome" value="${esc(r?.Nome||'')}"></div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">*E-mail</label><input class="form-control" id="f-email" type="email" value="${esc(r?.Email||'')}"></div>
-        <div class="form-group"><label class="form-label">*Telefone</label><input class="form-control" id="f-tel" value="${esc(r?.Telefone||'')}"></div>
-      </div>
-      <div class="form-group"><label class="form-label">*CPF</label><input class="form-control" id="f-cpf" value="${esc(r?.CPF||'')}"></div>
+      <div class="form-group"><label class="form-label">*E-mail institucional</label><input class="form-control" id="f-email" type="email" value="${esc(r?.Email||'')}"></div>
       <div class="form-group"><label class="form-label">*Ação</label><select class="form-select" id="f-acao">${acOpts}</select></div>
-      <div class="form-group"><label class="form-label">*Curso</label><select class="form-select" id="f-curso">${cursosOpts}</select></div>`;
+      <div class="form-group"><label class="form-label">Curso</label><select class="form-select" id="f-curso"><option value="">Sem curso</option>${cursosOpts}</select></div>
+      <div class="text-muted text-small" style="margin-top:.25rem">CPF, Telefone e demais dados são preenchidos pelo próprio voluntário.</div>`;
     },
     exportXLS(){exportXLS(['Nome','E-mail','Ação','Curso','Status'],this.filtered().map(r=>[r.Nome,r.Email,r.acaoTitulo,r.cursoLabel,r.Status]),'Voluntarios');},
     exportPDF(){exportPDF('Voluntários',['Nome','E-mail','Ação','Status'],this.filtered().map(r=>[r.Nome,r.Email,r.acaoTitulo,r.Status]));}
@@ -651,6 +682,7 @@ const Admin = (() => {
 
   // ── TODAS AS AÇÕES ────────────────────────────────────────
   const TodasAcoes = {
+    _sortDir: 'asc',
     load() {
       showLoading('todas-acoes-list');
       const segFilter    = document.getElementById('fa-seg')?.value || '';
@@ -664,6 +696,12 @@ const Admin = (() => {
 
       this.render(acoes, state.coordenadores, state.bolsistas, state.voluntarios);
     },
+    toggleSort() {
+      this._sortDir = this._sortDir === 'asc' ? 'desc' : 'asc';
+      const btn = document.getElementById('fa-sort-btn');
+      if (btn) btn.textContent = `Coord ${this._sortDir === 'asc' ? '↑' : '↓'}`;
+      this.load();
+    },
     render(acoes, coords, bolsistas, vols) {
       const el = document.getElementById('todas-acoes-list');
       const byCoord = {};
@@ -674,7 +712,11 @@ const Admin = (() => {
         byCoord[a.CoordenadorEmail].acoes.push(a);
       });
 
-      const sortedCoords = Object.keys(byCoord).sort((a,b) => byCoord[a].name.localeCompare(byCoord[b].name));
+      const dir = this._sortDir;
+      const sortedCoords = Object.keys(byCoord).sort((a,b) => {
+        const cmp = byCoord[a].name.localeCompare(byCoord[b].name);
+        return dir === 'asc' ? cmp : -cmp;
+      });
       if (!sortedCoords.length) { showEmpty('todas-acoes-list'); return; }
 
       el.innerHTML = sortedCoords.map(cEmail => {

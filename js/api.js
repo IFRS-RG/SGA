@@ -82,6 +82,9 @@ const API = {
   deleteNotificacao: (id)          => gasCall('deleteNotificacao', { id }),
   sendLembrete:      (payload)     => gasCall('sendLembrete', { payload }),
 
+  // Documentos (Drive upload)
+  uploadDocumento: (payload) => gasCall('uploadDocumento', { payload }),
+
   // Auditoria
   getAuditoria: () => gasCall('getAuditoria')
 };

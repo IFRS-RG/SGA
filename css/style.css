@@ -681,6 +681,28 @@ tbody td { padding: .6rem .85rem; vertical-align: middle; }
 .mb-1 { margin-bottom: .5rem; }
 .mb-2 { margin-bottom: 1rem; }
 .fw-bold { font-weight: 700; }
+
+/* ── Profile form sections ── */
+.form-section-title {
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  border-bottom: 2px solid var(--primary-l);
+  padding-bottom: .25rem;
+  margin-bottom: .75rem;
+  margin-top: 1rem;
+}
+.section-subtitle {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: .5rem;
+}
+.profile-data-row { display: flex; justify-content: space-between; align-items: center; padding: .3rem 0; border-bottom: 1px solid var(--gray-100); }
 .flex { display: flex; }
 .gap-1 { gap: .5rem; }
 .align-center { align-items: center; }
