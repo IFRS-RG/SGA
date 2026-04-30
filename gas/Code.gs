@@ -25,11 +25,11 @@ const COL = {
   // Membros: identidade única do participante; dados complementares preenchidos pelo próprio
   Membros:       { ID:0, Nome:1, Email:2, Status:3, DataCriacao:4, DriveFolder:5,
                    DataNascimento:6, CPF:7, Telefone:8, Endereco:9, EmailPessoal:10,
-                   CursoID:11, Curso:12, Matricula:13, AnoSemestreIngresso:14, SemestreAtual:15, DataInicio:16,
-                   Banco:17, Agencia:18, Conta:19, TipoConta:20, Documentos:21 },
-  // Bolsistas/Voluntarios: apenas vínculo Membro ↔ Ação
-  Bolsistas:     { ID:0, MembroID:1, AcaoID:2, CargaHoraria:3, EditalID:4, Status:5 },
-  Voluntarios:   { ID:0, MembroID:1, AcaoID:2, CargaHoraria:3, Status:4 },
+                   CursoID:11, Curso:12, Matricula:13, AnoSemestreIngresso:14, SemestreAtual:15,
+                   Banco:16, Agencia:17, Conta:18, TipoConta:19, Documentos:20 },
+  // Bolsistas/Voluntarios: vínculo Membro ↔ Ação; DataInicio é por participação
+  Bolsistas:     { ID:0, MembroID:1, AcaoID:2, CargaHoraria:3, DataInicio:4, EditalID:5, Status:6 },
+  Voluntarios:   { ID:0, MembroID:1, AcaoID:2, CargaHoraria:3, DataInicio:4, Status:5 },
   Cursos:        { ID:0, Nome:1, Modalidade:2, Status:3 },
   Assiduidades:  { ID:0, AcaoID:1, CoordenadorEmail:2, MesAno:3, Snapshot:4, Timestamp:5, ForaPrazo:6, Validado:7, ValidadoPor:8, TimestampValidacao:9 },
   Periodo:       { DiaInicio:0, DiaFim:1 },
@@ -269,7 +269,7 @@ function addMembro(p, adminEmail) {
   let driveId = '';
   try { driveId = criarPastaMembro(p.nome); } catch (e) {}
   sh.appendRow([id, p.nome, p.email, 'Ativo', isoNow(), driveId,
-                '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']);
+                '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']);
   audit('Admin', adminEmail.split('@')[0], adminEmail, 'Adicionar Membro', p.nome + ' · ' + p.email);
   return { ok: true, id };
 }
@@ -311,7 +311,6 @@ function updatePerfilMembro(email, p) {
     ['matricula',        c.Matricula],
     ['anoSemestreIngresso', c.AnoSemestreIngresso],
     ['semestreAtual',    c.SemestreAtual],
-    ['dataInicio',       c.DataInicio],
     ['banco',            c.Banco],
     ['agencia',          c.Agencia],
     ['conta',            c.Conta],
@@ -510,7 +509,7 @@ function addBolsista(p, email) {
     return { error: 'Este membro já é bolsista desta ação.' };
   }
   const id = genId();
-  sh.appendRow([id, p.membroId, p.acaoId, p.cargaHoraria || '', p.editalId || '', 'Ativo']);
+  sh.appendRow([id, p.membroId, p.acaoId, p.cargaHoraria || '', p.dataInicio || '', p.editalId || '', 'Ativo']);
   const membros = sheetRows('Membros');
   const membro  = membros.find(m => m.ID === p.membroId);
   audit('Admin', email.split('@')[0], email, 'Adicionar Bolsista', membro ? membro.Nome : p.membroId);
@@ -521,14 +520,15 @@ function updateBolsista(id, p, email) {
   const sh  = getSheet('Bolsistas');
   const idx = findRowIndex('Bolsistas', id);
   if (idx < 0) return { error: 'Não encontrado' };
-  const row = sh.getRange(idx, 1, 1, 6).getValues()[0];
-  sh.getRange(idx, 1, 1, 6).setValues([[
+  const row = sh.getRange(idx, 1, 1, 7).getValues()[0];
+  sh.getRange(idx, 1, 1, 7).setValues([[
     id,
-    p.membroId    || row[1],
-    p.acaoId      || row[2],
+    p.membroId     || row[1],
+    p.acaoId       || row[2],
     p.cargaHoraria !== undefined ? p.cargaHoraria : row[3],
-    p.editalId    !== undefined  ? p.editalId     : row[4],
-    p.status      || row[5]
+    p.dataInicio   !== undefined ? p.dataInicio   : row[4],
+    p.editalId     !== undefined ? p.editalId     : row[5],
+    p.status       || row[6]
   ]]);
   audit('Admin', email.split('@')[0], email, 'Editar Bolsista', 'ID ' + id);
   return { ok: true };
@@ -566,7 +566,7 @@ function addVoluntario(p, email) {
     return { error: 'Este membro já é voluntário desta ação.' };
   }
   const id = genId();
-  sh.appendRow([id, p.membroId, p.acaoId, p.cargaHoraria || '', 'Ativo']);
+  sh.appendRow([id, p.membroId, p.acaoId, p.cargaHoraria || '', p.dataInicio || '', 'Ativo']);
   const membros = sheetRows('Membros');
   const membro  = membros.find(m => m.ID === p.membroId);
   audit('Admin', email.split('@')[0], email, 'Adicionar Voluntário', membro ? membro.Nome : p.membroId);
@@ -577,13 +577,14 @@ function updateVoluntario(id, p, email) {
   const sh  = getSheet('Voluntarios');
   const idx = findRowIndex('Voluntarios', id);
   if (idx < 0) return { error: 'Não encontrado' };
-  const row = sh.getRange(idx, 1, 1, 5).getValues()[0];
-  sh.getRange(idx, 1, 1, 5).setValues([[
+  const row = sh.getRange(idx, 1, 1, 6).getValues()[0];
+  sh.getRange(idx, 1, 1, 6).setValues([[
     id,
     p.membroId     || row[1],
     p.acaoId       || row[2],
     p.cargaHoraria !== undefined ? p.cargaHoraria : row[3],
-    p.status       || row[4]
+    p.dataInicio   !== undefined ? p.dataInicio   : row[4],
+    p.status       || row[5]
   ]]);
   audit('Admin', email.split('@')[0], email, 'Editar Voluntário', 'ID ' + id);
   return { ok: true };
@@ -860,10 +861,10 @@ function initSheets() {
     Acoes:         ['ID','Titulo','CoordenadorEmail','AnoExecucao','Segmento','EditalID','Status','DriveFolder'],
     Membros:       ['ID','Nome','Email','Status','DataCriacao','DriveFolder',
                     'DataNascimento','CPF','Telefone','Endereco','EmailPessoal',
-                    'CursoID','Curso','Matricula','AnoSemestreIngresso','SemestreAtual','DataInicio',
+                    'CursoID','Curso','Matricula','AnoSemestreIngresso','SemestreAtual',
                     'Banco','Agencia','Conta','TipoConta','Documentos'],
-    Bolsistas:     ['ID','MembroID','AcaoID','CargaHoraria','EditalID','Status'],
-    Voluntarios:   ['ID','MembroID','AcaoID','CargaHoraria','Status'],
+    Bolsistas:     ['ID','MembroID','AcaoID','CargaHoraria','DataInicio','EditalID','Status'],
+    Voluntarios:   ['ID','MembroID','AcaoID','CargaHoraria','DataInicio','Status'],
     Cursos:        ['ID','Nome','Modalidade','Status'],
     Assiduidades:  ['ID','AcaoID','CoordenadorEmail','MesAno','Snapshot','Timestamp','ForaPrazo','Validado','ValidadoPor','TimestampValidacao'],
     Periodo:       ['DiaInicio','DiaFim'],

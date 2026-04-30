@@ -458,17 +458,28 @@ const Admin = (() => {
     verPerfil(id) {
       const r = state.membros.find(x => x.ID === id);
       if (!r) return;
-      const dataRows = [
-        ['CPF', r.CPF], ['Telefone', r.Telefone], ['Nascimento', r.DataNascimento],
-        ['Endereço', r.Endereco], ['E-mail Pessoal', r.EmailPessoal],
-        ['Curso', r.cursoLabel || r.CursoID], ['Matrícula', r.Matricula],
-        ['Ingresso', r.AnoSemestreIngresso], ['Semestre Atual', r.SemestreAtual],
-        ['Início Atividades', r.DataInicio],
-        ['Banco', r.Banco], ['Agência', r.Agencia], ['Conta', r.Conta], ['Tipo Conta', r.TipoConta]
-      ].filter(([, v]) => v).map(([k, v]) =>
-        `<tr><td class="text-muted text-small" style="padding:.35rem .5rem;white-space:nowrap">${k}</td>
-             <td style="padding:.35rem .5rem">${esc(String(v))}</td></tr>`
-      ).join('');
+
+      const tr = (k, v) => v
+        ? `<tr><td class="text-muted text-small" style="padding:.35rem .5rem;white-space:nowrap">${k}</td>
+               <td style="padding:.35rem .5rem">${esc(String(v))}</td></tr>`
+        : '';
+
+      const pessoalRows = [
+        tr('CPF', r.CPF), tr('Telefone', r.Telefone), tr('Nascimento', r.DataNascimento),
+        tr('Endereço', r.Endereco), tr('E-mail Pessoal', r.EmailPessoal)
+      ].join('');
+
+      const academicRows = [
+        tr('Curso', r.cursoLabel || r.CursoID), tr('Matrícula', r.Matricula),
+        tr('Ingresso', r.AnoSemestreIngresso), tr('Semestre Atual', r.SemestreAtual)
+      ].join('');
+
+      const bancarioRows = [
+        tr('Banco', r.Banco), tr('Agência', r.Agencia),
+        tr('Conta', r.Conta), tr('Tipo Conta', r.TipoConta)
+      ].join('');
+
+      const hasData = pessoalRows || academicRows || bancarioRows;
 
       const docs = r.docs || [];
       const docsHtml = docs.length
@@ -483,12 +494,21 @@ const Admin = (() => {
              class="btn btn-ghost btn-sm" style="margin-bottom:1rem">📁 Repositório</a>`
         : '';
 
+      const accordion = (title, rows, open = false) => rows
+        ? `<details ${open ? 'open' : ''} style="margin-bottom:.75rem;border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem">
+             <summary style="cursor:pointer;font-weight:600;font-size:.875rem">${title}</summary>
+             <table style="width:100%;margin-top:.5rem">${rows}</table>
+           </details>`
+        : '';
+
       openModal(`Perfil — ${esc(r.Nome)}`,
         `${repoBtn}
-         <table style="width:100%;margin-bottom:1.25rem">
-           ${dataRows || `<tr><td class="text-muted text-small" style="padding:.35rem .5rem">Dados ainda não preenchidos pelo membro.</td></tr>`}
-         </table>
-         <div class="form-section-title">Documentos</div>
+         ${hasData
+           ? accordion('Dados Pessoais', pessoalRows, true) +
+             accordion('Dados Acadêmicos', academicRows) +
+             (bancarioRows ? accordion('Dados Bancários', bancarioRows) : '')
+           : `<p class="text-muted text-small">Dados ainda não preenchidos pelo membro.</p>`}
+         <div class="form-section-title" style="margin-top:.75rem">Documentos</div>
          <table style="width:100%">${docsHtml}</table>`,
         () => closeModal(), 'Fechar');
     },
@@ -558,13 +578,14 @@ const Admin = (() => {
       const el   = document.getElementById('table-bolsistas');
       if (!rows.length) { showEmpty('table-bolsistas'); return; }
       el.innerHTML = `<table><thead><tr>
-        <th>Nome</th><th>E-mail</th><th>Ação</th><th>Edital</th><th>Carga Horária</th><th>Status</th><th>Ações</th>
+        <th>Nome</th><th>E-mail</th><th>Ação</th><th>Início</th><th>Edital</th><th>Carga Horária</th><th>Status</th><th>Ações</th>
       </tr></thead>
       <tbody>${rows.map(r=>`<tr>
         <td>${esc(r.Nome)}</td><td>${esc(r.Email)}</td>
         <td>${esc(r.acaoTitulo||r.AcaoID)}</td>
+        <td>${esc(r.DataInicio||'—')}</td>
         <td>${esc(r.editalLabel||'—')}</td>
-        <td>${esc(r.CargaHoraria)}</td><td>${statusBadge(r.Status)}</td>
+        <td>${esc(r.CargaHoraria||'—')}</td><td>${statusBadge(r.Status)}</td>
         <td class="td-actions">
           <button class="btn btn-ghost btn-xs" onclick="Admin.Bolsistas.openEdit('${r.ID}')">Editar</button>
           <button class="btn ${r.Status==='Ativo'?'btn-warning':'btn-success'} btn-xs" onclick="Admin.Bolsistas.toggle('${r.ID}','${r.Status==='Ativo'?'Inativo':'Ativo'}')">
@@ -581,6 +602,7 @@ const Admin = (() => {
       const p = {
         membroId,
         acaoId:       document.getElementById('f-acao')?.value,
+        dataInicio:   document.getElementById('f-inicio')?.value || '',
         editalId:     document.getElementById('f-edital')?.value || '',
         cargaHoraria: ch === 'Outra' ? document.getElementById('f-ch-other')?.value : ch
       };
@@ -616,14 +638,16 @@ const Admin = (() => {
       return `<div class="form-group"><label class="form-label">*Membro</label>
         <select class="form-select" id="f-membro"><option value="">Selecione...</option>${memOpts}</select></div>
       <div class="form-group"><label class="form-label">*Ação</label><select class="form-select" id="f-acao">${acOpts}</select></div>
-      <div class="form-group"><label class="form-label">Edital</label><select class="form-select" id="f-edital">${editaisOpts}</select></div>
       <div class="form-row">
+        <div class="form-group"><label class="form-label">*Data de Início</label>
+          <input class="form-control" id="f-inicio" type="date" value="${esc(r?.DataInicio||'')}"></div>
         <div class="form-group"><label class="form-label">*Carga Horária</label>
           <select class="form-select" id="f-ch" onchange="document.getElementById('f-ch-other').style.display=this.value==='Outra'?'block':'none'">${chs}</select>
           <input class="form-control mt-1" id="f-ch-other" placeholder="Especifique" style="display:${r?.CargaHoraria==='Outra'?'block':'none'}"></div>
-      </div>`;
+      </div>
+      <div class="form-group"><label class="form-label">Edital</label><select class="form-select" id="f-edital">${editaisOpts}</select></div>`;
     },
-    exportXLS(){exportXLS(['Nome','E-mail','Ação','Edital','Carga Horária','Status'],this.filtered().map(r=>[r.Nome,r.Email,r.acaoTitulo,r.editalLabel,r.CargaHoraria,r.Status]),'Bolsistas');},
+    exportXLS(){exportXLS(['Nome','E-mail','Ação','Início','Edital','Carga Horária','Status'],this.filtered().map(r=>[r.Nome,r.Email,r.acaoTitulo,r.DataInicio||'',r.editalLabel,r.CargaHoraria||'',r.Status]),'Bolsistas');},
     exportPDF(){exportPDF('Bolsistas',['Nome','E-mail','Ação','Status'],this.filtered().map(r=>[r.Nome,r.Email,r.acaoTitulo,r.Status]));}
   };
 
@@ -644,11 +668,12 @@ const Admin = (() => {
       const el   = document.getElementById('table-voluntarios');
       if (!rows.length) { showEmpty('table-voluntarios'); return; }
       el.innerHTML = `<table><thead><tr>
-        <th>Nome</th><th>E-mail</th><th>Ação</th><th>Carga Horária</th><th>Status</th><th>Ações</th>
+        <th>Nome</th><th>E-mail</th><th>Ação</th><th>Início</th><th>Carga Horária</th><th>Status</th><th>Ações</th>
       </tr></thead>
       <tbody>${rows.map(r=>`<tr>
         <td>${esc(r.Nome)}</td><td>${esc(r.Email)}</td>
         <td>${esc(r.acaoTitulo||r.AcaoID)}</td>
+        <td>${esc(r.DataInicio||'—')}</td>
         <td>${esc(r.CargaHoraria||'—')}</td><td>${statusBadge(r.Status)}</td>
         <td class="td-actions">
           <button class="btn btn-ghost btn-xs" onclick="Admin.Voluntarios.openEdit('${r.ID}')">Editar</button>
@@ -666,6 +691,7 @@ const Admin = (() => {
       const p = {
         membroId,
         acaoId:       document.getElementById('f-acao')?.value,
+        dataInicio:   document.getElementById('f-inicio')?.value || '',
         cargaHoraria: ch === 'Outra' ? document.getElementById('f-ch-other')?.value : ch
       };
       if (!validateForm([{el:document.getElementById('f-acao')}])) return;
@@ -699,12 +725,14 @@ const Admin = (() => {
         <select class="form-select" id="f-membro"><option value="">Selecione...</option>${memOpts}</select></div>
       <div class="form-group"><label class="form-label">*Ação</label><select class="form-select" id="f-acao">${acOpts}</select></div>
       <div class="form-row">
+        <div class="form-group"><label class="form-label">*Data de Início</label>
+          <input class="form-control" id="f-inicio" type="date" value="${esc(r?.DataInicio||'')}"></div>
         <div class="form-group"><label class="form-label">*Carga Horária</label>
           <select class="form-select" id="f-ch" onchange="document.getElementById('f-ch-other').style.display=this.value==='Outra'?'block':'none'">${chs}</select>
           <input class="form-control mt-1" id="f-ch-other" placeholder="Especifique" style="display:${r?.CargaHoraria==='Outra'?'block':'none'}"></div>
       </div>`;
     },
-    exportXLS(){exportXLS(['Nome','E-mail','Ação','Carga Horária','Status'],this.filtered().map(r=>[r.Nome,r.Email,r.acaoTitulo,r.CargaHoraria||'',r.Status]),'Voluntarios');},
+    exportXLS(){exportXLS(['Nome','E-mail','Ação','Início','Carga Horária','Status'],this.filtered().map(r=>[r.Nome,r.Email,r.acaoTitulo,r.DataInicio||'',r.CargaHoraria||'',r.Status]),'Voluntarios');},
     exportPDF(){exportPDF('Voluntários',['Nome','E-mail','Ação','Status'],this.filtered().map(r=>[r.Nome,r.Email,r.acaoTitulo,r.Status]));}
   };
 

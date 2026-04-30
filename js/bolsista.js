@@ -53,7 +53,7 @@ const Bolsista = (() => {
   function isComplete(me, tipo) {
     if (!me) return false;
     const base = me.DataNascimento && me.CPF && me.Endereco && me.Telefone &&
-                 me.EmailPessoal && me.Matricula && me.DataInicio;
+                 me.EmailPessoal && me.Matricula;
     if (!base) return false;
     const cursoOk = !!(me.CursoID);
     if (tipo === 'bolsista') {
@@ -107,12 +107,15 @@ const Bolsista = (() => {
         <div class="participant-row">
           <span class="badge badge-blue participant-badge">bolsista</span>
           <span class="participant-name">${esc(b.acaoTitulo || b.AcaoID)}</span>
-          ${b.CargaHoraria ? `<span class="text-muted text-small"> · ${esc(b.CargaHoraria)}h/mês</span>` : ''}
+          ${b.CargaHoraria ? `<span class="text-muted text-small"> · ${esc(b.CargaHoraria)}/mês</span>` : ''}
+          ${b.DataInicio   ? `<span class="text-muted text-small"> · início: ${esc(b.DataInicio)}</span>` : ''}
         </div>`),
       ..._mesVols.map(v => `
         <div class="participant-row">
           <span class="badge badge-gray participant-badge">voluntário</span>
           <span class="participant-name">${esc(v.acaoTitulo || v.AcaoID)}</span>
+          ${v.CargaHoraria ? `<span class="text-muted text-small"> · ${esc(v.CargaHoraria)}/mês</span>` : ''}
+          ${v.DataInicio   ? `<span class="text-muted text-small"> · início: ${esc(v.DataInicio)}</span>` : ''}
         </div>`)
     ].join('') || '<div class="text-muted text-small">Nenhuma participação ativa.</div>';
 
@@ -186,9 +189,6 @@ const Bolsista = (() => {
         ${row('Matrícula', me.Matricula)}
         ${row('Ano/Semestre de Ingresso', me.AnoSemestreIngresso)}
         ${row('Semestre/Ano Atual', me.SemestreAtual)}
-
-        <div class="form-section-title" style="margin-top:1.25rem">Dados da Atividade</div>
-        ${row('Início das Atividades', me.DataInicio)}
 
         ${_buildDocumentos()}
       </div>`;
@@ -299,12 +299,6 @@ const Bolsista = (() => {
             <input class="form-control" id="p-semestre-atual" value="${esc(me.SemestreAtual||'')}" placeholder="Ex: 4º semestre / 2026">
           </div>
 
-          <div class="form-section-title" style="margin-top:1.25rem">Dados da Atividade</div>
-          <div class="form-group">
-            <label class="form-label">*Data de Início das Atividades</label>
-            <input class="form-control" id="p-inicio" type="date" value="${esc(me.DataInicio||'')}">
-          </div>
-
           <div style="margin-top:1.5rem">
             <button type="button" class="btn btn-primary" onclick="Bolsista.savePerfil()">Salvar dados complementares</button>
             ${cancelBtn}
@@ -375,7 +369,6 @@ const Bolsista = (() => {
     const matricula    = document.getElementById('p-matricula')?.value?.trim() || '';
     const ingresso     = document.getElementById('p-ingresso')?.value?.trim() || '';
     const semestreAtual= document.getElementById('p-semestre-atual')?.value?.trim() || '';
-    const dataInicio   = document.getElementById('p-inicio')?.value || '';
     const banco        = document.getElementById('p-banco')?.value?.trim() || '';
     const agencia      = document.getElementById('p-agencia')?.value?.trim() || '';
     const conta        = document.getElementById('p-conta')?.value?.trim() || '';
@@ -394,7 +387,6 @@ const Bolsista = (() => {
     if (!matricula)    { toast('Informe a Matrícula.', 'warning'); return; }
     if (!ingresso)     { toast('Informe o Ano/Semestre de Ingresso.', 'warning'); return; }
     if (!semestreAtual){ toast('Informe o Semestre/Ano Atual.', 'warning'); return; }
-    if (!dataInicio)   { toast('Informe a Data de Início das Atividades.', 'warning'); return; }
     if (isBolsista && (!banco || !agencia || !conta || !tipoConta)) {
       toast('Preencha todos os Dados Bancários (obrigatório para bolsistas).', 'warning'); return;
     }
@@ -405,7 +397,7 @@ const Bolsista = (() => {
     const payload = {
       cpf, telefone: tel, dataNascimento: nascimento, endereco, emailPessoal,
       cursoId, curso: cursoLabel, matricula,
-      anoSemestreIngresso: ingresso, semestreAtual, dataInicio,
+      anoSemestreIngresso: ingresso, semestreAtual,
       banco, agencia, conta, tipoConta
     };
 

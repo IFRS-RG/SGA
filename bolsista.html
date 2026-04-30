@@ -57,9 +57,7 @@
   window.addEventListener('load', () => {
     if (!requireAuth('participante')) return;
     const session = loadSession();
-    const tipo = session?.roleInfo?.tipo === 'bolsista' ? 'Bolsista' : 'Voluntário';
-    populateTopbar(session.userInfo, tipo);
-    document.getElementById('user-role').textContent = tipo;
+    populateTopbar(session.userInfo, 'Membro');
     Bolsista.init(session);
   });
 </script>
