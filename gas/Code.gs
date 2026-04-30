@@ -21,15 +21,15 @@ const ADMIN_PERMISSIONS = {
 const COL = {
   Coordenadores: { ID:0, Nome:1, Email:2, CPF:3, Telefone:4, Status:5, DataCriacao:6, DriveFolder:7 },
   Editais:       { ID:0, Numero:1, Ano:2, Titulo:3, Fomento:4, TipoInterno:5, Segmento:6, Bolsas:7, CusteioCapital:8, Status:9 },
-  Acoes:         { ID:0, Titulo:1, CoordenadorEmail:2, AnoExecucao:3, Segmento:4, EditalID:5, Status:6, DriveFolder:7 },
+  Acoes:         { ID:0, Titulo:1, CoordenadorEmail:2, AnoExecucao:3, Segmento:4, EditalID:5, Status:6, DriveFolder:7, SIGAAUrl:8 },
   // Membros: identidade única do participante; dados complementares preenchidos pelo próprio
   Membros:       { ID:0, Nome:1, Email:2, Status:3, DataCriacao:4, DriveFolder:5,
                    DataNascimento:6, CPF:7, Telefone:8, Endereco:9, EmailPessoal:10,
                    CursoID:11, Curso:12, Matricula:13, AnoSemestreIngresso:14, SemestreAtual:15,
                    Banco:16, Agencia:17, Conta:18, TipoConta:19, Documentos:20 },
   // Bolsistas/Voluntarios: vínculo Membro ↔ Ação; DataInicio é por participação
-  Bolsistas:     { ID:0, MembroID:1, AcaoID:2, CargaHoraria:3, DataInicio:4, EditalID:5, Status:6 },
-  Voluntarios:   { ID:0, MembroID:1, AcaoID:2, CargaHoraria:3, DataInicio:4, Status:5 },
+  Bolsistas:     { ID:0, MembroID:1, AcaoID:2, CargaHoraria:3, DataInicio:4, EditalID:5, Status:6, DataDesligamento:7, ObsDesligamento:8 },
+  Voluntarios:   { ID:0, MembroID:1, AcaoID:2, CargaHoraria:3, DataInicio:4, Status:5, DataDesligamento:6, ObsDesligamento:7 },
   Cursos:        { ID:0, Nome:1, Modalidade:2, Status:3 },
   Assiduidades:  { ID:0, AcaoID:1, CoordenadorEmail:2, MesAno:3, Snapshot:4, Timestamp:5, ForaPrazo:6, Validado:7, ValidadoPor:8, TimestampValidacao:9 },
   Periodo:       { DiaInicio:0, DiaFim:1 },
@@ -353,6 +353,109 @@ function uploadDocumento(email, payload) {
   }
 }
 
+// ── UPLOAD SIGAA ─────────────────────────────────────────────
+function uploadSIGAA(acaoId, payload, adminEmail) {
+  const rows = sheetRows('Acoes');
+  const rec  = rows.find(r => r.ID === acaoId);
+  if (!rec) return { error: 'Ação não encontrada.' };
+  if (!rec.DriveFolder) return { error: 'Pasta Drive da ação não configurada.' };
+  try {
+    const folder = DriveApp.getFolderById(rec.DriveFolder);
+    const bytes  = Utilities.base64Decode(payload.base64);
+    const name   = payload.fileName || 'Acao_SIGAA.pdf';
+    const blob   = Utilities.newBlob(bytes, 'application/pdf', name);
+    const existing = folder.getFilesByName(name);
+    while (existing.hasNext()) existing.next().setTrashed(true);
+    const file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    const sh  = getSheet('Acoes');
+    const idx = findRowIndex('Acoes', acaoId);
+    sh.getRange(idx, COL.Acoes.SIGAAUrl + 1).setValue(file.getUrl());
+    audit('Admin', adminEmail.split('@')[0], adminEmail, 'Upload SIGAA', rec.Titulo);
+    return { ok: true, url: file.getUrl() };
+  } catch (e) { return { error: 'Erro ao fazer upload: ' + e.message }; }
+}
+
+// ── DESLIGAMENTO / SUBSTITUIÇÃO ───────────────────────────────
+function desligarParticipante(tipo, id, obs, coordEmail) {
+  const shName = tipo === 'bolsista' ? 'Bolsistas' : 'Voluntarios';
+  const rows   = sheetRows(shName);
+  const rec    = rows.find(r => r.ID === id);
+  if (!rec) return { error: 'Participante não encontrado.' };
+  // Segurança: verifica que a ação pertence ao coordenador
+  const acao = sheetRows('Acoes').find(a => a.ID === rec.AcaoID);
+  if (!acao || acao.CoordenadorEmail !== coordEmail) return { error: 'Sem permissão para esta ação.' };
+  if (rec.Status === 'Desligado') return { error: 'Participante já está desligado.' };
+  const sh  = getSheet(shName);
+  const idx = findRowIndex(shName, id);
+  const c   = tipo === 'bolsista' ? COL.Bolsistas : COL.Voluntarios;
+  sh.getRange(idx, c.Status + 1).setValue('Desligado');
+  sh.getRange(idx, c.DataDesligamento + 1).setValue(isoNow());
+  sh.getRange(idx, c.ObsDesligamento + 1).setValue(obs || '');
+  const membro = sheetRows('Membros').find(m => m.ID === rec.MembroID);
+  audit('Coordenador', coordEmail.split('@')[0], coordEmail, 'Desligar ' + tipo, membro ? membro.Nome : rec.MembroID);
+  return { ok: true };
+}
+
+function substituirParticipante(tipo, id, obs, novoNome, novoEmail, coordEmail) {
+  // 1. Desliga participante atual
+  const r = desligarParticipante(tipo, id, obs, coordEmail);
+  if (r.error) return r;
+  // 2. Recupera registro para obter AcaoID/CargaHoraria/EditalID
+  const shName = tipo === 'bolsista' ? 'Bolsistas' : 'Voluntarios';
+  const rec    = sheetRows(shName).find(x => x.ID === id);
+  // 3. Encontra ou cria novo membro
+  const membros    = sheetRows('Membros');
+  let novoMembro   = membros.find(m => m.Email === novoEmail);
+  let novoMembroId;
+  let membroStatus;
+  if (!novoMembro) {
+    novoMembroId = genId();
+    membroStatus = 'Pendente';
+    let driveId  = '';
+    try { driveId = criarPastaMembro(novoNome); } catch(e) {}
+    getSheet('Membros').appendRow([novoMembroId, novoNome, novoEmail, 'Pendente', isoNow(), driveId,
+      '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']);
+  } else {
+    novoMembroId = novoMembro.ID;
+    membroStatus = novoMembro.Status;
+  }
+  // 4. Cria novo vínculo
+  const novoId    = genId();
+  const novoStatus = membroStatus === 'Ativo' ? 'Ativo' : 'Pendente';
+  const dataInicio = isoNow();
+  if (tipo === 'bolsista') {
+    getSheet('Bolsistas').appendRow([novoId, novoMembroId, rec.AcaoID, rec.CargaHoraria || '',
+      dataInicio, rec.EditalID || '', novoStatus, '', '']);
+  } else {
+    getSheet('Voluntarios').appendRow([novoId, novoMembroId, rec.AcaoID, rec.CargaHoraria || '',
+      dataInicio, novoStatus, '', '']);
+  }
+  audit('Coordenador', coordEmail.split('@')[0], coordEmail, 'Substituir ' + tipo, novoNome + ' · ' + novoEmail);
+  return { ok: true, novoMembroId, membroStatus };
+}
+
+// ── APROVAR MEMBRO (admin) ────────────────────────────────────
+function aprovarMembro(membroId, adminEmail) {
+  const idx = findRowIndex('Membros', membroId);
+  if (idx < 0) return { error: 'Membro não encontrado.' };
+  getSheet('Membros').getRange(idx, COL.Membros.Status + 1).setValue('Ativo');
+  ['Bolsistas', 'Voluntarios'].forEach(shName => {
+    sheetRows(shName)
+      .filter(p => p.MembroID === membroId && p.Status === 'Pendente')
+      .forEach(p => {
+        const pidx = findRowIndex(shName, p.ID);
+        if (pidx > 0) {
+          const c = shName === 'Bolsistas' ? COL.Bolsistas : COL.Voluntarios;
+          getSheet(shName).getRange(pidx, c.Status + 1).setValue('Ativo');
+        }
+      });
+  });
+  const membro = sheetRows('Membros').find(m => m.ID === membroId);
+  audit('Admin', adminEmail.split('@')[0], adminEmail, 'Aprovar Membro', membro ? membro.Nome : membroId);
+  return { ok: true };
+}
+
 // ── COORDENADORES CRUD ────────────────────────────────────────
 function getCoordenadores() { return sheetRows('Coordenadores'); }
 
@@ -455,7 +558,7 @@ function addAcao(p, email) {
       driveId = criarPastasAcao(coord.DriveFolder, p.anoExecucao, p.titulo);
     }
   } catch (e) {}
-  sh.appendRow([id, p.titulo, p.coordenadorEmail, p.anoExecucao, p.segmento, p.editalId || '', 'Ativo', driveId]);
+  sh.appendRow([id, p.titulo, p.coordenadorEmail, p.anoExecucao, p.segmento, p.editalId || '', 'Ativo', driveId, '']);
   audit('Admin', email.split('@')[0], email, 'Adicionar Ação', p.titulo);
   return { ok: true, id };
 }
@@ -464,10 +567,10 @@ function updateAcao(id, p, email) {
   const sh  = getSheet('Acoes');
   const idx = findRowIndex('Acoes', id);
   if (idx < 0) return { error: 'Não encontrado' };
-  const row = sh.getRange(idx, 1, 1, 8).getValues()[0];
-  sh.getRange(idx, 1, 1, 8).setValues([[
+  const row = sh.getRange(idx, 1, 1, 9).getValues()[0];
+  sh.getRange(idx, 1, 1, 9).setValues([[
     id, p.titulo, p.coordenadorEmail, p.anoExecucao, p.segmento,
-    p.editalId || '', p.status || row[6], row[7]
+    p.editalId || '', p.status || row[6], row[7], row[8] || ''
   ]]);
   audit('Admin', email.split('@')[0], email, 'Editar Ação', p.titulo);
   return { ok: true };
@@ -509,7 +612,7 @@ function addBolsista(p, email) {
     return { error: 'Este membro já é bolsista desta ação.' };
   }
   const id = genId();
-  sh.appendRow([id, p.membroId, p.acaoId, p.cargaHoraria || '', p.dataInicio || '', p.editalId || '', 'Ativo']);
+  sh.appendRow([id, p.membroId, p.acaoId, p.cargaHoraria || '', p.dataInicio || '', p.editalId || '', 'Ativo', '', '']);
   const membros = sheetRows('Membros');
   const membro  = membros.find(m => m.ID === p.membroId);
   audit('Admin', email.split('@')[0], email, 'Adicionar Bolsista', membro ? membro.Nome : p.membroId);
@@ -520,15 +623,17 @@ function updateBolsista(id, p, email) {
   const sh  = getSheet('Bolsistas');
   const idx = findRowIndex('Bolsistas', id);
   if (idx < 0) return { error: 'Não encontrado' };
-  const row = sh.getRange(idx, 1, 1, 7).getValues()[0];
-  sh.getRange(idx, 1, 1, 7).setValues([[
+  const row = sh.getRange(idx, 1, 1, 9).getValues()[0];
+  sh.getRange(idx, 1, 1, 9).setValues([[
     id,
     p.membroId     || row[1],
     p.acaoId       || row[2],
     p.cargaHoraria !== undefined ? p.cargaHoraria : row[3],
     p.dataInicio   !== undefined ? p.dataInicio   : row[4],
     p.editalId     !== undefined ? p.editalId     : row[5],
-    p.status       || row[6]
+    p.status       || row[6],
+    row[7] || '',
+    row[8] || ''
   ]]);
   audit('Admin', email.split('@')[0], email, 'Editar Bolsista', 'ID ' + id);
   return { ok: true };
@@ -566,7 +671,7 @@ function addVoluntario(p, email) {
     return { error: 'Este membro já é voluntário desta ação.' };
   }
   const id = genId();
-  sh.appendRow([id, p.membroId, p.acaoId, p.cargaHoraria || '', p.dataInicio || '', 'Ativo']);
+  sh.appendRow([id, p.membroId, p.acaoId, p.cargaHoraria || '', p.dataInicio || '', 'Ativo', '', '']);
   const membros = sheetRows('Membros');
   const membro  = membros.find(m => m.ID === p.membroId);
   audit('Admin', email.split('@')[0], email, 'Adicionar Voluntário', membro ? membro.Nome : p.membroId);
@@ -577,14 +682,16 @@ function updateVoluntario(id, p, email) {
   const sh  = getSheet('Voluntarios');
   const idx = findRowIndex('Voluntarios', id);
   if (idx < 0) return { error: 'Não encontrado' };
-  const row = sh.getRange(idx, 1, 1, 6).getValues()[0];
-  sh.getRange(idx, 1, 1, 6).setValues([[
+  const row = sh.getRange(idx, 1, 1, 8).getValues()[0];
+  sh.getRange(idx, 1, 1, 8).setValues([[
     id,
     p.membroId     || row[1],
     p.acaoId       || row[2],
     p.cargaHoraria !== undefined ? p.cargaHoraria : row[3],
     p.dataInicio   !== undefined ? p.dataInicio   : row[4],
-    p.status       || row[5]
+    p.status       || row[5],
+    row[6] || '',
+    row[7] || ''
   ]]);
   audit('Admin', email.split('@')[0], email, 'Editar Voluntário', 'ID ' + id);
   return { ok: true };
@@ -858,13 +965,13 @@ function initSheets() {
   const defs = {
     Coordenadores: ['ID','Nome','Email','CPF','Telefone','Status','DataCriacao','DriveFolder'],
     Editais:       ['ID','Numero','Ano','Titulo','Fomento','TipoInterno','Segmento','Bolsas','CusteioCapital','Status'],
-    Acoes:         ['ID','Titulo','CoordenadorEmail','AnoExecucao','Segmento','EditalID','Status','DriveFolder'],
+    Acoes:         ['ID','Titulo','CoordenadorEmail','AnoExecucao','Segmento','EditalID','Status','DriveFolder','SIGAAUrl'],
     Membros:       ['ID','Nome','Email','Status','DataCriacao','DriveFolder',
                     'DataNascimento','CPF','Telefone','Endereco','EmailPessoal',
                     'CursoID','Curso','Matricula','AnoSemestreIngresso','SemestreAtual',
                     'Banco','Agencia','Conta','TipoConta','Documentos'],
-    Bolsistas:     ['ID','MembroID','AcaoID','CargaHoraria','DataInicio','EditalID','Status'],
-    Voluntarios:   ['ID','MembroID','AcaoID','CargaHoraria','DataInicio','Status'],
+    Bolsistas:     ['ID','MembroID','AcaoID','CargaHoraria','DataInicio','EditalID','Status','DataDesligamento','ObsDesligamento'],
+    Voluntarios:   ['ID','MembroID','AcaoID','CargaHoraria','DataInicio','Status','DataDesligamento','ObsDesligamento'],
     Cursos:        ['ID','Nome','Modalidade','Status'],
     Assiduidades:  ['ID','AcaoID','CoordenadorEmail','MesAno','Snapshot','Timestamp','ForaPrazo','Validado','ValidadoPor','TimestampValidacao'],
     Periodo:       ['DiaInicio','DiaFim'],
@@ -973,7 +1080,13 @@ function doPost(e) {
       case 'sendLembrete':      return respond(sendLembreteManual(data.payload, userEmail));
 
       // Documentos
-      case 'uploadDocumento': return respond(uploadDocumento(userEmail, data.payload));
+      case 'uploadDocumento':          return respond(uploadDocumento(userEmail, data.payload));
+      case 'uploadSIGAA':              return respond(uploadSIGAA(data.acaoId, data.payload, userEmail));
+
+      // Desligamento / Substituição / Aprovação
+      case 'desligarParticipante':     return respond(desligarParticipante(data.tipo, data.id, data.obs, userEmail));
+      case 'substituirParticipante':   return respond(substituirParticipante(data.tipo, data.id, data.obs, data.novoNome, data.novoEmail, userEmail));
+      case 'aprovarMembro':            return respond(aprovarMembro(data.membroId, userEmail));
 
       // Auditoria
       case 'getAuditoria': return respond(getAuditoria());

@@ -30,6 +30,7 @@ const Coord = (() => {
         btn.classList.add('active');
         document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
         if (btn.dataset.tab === 'historico') loadHistorico();
+        if (btn.dataset.tab === 'projetos')  loadMinhasAcoes();
       });
     });
   }
@@ -371,6 +372,160 @@ const Coord = (() => {
     }
   }
 
+  // ── Minhas Ações ──────────────────────────────────────────
+  async function loadMinhasAcoes() {
+    const el = document.getElementById('minhas-acoes-list');
+    showLoading('minhas-acoes-list', 'Carregando ações...');
+    try {
+      const email = _session?.roleInfo?.email || _session?.userInfo?.email;
+      const [acoes, bolsistas, voluntarios] = await Promise.all([
+        API.getAcoes(), API.getBolsistas(), API.getVoluntarios()
+      ]);
+      const minhasAcoes = (acoes || []).filter(a => a.CoordenadorEmail === email);
+      if (!minhasAcoes.length) { showEmpty('minhas-acoes-list', 'Nenhuma ação vinculada a você.'); return; }
+
+      el.innerHTML = minhasAcoes.map(a => {
+        const bols = (bolsistas   || []).filter(b => b.AcaoID === a.ID);
+        const vols = (voluntarios || []).filter(v => v.AcaoID === a.ID);
+        const ativos = [...bols.map(b => ({...b, tipo:'bolsista'})), ...vols.map(v => ({...v, tipo:'voluntario'}))]
+          .filter(p => p.Status === 'Ativo' || p.Status === 'Pendente')
+          .sort((x,y) => (x.Nome||'').localeCompare(y.Nome||''));
+        const desligados = [...bols.map(b=>({...b,tipo:'bolsista'})), ...vols.map(v=>({...v,tipo:'voluntario'}))]
+          .filter(p => p.Status === 'Desligado');
+
+        const sigaaBtn = a.SIGAAUrl
+          ? `<a href="${esc(a.SIGAAUrl)}" target="_blank" class="btn btn-ghost btn-xs">📄 SIGAA</a>`
+          : '';
+
+        const participRows = ativos.map(p => {
+          const badge   = p.tipo === 'bolsista'
+            ? `<span class="badge badge-blue">bolsista</span>`
+            : `<span class="badge badge-gray">voluntário</span>`;
+          const pending = p.Status === 'Pendente'
+            ? `<span class="badge badge-yellow" title="Aguardando aprovação do admin">pendente</span>` : '';
+          const ch = p.CargaHoraria ? `<span class="text-muted text-small"> · ${esc(p.CargaHoraria)}/mês</span>` : '';
+          return `<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.5rem 0;border-bottom:1px solid var(--gray-100);flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+              ${badge} ${pending}
+              <span class="fw-bold">${esc(p.Nome||p.MembroID)}</span>${ch}
+              ${p.DataInicio ? `<span class="text-muted text-small">início: ${esc(p.DataInicio)}</span>` : ''}
+            </div>
+            <div style="display:flex;gap:.4rem">
+              <button class="btn btn-warning btn-xs" onclick="Coord.abrirDesligamento('${esc(p.tipo)}','${esc(p.ID)}','${esc(p.Nome||'')}')">Desligar</button>
+              <button class="btn btn-ghost btn-xs"   onclick="Coord.abrirSubstituicao('${esc(p.tipo)}','${esc(p.ID)}','${esc(p.Nome||'')}')">Substituir</button>
+            </div>
+          </div>`;
+        }).join('');
+
+        const desligRows = desligados.length ? `
+          <details style="margin-top:.75rem">
+            <summary class="text-muted text-small" style="cursor:pointer">Desligados (${desligados.length})</summary>
+            ${desligados.map(p => `
+              <div style="padding:.35rem 0;border-bottom:1px solid var(--gray-100);font-size:.85rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+                <span class="badge ${p.tipo==='bolsista'?'badge-blue':'badge-gray'}">${p.tipo}</span>
+                <span>${esc(p.Nome||p.MembroID)}</span>
+                <span class="text-muted text-small">desligado em ${esc(p.DataDesligamento||'—')}</span>
+                ${p.ObsDesligamento ? `<span class="text-muted text-small">· ${esc(p.ObsDesligamento)}</span>` : ''}
+              </div>`).join('')}
+          </details>` : '';
+
+        return `<div class="card mb-1">
+          <div class="card-header expanded" onclick="this.nextElementSibling.classList.toggle('open');this.classList.toggle('expanded')">
+            <div class="card-header-left">
+              <span class="dot dot-blue"></span>
+              <div>
+                <div class="card-title">${esc(a.Titulo)}</div>
+                <div class="card-sub">${esc(a.Segmento)} · ${ativos.length} participante(s) ativo(s)</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:.4rem;align-items:center">${sigaaBtn}</div>
+          </div>
+          <div class="card-body open">
+            ${ativos.length ? participRows : '<div class="text-muted text-small">Nenhum participante ativo.</div>'}
+            ${desligRows}
+          </div>
+        </div>`;
+      }).join('');
+    } catch (e) { showEmpty('minhas-acoes-list', 'Erro ao carregar: ' + e.message); }
+  }
+
+  // ── Modal coord ───────────────────────────────────────────
+  function openModal(title, bodyHtml, onConfirm, confirmLabel) {
+    document.getElementById('coord-modal-title').textContent = title;
+    document.getElementById('coord-modal-body').innerHTML = bodyHtml;
+    document.getElementById('coord-modal-footer').innerHTML =
+      `<button class="btn btn-ghost" onclick="Coord.closeModal()">Cancelar</button>
+       <button class="btn btn-primary" id="coord-modal-confirm">${confirmLabel || 'Confirmar'}</button>`;
+    document.getElementById('coord-modal-confirm').onclick = onConfirm;
+    document.getElementById('coord-modal-overlay').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('coord-modal-overlay').classList.remove('open');
+  }
+
+  function setModalBusy(busy) {
+    const btn = document.getElementById('coord-modal-confirm');
+    if (btn) { btn.disabled = busy; btn.textContent = busy ? 'Aguarde...' : btn.dataset.label || 'Confirmar'; }
+  }
+
+  function abrirDesligamento(tipo, id, nome) {
+    openModal(`Desligar ${tipo} — ${nome}`,
+      `<p class="text-muted text-small" style="margin-bottom:.75rem">Esta ação é imediata e não pode ser desfeita.</p>
+       <div class="form-group">
+         <label class="form-label">*Observação / Justificativa</label>
+         <textarea class="form-control" id="deslig-obs" rows="3" placeholder="Informe o motivo do desligamento..."></textarea>
+       </div>`,
+      async () => {
+        const obs = document.getElementById('deslig-obs')?.value?.trim() || '';
+        if (!obs) { toast('Informe a observação.', 'warning'); return; }
+        setModalBusy(true);
+        try {
+          await API.desligarParticipante(tipo, id, obs);
+          toast('Participante desligado com sucesso.', 'success');
+          closeModal();
+          loadMinhasAcoes();
+        } catch (e) { toast(e.message, 'error'); setModalBusy(false); }
+      }, 'Confirmar desligamento');
+  }
+
+  function abrirSubstituicao(tipo, id, nome) {
+    openModal(`Substituir ${tipo} — ${nome}`,
+      `<p class="text-muted text-small" style="margin-bottom:.75rem">
+         O participante atual será desligado imediatamente. O novo participante ficará pendente até aprovação do admin.
+       </p>
+       <div class="form-group">
+         <label class="form-label">*Observação / Justificativa do desligamento</label>
+         <textarea class="form-control" id="subst-obs" rows="2" placeholder="Informe o motivo..."></textarea>
+       </div>
+       <div class="form-group">
+         <label class="form-label">*Nome completo do novo participante</label>
+         <input class="form-control" id="subst-nome" placeholder="Nome completo">
+       </div>
+       <div class="form-group">
+         <label class="form-label">*E-mail institucional do novo participante</label>
+         <input class="form-control" id="subst-email" type="email" placeholder="nome@aluno.riogrande.ifrs.edu.br">
+       </div>`,
+      async () => {
+        const obs      = document.getElementById('subst-obs')?.value?.trim()   || '';
+        const novoNome = document.getElementById('subst-nome')?.value?.trim()  || '';
+        const novoEmail= document.getElementById('subst-email')?.value?.trim() || '';
+        if (!obs)      { toast('Informe a observação.', 'warning');        return; }
+        if (!novoNome) { toast('Informe o nome do novo participante.', 'warning'); return; }
+        if (!novoEmail){ toast('Informe o e-mail do novo participante.', 'warning'); return; }
+        setModalBusy(true);
+        try {
+          const r = await API.substituirParticipante(tipo, id, obs, novoNome, novoEmail);
+          const msg = r.membroStatus === 'Pendente'
+            ? 'Substituição registrada. Novo participante aguarda aprovação do admin.'
+            : 'Substituição realizada com sucesso.';
+          toast(msg, 'success');
+          closeModal();
+          loadMinhasAcoes();
+        } catch (e) { toast(e.message, 'error'); setModalBusy(false); }
+      }, 'Confirmar substituição');
+  }
+
   // ── Histórico ─────────────────────────────────────────────
   async function loadHistorico() {
     showLoading('historico-list', 'Carregando histórico...');
@@ -421,6 +576,8 @@ const Coord = (() => {
   }
 
   // ── Public ────────────────────────────────────────────────
-  return { init, savePerfil, editPerfil, cancelEditPerfil, toggleMaskPerfil, loadAssiduidade, toggleObs, enviar };
+  return { init, savePerfil, editPerfil, cancelEditPerfil, toggleMaskPerfil,
+           loadAssiduidade, toggleObs, enviar,
+           loadMinhasAcoes, closeModal, abrirDesligamento, abrirSubstituicao };
 
 })();

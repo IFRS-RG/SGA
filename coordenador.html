@@ -20,7 +20,7 @@
 
 <div class="tabs">
   <button class="tab-btn active" data-tab="perfil">Meu Perfil</button>
-  <button class="tab-btn" data-tab="projetos">Meus Projetos</button>
+  <button class="tab-btn" data-tab="projetos">Minhas Ações</button>
   <button class="tab-btn" data-tab="assiduidade">Registrar Assiduidade</button>
   <button class="tab-btn" data-tab="historico">Histórico de Assiduidade</button>
   <button class="tab-btn" data-tab="relatorios">Relatórios</button>
@@ -31,9 +31,21 @@
   <div id="perfil-container"></div>
 </div>
 
-<!-- ══ PROJETOS ══════════════════════════════════════════════ -->
+<!-- ══ MINHAS AÇÕES ═══════════════════════════════════════════ -->
 <div id="tab-projetos" class="tab-content" style="padding:1.5rem">
-  <div class="construction"><h3>Em construção</h3><p>Esta funcionalidade estará disponível em breve.</p></div>
+  <div id="minhas-acoes-list"></div>
+</div>
+
+<!-- Modal de desligamento/substituição -->
+<div id="coord-modal-overlay" class="modal-overlay" onclick="if(event.target===this)Coord.closeModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span id="coord-modal-title" class="modal-title"></span>
+      <button class="btn-close" onclick="Coord.closeModal()">✕</button>
+    </div>
+    <div id="coord-modal-body" class="modal-body"></div>
+    <div id="coord-modal-footer" class="modal-footer"></div>
+  </div>
 </div>
 
 <!-- ══ REGISTRAR ASSIDUIDADE ═════════════════════════════════ -->

@@ -90,7 +90,13 @@ const API = {
   sendLembrete:      (payload)     => gasCall('sendLembrete', { payload }),
 
   // Documentos
-  uploadDocumento: (payload) => gasCall('uploadDocumento', { payload }),
+  uploadDocumento: (payload)          => gasCall('uploadDocumento', { payload }),
+  uploadSIGAA:     (acaoId, payload)  => gasCall('uploadSIGAA', { acaoId, payload }),
+
+  // Desligamento / Substituição / Aprovação
+  desligarParticipante:   (tipo, id, obs)                       => gasCall('desligarParticipante',   { tipo, id, obs }),
+  substituirParticipante: (tipo, id, obs, novoNome, novoEmail)  => gasCall('substituirParticipante', { tipo, id, obs, novoNome, novoEmail }),
+  aprovarMembro:          (membroId)                            => gasCall('aprovarMembro',          { membroId }),
 
   // Auditoria
   getAuditoria: () => gasCall('getAuditoria')

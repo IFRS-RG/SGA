@@ -373,11 +373,21 @@ const Admin = (() => {
         <td>${esc(r.AnoExecucao)}</td><td>${esc(r.Segmento)}</td><td>${esc(r.editalLabel||r.EditalID||'—')}</td>
         <td>${statusBadge(r.Status)}</td>
         <td class="td-actions">
+          ${r.SIGAAUrl ? `<a href="${esc(r.SIGAAUrl)}" target="_blank" class="btn btn-ghost btn-xs">📄 SIGAA</a>` : ''}
+          <button class="btn btn-ghost btn-xs" title="Upload PDF do SIGAA" onclick="Admin.Acoes.uploadSIGAA('${r.ID}')">⬆ SIGAA</button>
           <button class="btn btn-ghost btn-xs" onclick="Admin.Acoes.openEdit('${r.ID}')">Editar</button>
           <button class="btn ${r.Status==='Ativo'?'btn-warning':'btn-success'} btn-xs" onclick="Admin.Acoes.toggle('${r.ID}','${r.Status==='Ativo'?'Inativo':'Ativo'}')">
             ${r.Status==='Ativo'?'Inativar':'Ativar'}</button>
           <button class="btn btn-danger btn-xs" onclick="Admin.Acoes.delete_('${r.ID}')">Excluir</button>
         </td></tr>`).join('')}</tbody></table>`;
+      // Input file oculto para SIGAA
+      if (!document.getElementById('_sigaa-input')) {
+        const inp = document.createElement('input');
+        inp.type = 'file'; inp.accept = 'application/pdf';
+        inp.id = '_sigaa-input'; inp.style.display = 'none';
+        inp.onchange = () => Admin.Acoes._doUploadSIGAA(inp);
+        document.body.appendChild(inp);
+      }
     },
     openAdd(){openModal('Adicionar Ação',this._form(),async()=>{await this._save();});},
     openEdit(id){const r=state.acoes.find(x=>x.ID===id);openModal('Editar Ação',this._form(r),async()=>{await this._save(id);});},
@@ -424,6 +434,32 @@ const Admin = (() => {
       <div class="form-group"><label class="form-label">*Segmento</label><select class="form-select" id="f-seg">${segs}</select></div>
       <div class="form-group"><label class="form-label">Edital</label><select class="form-select" id="f-edital">${editaisOpts}</select></div>`;
     },
+    uploadSIGAA(id) {
+      const inp = document.getElementById('_sigaa-input');
+      if (!inp) return;
+      inp.dataset.acaoId = id;
+      inp.value = '';
+      inp.click();
+    },
+    async _doUploadSIGAA(inp) {
+      const id   = inp.dataset.acaoId;
+      const file = inp.files?.[0];
+      if (!file || !id) return;
+      if (file.size > 10 * 1024 * 1024) { toast('Arquivo muito grande. Máximo: 10 MB.', 'error'); return; }
+      toast('Enviando PDF...', 'info');
+      try {
+        const base64 = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload  = () => res(r.result.split(',')[1]);
+          r.onerror = rej;
+          r.readAsDataURL(file);
+        });
+        await API.uploadSIGAA(id, { base64, fileName: file.name });
+        toast('PDF do SIGAA enviado com sucesso.', 'success');
+        state.acoes = await API.getAcoes() || [];
+        this.render();
+      } catch (e) { toast('Erro ao enviar: ' + e.message, 'error'); }
+    },
     exportXLS(){exportXLS(['Título','Coordenador','Ano','Segmento','Edital','Status'],this.filtered().map(r=>[r.Titulo,r.coordenadorNome,r.AnoExecucao,r.Segmento,r.editalLabel,r.Status]),'Acoes');},
     exportPDF(){exportPDF('Ações',['Título','Coordenador','Ano','Segmento','Status'],this.filtered().map(r=>[r.Titulo,r.coordenadorNome,r.AnoExecucao,r.Segmento,r.Status]));}
   };
@@ -448,6 +484,7 @@ const Admin = (() => {
         <td>${esc(r.Nome)}</td><td>${esc(r.Email)}</td>
         <td>${statusBadge(r.Status)}</td>
         <td class="td-actions">
+          ${r.Status==='Pendente' ? `<button class="btn btn-success btn-xs" onclick="Admin.Membros.aprovar('${r.ID}')">✓ Aprovar</button>` : ''}
           <button class="btn btn-ghost btn-xs" onclick="Admin.Membros.verPerfil('${r.ID}')">Ver perfil</button>
           <button class="btn btn-ghost btn-xs" onclick="Admin.Membros.openEdit('${r.ID}')">Editar</button>
           <button class="btn ${r.Status==='Ativo'?'btn-warning':'btn-success'} btn-xs" onclick="Admin.Membros.toggle('${r.ID}','${r.Status==='Ativo'?'Inativo':'Ativo'}')">
@@ -538,6 +575,18 @@ const Admin = (() => {
         state.membros = await API.getMembros() || [];
         this.render();
         toast(`Status alterado para ${st}.`, 'success');
+      } catch(e) { toast(e.message, 'error'); }
+    },
+    async aprovar(id) {
+      const r = state.membros.find(x => x.ID === id);
+      if (!confirm(`Aprovar membro "${r?.Nome || id}"?\nO acesso ao sistema será liberado imediatamente.`)) return;
+      try {
+        await API.aprovarMembro(id);
+        toast('Membro aprovado. Acesso liberado.', 'success');
+        state.membros     = await API.getMembros()     || [];
+        state.bolsistas   = await API.getBolsistas()   || [];
+        state.voluntarios = await API.getVoluntarios() || [];
+        this.render(); Bolsistas.render(); Voluntarios.render();
       } catch(e) { toast(e.message, 'error'); }
     },
     async delete_(id) {
