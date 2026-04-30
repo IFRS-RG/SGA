@@ -43,21 +43,28 @@ const API = {
   toggleAcao:  (id, status)  => gasCall('toggleAcao', { id, status }),
   deleteAcao:  (id)          => gasCall('deleteAcao', { id }),
 
+  // Membros
+  getMembros:         ()            => gasCall('getMembros'),
+  addMembro:          (payload)     => gasCall('addMembro', { payload }),
+  updateMembro:       (id, payload) => gasCall('updateMembro', { id, payload }),
+  toggleMembro:       (id, status)  => gasCall('toggleMembro', { id, status }),
+  deleteMembro:       (id)          => gasCall('deleteMembro', { id }),
+  getPerfilMembro:    ()            => gasCall('getPerfilMembro'),
+  updatePerfilMembro: (payload)     => gasCall('updatePerfilMembro', { payload }),
+
   // Bolsistas
-  getBolsistas:          ()            => gasCall('getBolsistas'),
-  addBolsista:           (payload)     => gasCall('addBolsista', { payload }),
-  updateBolsista:        (id, payload) => gasCall('updateBolsista', { id, payload }),
-  toggleBolsista:        (id, status)  => gasCall('toggleBolsista', { id, status }),
-  deleteBolsista:        (id)          => gasCall('deleteBolsista', { id }),
-  updatePerfilBolsista:  (payload)     => gasCall('updatePerfilBolsista', { payload }),
+  getBolsistas:   ()            => gasCall('getBolsistas'),
+  addBolsista:    (payload)     => gasCall('addBolsista', { payload }),
+  updateBolsista: (id, payload) => gasCall('updateBolsista', { id, payload }),
+  toggleBolsista: (id, status)  => gasCall('toggleBolsista', { id, status }),
+  deleteBolsista: (id)          => gasCall('deleteBolsista', { id }),
 
   // Voluntários
-  getVoluntarios:          ()            => gasCall('getVoluntarios'),
-  addVoluntario:           (payload)     => gasCall('addVoluntario', { payload }),
-  updateVoluntario:        (id, payload) => gasCall('updateVoluntario', { id, payload }),
-  toggleVoluntario:        (id, status)  => gasCall('toggleVoluntario', { id, status }),
-  deleteVoluntario:        (id)          => gasCall('deleteVoluntario', { id }),
-  updatePerfilVoluntario:  (payload)     => gasCall('updatePerfilVoluntario', { payload }),
+  getVoluntarios:   ()            => gasCall('getVoluntarios'),
+  addVoluntario:    (payload)     => gasCall('addVoluntario', { payload }),
+  updateVoluntario: (id, payload) => gasCall('updateVoluntario', { id, payload }),
+  toggleVoluntario: (id, status)  => gasCall('toggleVoluntario', { id, status }),
+  deleteVoluntario: (id)          => gasCall('deleteVoluntario', { id }),
 
   // Cursos
   getCursos:    ()            => gasCall('getCursos'),
@@ -82,7 +89,7 @@ const API = {
   deleteNotificacao: (id)          => gasCall('deleteNotificacao', { id }),
   sendLembrete:      (payload)     => gasCall('sendLembrete', { payload }),
 
-  // Documentos (Drive upload)
+  // Documentos
   uploadDocumento: (payload) => gasCall('uploadDocumento', { payload }),
 
   // Auditoria

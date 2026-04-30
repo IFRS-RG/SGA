@@ -17,21 +17,19 @@ const ADMIN_PERMISSIONS = {
   saen: ['Ensino']
 };
 
-// ── Sheet column indices (0-based) ──────────────────────────
+// ── Sheet column indices (0-based) ───────────────────────────
 const COL = {
   Coordenadores: { ID:0, Nome:1, Email:2, CPF:3, Telefone:4, Status:5, DataCriacao:6, DriveFolder:7 },
-  // Editais: added Bolsas(7) and CusteioCapital(8) before Status(9)
   Editais:       { ID:0, Numero:1, Ano:2, Titulo:3, Fomento:4, TipoInterno:5, Segmento:6, Bolsas:7, CusteioCapital:8, Status:9 },
-  // Acoes: removed EditalBolsasID; Status now at 6, DriveFolder at 7
   Acoes:         { ID:0, Titulo:1, CoordenadorEmail:2, AnoExecucao:3, Segmento:4, EditalID:5, Status:6, DriveFolder:7 },
-  // Bolsistas: cols 0-10 admin; cols 11-22 preenchidos pelo próprio bolsista
-  Bolsistas:     { ID:0, Nome:1, Email:2, AcaoID:3, CargaHoraria:4, EditalID:5, CPF:6, Telefone:7, Curso:8, Status:9, DriveFolder:10,
-                   DataNascimento:11, Endereco:12, EmailPessoal:13, Banco:14, Agencia:15, Conta:16, TipoConta:17,
-                   Matricula:18, AnoSemestreIngresso:19, SemestreAtual:20, DataInicio:21, CursoID:22 },
-  // Voluntarios: cols 0-9 admin; cols 10-20 preenchidos pelo voluntário
-  Voluntarios:   { ID:0, Nome:1, Email:2, AcaoID:3, CargaHoraria:4, CursoID:5, CPF:6, Telefone:7, Status:8, DriveFolder:9,
-                   DataNascimento:10, Endereco:11, EmailPessoal:12, Banco:13, Agencia:14, Conta:15, TipoConta:16,
-                   Matricula:17, AnoSemestreIngresso:18, SemestreAtual:19, DataInicio:20 },
+  // Membros: identidade única do participante; dados complementares preenchidos pelo próprio
+  Membros:       { ID:0, Nome:1, Email:2, Status:3, DataCriacao:4, DriveFolder:5,
+                   DataNascimento:6, CPF:7, Telefone:8, Endereco:9, EmailPessoal:10,
+                   CursoID:11, Curso:12, Matricula:13, AnoSemestreIngresso:14, SemestreAtual:15, DataInicio:16,
+                   Banco:17, Agencia:18, Conta:19, TipoConta:20, Documentos:21 },
+  // Bolsistas/Voluntarios: apenas vínculo Membro ↔ Ação
+  Bolsistas:     { ID:0, MembroID:1, AcaoID:2, CargaHoraria:3, EditalID:4, Status:5 },
+  Voluntarios:   { ID:0, MembroID:1, AcaoID:2, CargaHoraria:3, Status:4 },
   Cursos:        { ID:0, Nome:1, Modalidade:2, Status:3 },
   Assiduidades:  { ID:0, AcaoID:1, CoordenadorEmail:2, MesAno:3, Snapshot:4, Timestamp:5, ForaPrazo:6, Validado:7, ValidadoPor:8, TimestampValidacao:9 },
   Periodo:       { DiaInicio:0, DiaFim:1 },
@@ -69,7 +67,7 @@ function findRowIndex(sheetName, id) {
   const sh = getSheet(sheetName);
   const data = sh.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(id)) return i + 1; // 1-based sheet row
+    if (String(data[i][0]) === String(id)) return i + 1;
   }
   return -1;
 }
@@ -119,15 +117,11 @@ function getRole(email) {
     return { role: 'admin', email, name: user.toUpperCase(), permissions: ADMIN_PERMISSIONS[user] || [] };
   }
 
-  const bolsistas   = sheetRows('Bolsistas');
-  const voluntarios = sheetRows('Voluntarios');
-  const isBolsista  = bolsistas.find(r => r.Email === email && r.Status === 'Ativo');
-  const isVoluntario = voluntarios.find(r => r.Email === email && r.Status === 'Ativo');
-
-  if (isBolsista || isVoluntario) {
-    const tipo = isBolsista ? 'bolsista' : 'voluntario';
-    const rec  = isBolsista || isVoluntario;
-    return { role: 'participante', tipo, email, nome: rec.Nome };
+  // Verifica se é membro (bolsista ou voluntário)
+  const membros = sheetRows('Membros');
+  const membro  = membros.find(r => r.Email === email && r.Status === 'Ativo');
+  if (membro) {
+    return { role: 'participante', email, nome: membro.Nome };
   }
 
   if (domain === ADMIN_DOMAIN) {
@@ -164,8 +158,10 @@ function criarPastasAcao(coordPastaId, ano, titulo) {
   return getOrCreateFolder(coordPastaId, ano + ' — ' + titulo).getId();
 }
 
-function criarPastasParticipante(acaoPastaId, nome) {
-  return getOrCreateFolder(acaoPastaId, nome).getId();
+// Pasta do membro dentro de Root/Membros/[nome]
+function criarPastaMembro(nome) {
+  const membrosFolder = getOrCreateFolder(DRIVE_ROOT_ID, 'Membros');
+  return getOrCreateFolder(membrosFolder.getId(), nome).getId();
 }
 
 // ── Period Logic ──────────────────────────────────────────────
@@ -239,6 +235,123 @@ function emailAvisoBolsistaForaPrazo(emailBolsista, nomeBolsista, snapshot) {
     foi enviada <strong style="color:red">fora do prazo</strong> pelo coordenador.</p>
     <p>O atraso no envio pode impactar o pagamento da sua bolsa. Em caso de dúvidas, entre em contato com a secretaria responsável.</p>`;
   sendEmail(emailBolsista, `⚠ [SGA] Assiduidade enviada fora do prazo — ${snapshot.acaoTitulo}`, body);
+}
+
+// ── MEMBROS CRUD ──────────────────────────────────────────────
+function getMembros() {
+  const membros = sheetRows('Membros');
+  const cursos  = sheetRows('Cursos');
+  return membros.map(m => {
+    const curso = cursos.find(c => c.ID === m.CursoID);
+    let docs = [];
+    try { docs = JSON.parse(m.Documentos || '[]'); } catch(e) {}
+    return { ...m, cursoLabel: curso ? `${curso.Nome} — ${curso.Modalidade}` : (m.CursoID || ''), docs };
+  });
+}
+
+function getPerfilMembro(email) {
+  const membros = sheetRows('Membros');
+  const rec = membros.find(r => r.Email === email && r.Status === 'Ativo');
+  if (!rec) return { error: 'Membro não encontrado.' };
+  const cursos = sheetRows('Cursos');
+  const curso  = cursos.find(c => c.ID === rec.CursoID);
+  let docs = [];
+  try { docs = JSON.parse(rec.Documentos || '[]'); } catch(e) {}
+  return { ...rec, cursoLabel: curso ? `${curso.Nome} — ${curso.Modalidade}` : (rec.CursoID || ''), docs };
+}
+
+function addMembro(p, adminEmail) {
+  const sh = getSheet('Membros');
+  // Impede duplicatas por email
+  const existing = sheetRows('Membros');
+  if (existing.find(r => r.Email === p.email)) return { error: 'Já existe um membro com este e-mail.' };
+  const id = genId();
+  let driveId = '';
+  try { driveId = criarPastaMembro(p.nome); } catch (e) {}
+  sh.appendRow([id, p.nome, p.email, 'Ativo', isoNow(), driveId,
+                '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']);
+  audit('Admin', adminEmail.split('@')[0], adminEmail, 'Adicionar Membro', p.nome + ' · ' + p.email);
+  return { ok: true, id };
+}
+
+function updateMembro(id, p, adminEmail) {
+  const sh  = getSheet('Membros');
+  const idx = findRowIndex('Membros', id);
+  if (idx < 0) return { error: 'Não encontrado' };
+  const c = COL.Membros;
+  sh.getRange(idx, c.Nome + 1).setValue(p.nome);
+  sh.getRange(idx, c.Email + 1).setValue(p.email);
+  audit('Admin', adminEmail.split('@')[0], adminEmail, 'Editar Membro', p.nome);
+  return { ok: true };
+}
+
+function deleteMembro(id, email) {
+  const idx = findRowIndex('Membros', id);
+  if (idx < 0) return { error: 'Não encontrado' };
+  getSheet('Membros').deleteRow(idx);
+  audit('Admin', email.split('@')[0], email, 'Excluir Membro', 'ID ' + id);
+  return { ok: true };
+}
+
+function updatePerfilMembro(email, p) {
+  const rows = sheetRows('Membros');
+  const rec  = rows.find(r => r.Email === email);
+  if (!rec) return { error: 'Membro não encontrado.' };
+  const sh  = getSheet('Membros');
+  const c   = COL.Membros;
+  const idx = findRowIndex('Membros', rec.ID);
+  const fields = [
+    ['dataNascimento',    c.DataNascimento],
+    ['cpf',              c.CPF],
+    ['telefone',         c.Telefone],
+    ['endereco',         c.Endereco],
+    ['emailPessoal',     c.EmailPessoal],
+    ['cursoId',          c.CursoID],
+    ['curso',            c.Curso],
+    ['matricula',        c.Matricula],
+    ['anoSemestreIngresso', c.AnoSemestreIngresso],
+    ['semestreAtual',    c.SemestreAtual],
+    ['dataInicio',       c.DataInicio],
+    ['banco',            c.Banco],
+    ['agencia',          c.Agencia],
+    ['conta',            c.Conta],
+    ['tipoConta',        c.TipoConta]
+  ];
+  fields.forEach(([key, col]) => {
+    if (p[key] !== undefined && p[key] !== null && p[key] !== '')
+      sh.getRange(idx, col + 1).setValue(p[key]);
+  });
+  audit('Membro', rec.Nome, email, 'Atualizar Perfil', 'Dados complementares');
+  return { ok: true };
+}
+
+function uploadDocumento(email, payload) {
+  const rows = sheetRows('Membros');
+  const rec  = rows.find(r => r.Email === email);
+  if (!rec) return { error: 'Membro não encontrado.' };
+  if (!rec.DriveFolder) return { error: 'Pasta Drive não configurada. Contate o administrador.' };
+  try {
+    const folder = DriveApp.getFolderById(rec.DriveFolder);
+    const bytes  = Utilities.base64Decode(payload.base64);
+    const blob   = Utilities.newBlob(bytes, payload.mimeType || 'application/pdf', payload.fileName);
+    // Remove versão anterior com mesmo nome
+    const existing = folder.getFilesByName(payload.fileName);
+    while (existing.hasNext()) existing.next().setTrashed(true);
+    const file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    // Atualiza JSON de documentos no registro do membro
+    const sh  = getSheet('Membros');
+    const idx = findRowIndex('Membros', rec.ID);
+    let docs = [];
+    try { docs = JSON.parse(rec.Documentos || '[]'); } catch(e) {}
+    docs = docs.filter(d => d.name !== payload.fileName);
+    docs.push({ name: payload.fileName, url: file.getUrl(), fileId: file.getId() });
+    sh.getRange(idx, COL.Membros.Documentos + 1).setValue(JSON.stringify(docs));
+    audit('Membro', rec.Nome, email, 'Upload Documento', payload.fileName);
+    return { ok: true, fileId: file.getId(), fileUrl: file.getUrl() };
+  } catch (e) {
+    return { error: 'Erro ao salvar arquivo: ' + e.message };
+  }
 }
 
 // ── COORDENADORES CRUD ────────────────────────────────────────
@@ -372,14 +485,18 @@ function deleteAcao(id, email) {
 // ── BOLSISTAS CRUD ────────────────────────────────────────────
 function getBolsistas() {
   const bolsistas = sheetRows('Bolsistas');
+  const membros   = sheetRows('Membros');
   const acoes     = sheetRows('Acoes');
   const editais   = sheetRows('Editais');
   return bolsistas.map(b => {
+    const membro = membros.find(m => m.ID === b.MembroID);
     const acao   = acoes.find(a => a.ID === b.AcaoID);
     const edital = editais.find(e => e.ID === b.EditalID);
     return {
       ...b,
-      acaoTitulo:  acao   ? acao.Titulo   : b.AcaoID,
+      Nome:        membro ? membro.Nome  : '',
+      Email:       membro ? membro.Email : '',
+      acaoTitulo:  acao   ? acao.Titulo  : b.AcaoID,
       editalLabel: edital ? `${edital.Numero}/${edital.Ano} — ${edital.Titulo}` : ''
     };
   });
@@ -387,17 +504,16 @@ function getBolsistas() {
 
 function addBolsista(p, email) {
   const sh = getSheet('Bolsistas');
+  // Impede vínculo duplicado membro+ação
+  const existing = sheetRows('Bolsistas');
+  if (existing.find(r => r.MembroID === p.membroId && r.AcaoID === p.acaoId && r.Status === 'Ativo')) {
+    return { error: 'Este membro já é bolsista desta ação.' };
+  }
   const id = genId();
-  let driveId = '';
-  try {
-    const acoes = sheetRows('Acoes');
-    const acao  = acoes.find(a => a.ID === p.acaoId);
-    if (acao && acao.DriveFolder) {
-      driveId = criarPastasParticipante(acao.DriveFolder, p.nome);
-    }
-  } catch (e) {}
-  sh.appendRow([id, p.nome, p.email, p.acaoId, p.cargaHoraria, p.editalId || '', p.cpf || '', p.telefone || '', p.curso || '', 'Ativo', driveId]);
-  audit('Admin', email.split('@')[0], email, 'Adicionar Bolsista', p.nome + ' · ' + p.email);
+  sh.appendRow([id, p.membroId, p.acaoId, p.cargaHoraria || '', p.editalId || '', 'Ativo']);
+  const membros = sheetRows('Membros');
+  const membro  = membros.find(m => m.ID === p.membroId);
+  audit('Admin', email.split('@')[0], email, 'Adicionar Bolsista', membro ? membro.Nome : p.membroId);
   return { ok: true, id };
 }
 
@@ -405,12 +521,16 @@ function updateBolsista(id, p, email) {
   const sh  = getSheet('Bolsistas');
   const idx = findRowIndex('Bolsistas', id);
   if (idx < 0) return { error: 'Não encontrado' };
-  const row = sh.getRange(idx, 1, 1, 11).getValues()[0];
-  sh.getRange(idx, 1, 1, 11).setValues([[
-    id, p.nome, p.email, p.acaoId, p.cargaHoraria,
-    p.editalId || row[5], p.cpf || row[6], p.telefone || row[7], p.curso || row[8], p.status || row[9], row[10]
+  const row = sh.getRange(idx, 1, 1, 6).getValues()[0];
+  sh.getRange(idx, 1, 1, 6).setValues([[
+    id,
+    p.membroId    || row[1],
+    p.acaoId      || row[2],
+    p.cargaHoraria !== undefined ? p.cargaHoraria : row[3],
+    p.editalId    !== undefined  ? p.editalId     : row[4],
+    p.status      || row[5]
   ]]);
-  audit('Admin', email.split('@')[0], email, 'Editar Bolsista', p.nome);
+  audit('Admin', email.split('@')[0], email, 'Editar Bolsista', 'ID ' + id);
   return { ok: true };
 }
 
@@ -422,69 +542,34 @@ function deleteBolsista(id, email) {
   return { ok: true };
 }
 
-function updatePerfilBolsista(email, p) {
-  const bolsistas = sheetRows('Bolsistas');
-  const recs = bolsistas.filter(b => b.Email === email);
-  if (!recs.length) return { error: 'Não encontrado' };
-  const sh = getSheet('Bolsistas');
-  const c  = COL.Bolsistas;
-  const fields = [
-    ['cpf',               c.CPF],
-    ['telefone',          c.Telefone],
-    ['curso',             c.Curso],
-    ['cursoId',           c.CursoID],
-    ['dataNascimento',    c.DataNascimento],
-    ['endereco',          c.Endereco],
-    ['emailPessoal',      c.EmailPessoal],
-    ['banco',             c.Banco],
-    ['agencia',           c.Agencia],
-    ['conta',             c.Conta],
-    ['tipoConta',         c.TipoConta],
-    ['matricula',         c.Matricula],
-    ['anoSemestreIngresso', c.AnoSemestreIngresso],
-    ['semestreAtual',     c.SemestreAtual],
-    ['dataInicio',        c.DataInicio]
-  ];
-  recs.forEach(rec => {
-    const idx = findRowIndex('Bolsistas', rec.ID);
-    fields.forEach(([key, col]) => {
-      if (p[key] !== undefined && p[key] !== null && p[key] !== '')
-        sh.getRange(idx, col + 1).setValue(p[key]);
-    });
-  });
-  audit('Bolsista', recs[0].Nome, email, 'Atualizar Perfil', 'Dados complementares');
-  return { ok: true };
-}
-
 // ── VOLUNTÁRIOS CRUD ──────────────────────────────────────────
 function getVoluntarios() {
-  const vols   = sheetRows('Voluntarios');
-  const acoes  = sheetRows('Acoes');
-  const cursos = sheetRows('Cursos');
+  const vols    = sheetRows('Voluntarios');
+  const membros = sheetRows('Membros');
+  const acoes   = sheetRows('Acoes');
   return vols.map(v => {
-    const acao  = acoes.find(a => a.ID === v.AcaoID);
-    const curso = cursos.find(c => c.ID === v.CursoID);
+    const membro = membros.find(m => m.ID === v.MembroID);
+    const acao   = acoes.find(a => a.ID === v.AcaoID);
     return {
       ...v,
-      acaoTitulo: acao  ? acao.Titulo : v.AcaoID,
-      cursoLabel: curso ? `${curso.Nome} — ${curso.Modalidade}` : v.CursoID
+      Nome:       membro ? membro.Nome  : '',
+      Email:      membro ? membro.Email : '',
+      acaoTitulo: acao   ? acao.Titulo  : v.AcaoID
     };
   });
 }
 
 function addVoluntario(p, email) {
   const sh = getSheet('Voluntarios');
+  const existing = sheetRows('Voluntarios');
+  if (existing.find(r => r.MembroID === p.membroId && r.AcaoID === p.acaoId && r.Status === 'Ativo')) {
+    return { error: 'Este membro já é voluntário desta ação.' };
+  }
   const id = genId();
-  let driveId = '';
-  try {
-    const acoes = sheetRows('Acoes');
-    const acao  = acoes.find(a => a.ID === p.acaoId);
-    if (acao && acao.DriveFolder) {
-      driveId = criarPastasParticipante(acao.DriveFolder, p.nome);
-    }
-  } catch (e) {}
-  sh.appendRow([id, p.nome, p.email, p.acaoId, p.cargaHoraria || '', '', '', '', 'Ativo', driveId]);
-  audit('Admin', email.split('@')[0], email, 'Adicionar Voluntário', p.nome);
+  sh.appendRow([id, p.membroId, p.acaoId, p.cargaHoraria || '', 'Ativo']);
+  const membros = sheetRows('Membros');
+  const membro  = membros.find(m => m.ID === p.membroId);
+  audit('Admin', email.split('@')[0], email, 'Adicionar Voluntário', membro ? membro.Nome : p.membroId);
   return { ok: true, id };
 }
 
@@ -492,11 +577,15 @@ function updateVoluntario(id, p, email) {
   const sh  = getSheet('Voluntarios');
   const idx = findRowIndex('Voluntarios', id);
   if (idx < 0) return { error: 'Não encontrado' };
-  const row = sh.getRange(idx, 1, 1, 10).getValues()[0];
-  sh.getRange(idx, 1, 1, 10).setValues([[
-    id, p.nome, p.email, p.acaoId, p.cargaHoraria || row[4], row[5], row[6], row[7], p.status || row[8], row[9]
+  const row = sh.getRange(idx, 1, 1, 5).getValues()[0];
+  sh.getRange(idx, 1, 1, 5).setValues([[
+    id,
+    p.membroId     || row[1],
+    p.acaoId       || row[2],
+    p.cargaHoraria !== undefined ? p.cargaHoraria : row[3],
+    p.status       || row[4]
   ]]);
-  audit('Admin', email.split('@')[0], email, 'Editar Voluntário', p.nome);
+  audit('Admin', email.split('@')[0], email, 'Editar Voluntário', 'ID ' + id);
   return { ok: true };
 }
 
@@ -506,60 +595,6 @@ function deleteVoluntario(id, email) {
   getSheet('Voluntarios').deleteRow(idx);
   audit('Admin', email.split('@')[0], email, 'Excluir Voluntário', 'ID ' + id);
   return { ok: true };
-}
-
-function updatePerfilVoluntario(email, p) {
-  const vols = sheetRows('Voluntarios');
-  const recs = vols.filter(v => v.Email === email);
-  if (!recs.length) return { error: 'Não encontrado' };
-  const sh = getSheet('Voluntarios');
-  const c  = COL.Voluntarios;
-  const fields = [
-    ['cpf',               c.CPF],
-    ['telefone',          c.Telefone],
-    ['cursoId',           c.CursoID],
-    ['dataNascimento',    c.DataNascimento],
-    ['endereco',          c.Endereco],
-    ['emailPessoal',      c.EmailPessoal],
-    ['banco',             c.Banco],
-    ['agencia',           c.Agencia],
-    ['conta',             c.Conta],
-    ['tipoConta',         c.TipoConta],
-    ['matricula',         c.Matricula],
-    ['anoSemestreIngresso', c.AnoSemestreIngresso],
-    ['semestreAtual',     c.SemestreAtual],
-    ['dataInicio',        c.DataInicio]
-  ];
-  recs.forEach(rec => {
-    const idx = findRowIndex('Voluntarios', rec.ID);
-    fields.forEach(([key, col]) => {
-      if (p[key] !== undefined && p[key] !== null && p[key] !== '')
-        sh.getRange(idx, col + 1).setValue(p[key]);
-    });
-  });
-  audit('Voluntário', recs[0].Nome, email, 'Atualizar Perfil', 'Dados complementares');
-  return { ok: true };
-}
-
-function uploadDocumento(email, payload) {
-  const sheetName = payload.sheetName || 'Bolsistas';
-  const rows = sheetRows(sheetName);
-  const rec  = rows.find(r => r.Email === email);
-  if (!rec) return { error: 'Participante não encontrado.' };
-  if (!rec.DriveFolder) return { error: 'Pasta Drive não configurada. Contate o administrador.' };
-  try {
-    const folder = DriveApp.getFolderById(rec.DriveFolder);
-    const bytes  = Utilities.base64Decode(payload.base64);
-    const blob   = Utilities.newBlob(bytes, payload.mimeType || 'application/pdf', payload.fileName);
-    const existing = folder.getFilesByName(payload.fileName);
-    while (existing.hasNext()) existing.next().setTrashed(true);
-    const file = folder.createFile(blob);
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    audit(sheetName === 'Bolsistas' ? 'Bolsista' : 'Voluntário', rec.Nome, email, 'Upload Documento', payload.fileName);
-    return { ok: true, fileId: file.getId(), fileUrl: file.getUrl() };
-  } catch (e) {
-    return { error: 'Erro ao salvar arquivo: ' + e.message };
-  }
 }
 
 // ── CURSOS CRUD ───────────────────────────────────────────────
@@ -613,9 +648,10 @@ function enviarAssiduidade(email, userInfo, payload) {
   const id        = genId();
   const timestamp = isoNow();
 
-  const acoes     = sheetRows('Acoes');
-  const bolsistas = sheetRows('Bolsistas');
+  const acoes       = sheetRows('Acoes');
+  const bolsistas   = sheetRows('Bolsistas');
   const voluntarios = sheetRows('Voluntarios');
+  const membros     = sheetRows('Membros');
   const acao = acoes.find(a => a.ID === payload.acaoId);
   if (!acao) return { error: 'Ação não encontrada.' };
 
@@ -626,15 +662,16 @@ function enviarAssiduidade(email, userInfo, payload) {
   const participantes = payload.participantes.map(p => {
     const b = bolsistas.find(b => b.ID === p.id);
     const v = voluntarios.find(v => v.ID === p.id);
-    const rec = b || v;
+    const rec    = b || v;
+    const membro = rec ? membros.find(m => m.ID === rec.MembroID) : null;
     return {
-      id: p.id,
-      nome: rec ? rec.Nome : p.nome,
-      email: rec ? rec.Email : '',
-      tipo: b ? 'bolsista' : 'voluntario',
-      cargaHoraria: b ? b.CargaHoraria : '',
-      cumpriu: p.cumpriu,
-      observacao: p.observacao || ''
+      id:           p.id,
+      nome:         membro ? membro.Nome  : (p.nome || ''),
+      email:        membro ? membro.Email : '',
+      tipo:         b ? 'bolsista' : 'voluntario',
+      cargaHoraria: rec ? rec.CargaHoraria : '',
+      cumpriu:      p.cumpriu,
+      observacao:   p.observacao || ''
     };
   });
 
@@ -650,15 +687,14 @@ function enviarAssiduidade(email, userInfo, payload) {
   try {
     emailConfirmacaoAssiduidade(email, snapshot, foraPrazo);
     if (foraPrazo) {
-      participantes.filter(p => p.tipo === 'bolsista').forEach(p => {
+      participantes.filter(p => p.tipo === 'bolsista' && p.email).forEach(p => {
         emailAvisoBolsistaForaPrazo(p.email, p.nome, snapshot);
       });
     }
   } catch (e) { console.error('Email error:', e); }
 
-  const badge = foraPrazo ? `⚠ Enviado fora do prazo · ${nowBR()}` : null;
   audit('Coordenador', userInfo.name || email, email, 'Enviar Assiduidade', `${acao.Titulo} · ${mesAnoLabel}${foraPrazo?' · FORA DO PRAZO':''}`);
-  return { ok: true, id, foraPrazo, badge, autoValidado };
+  return { ok: true, id, foraPrazo, autoValidado };
 }
 
 function getAssiduidades(email, filters) {
@@ -778,7 +814,7 @@ function sendLembreteManual(p, email) {
   let destCoords = coords.filter(c => c.Status === 'Ativo');
 
   if (p.segmento && p.segmento !== 'Todos') {
-    const acoesSeg = acoes.filter(a => a.Segmento === p.segmento && a.Status === 'Ativo');
+    const acoesSeg    = acoes.filter(a => a.Segmento === p.segmento && a.Status === 'Ativo');
     const emailsCoords = acoesSeg.map(a => a.CoordenadorEmail);
     destCoords = destCoords.filter(c => emailsCoords.includes(c.Email));
   }
@@ -813,21 +849,21 @@ function dispararLembretesDiario() {
 // ── AUDITORIA ─────────────────────────────────────────────────
 function getAuditoria() { return sheetRows('Auditoria').reverse(); }
 
-// ── INITIALIZER (run once to create sheets) ───────────────────
-// ATENÇÃO: Se as planilhas já existem com schema antigo, apague-as antes de rodar.
-// Mudanças de schema: Editais (+Bolsas, +CusteioCapital), Acoes (-EditalBolsasID), Bolsistas (+EditalID)
+// ── INITIALIZER ───────────────────────────────────────────────
+// ATENÇÃO: só cria abas que ainda não existem. Para aplicar novo schema,
+// apague a aba correspondente no Sheets antes de rodar.
 function initSheets() {
   const book = ss();
   const defs = {
     Coordenadores: ['ID','Nome','Email','CPF','Telefone','Status','DataCriacao','DriveFolder'],
     Editais:       ['ID','Numero','Ano','Titulo','Fomento','TipoInterno','Segmento','Bolsas','CusteioCapital','Status'],
     Acoes:         ['ID','Titulo','CoordenadorEmail','AnoExecucao','Segmento','EditalID','Status','DriveFolder'],
-    Bolsistas:     ['ID','Nome','Email','AcaoID','CargaHoraria','EditalID','CPF','Telefone','Curso','Status','DriveFolder',
-                    'DataNascimento','Endereco','EmailPessoal','Banco','Agencia','Conta','TipoConta',
-                    'Matricula','AnoSemestreIngresso','SemestreAtual','DataInicio','CursoID'],
-    Voluntarios:   ['ID','Nome','Email','AcaoID','CargaHoraria','CursoID','CPF','Telefone','Status','DriveFolder',
-                    'DataNascimento','Endereco','EmailPessoal','Banco','Agencia','Conta','TipoConta',
-                    'Matricula','AnoSemestreIngresso','SemestreAtual','DataInicio'],
+    Membros:       ['ID','Nome','Email','Status','DataCriacao','DriveFolder',
+                    'DataNascimento','CPF','Telefone','Endereco','EmailPessoal',
+                    'CursoID','Curso','Matricula','AnoSemestreIngresso','SemestreAtual','DataInicio',
+                    'Banco','Agencia','Conta','TipoConta','Documentos'],
+    Bolsistas:     ['ID','MembroID','AcaoID','CargaHoraria','EditalID','Status'],
+    Voluntarios:   ['ID','MembroID','AcaoID','CargaHoraria','Status'],
     Cursos:        ['ID','Nome','Modalidade','Status'],
     Assiduidades:  ['ID','AcaoID','CoordenadorEmail','MesAno','Snapshot','Timestamp','ForaPrazo','Validado','ValidadoPor','TimestampValidacao'],
     Periodo:       ['DiaInicio','DiaFim'],
@@ -845,7 +881,7 @@ function initSheets() {
   });
 
   const periodoSh = book.getSheetByName('Periodo');
-  if (periodoSh.getLastRow() < 2) periodoSh.appendRow([25, 10]);
+  if (periodoSh && periodoSh.getLastRow() < 2) periodoSh.appendRow([25, 10]);
 }
 
 // ── MAIN HANDLER ──────────────────────────────────────────────
@@ -889,22 +925,28 @@ function doPost(e) {
       case 'toggleAcao': return respond(toggleStatus('Acoes', data.id, data.status, userEmail));
       case 'deleteAcao': return respond(deleteAcao(data.id, userEmail));
 
+      // Membros
+      case 'getMembros':         return respond(getMembros());
+      case 'addMembro':          return respond(addMembro(data.payload, userEmail));
+      case 'updateMembro':       return respond(updateMembro(data.id, data.payload, userEmail));
+      case 'toggleMembro':       return respond(toggleStatus('Membros', data.id, data.status, userEmail));
+      case 'deleteMembro':       return respond(deleteMembro(data.id, userEmail));
+      case 'getPerfilMembro':    return respond(getPerfilMembro(userEmail));
+      case 'updatePerfilMembro': return respond(updatePerfilMembro(userEmail, data.payload));
+
       // Bolsistas
-      case 'getBolsistas':          return respond(getBolsistas());
-      case 'addBolsista':           return respond(addBolsista(data.payload, userEmail));
-      case 'updateBolsista':        return respond(updateBolsista(data.id, data.payload, userEmail));
-      case 'toggleBolsista':        return respond(toggleStatus('Bolsistas', data.id, data.status, userEmail));
-      case 'deleteBolsista':        return respond(deleteBolsista(data.id, userEmail));
-      case 'updatePerfilBolsista':  return respond(updatePerfilBolsista(userEmail, data.payload));
+      case 'getBolsistas':   return respond(getBolsistas());
+      case 'addBolsista':    return respond(addBolsista(data.payload, userEmail));
+      case 'updateBolsista': return respond(updateBolsista(data.id, data.payload, userEmail));
+      case 'toggleBolsista': return respond(toggleStatus('Bolsistas', data.id, data.status, userEmail));
+      case 'deleteBolsista': return respond(deleteBolsista(data.id, userEmail));
 
       // Voluntários
-      case 'getVoluntarios':          return respond(getVoluntarios());
-      case 'addVoluntario':           return respond(addVoluntario(data.payload, userEmail));
-      case 'updateVoluntario':        return respond(updateVoluntario(data.id, data.payload, userEmail));
-      case 'toggleVoluntario':        return respond(toggleStatus('Voluntarios', data.id, data.status, userEmail));
-      case 'deleteVoluntario':        return respond(deleteVoluntario(data.id, userEmail));
-      case 'updatePerfilVoluntario':  return respond(updatePerfilVoluntario(userEmail, data.payload));
-      case 'uploadDocumento':         return respond(uploadDocumento(userEmail, data.payload));
+      case 'getVoluntarios':   return respond(getVoluntarios());
+      case 'addVoluntario':    return respond(addVoluntario(data.payload, userEmail));
+      case 'updateVoluntario': return respond(updateVoluntario(data.id, data.payload, userEmail));
+      case 'toggleVoluntario': return respond(toggleStatus('Voluntarios', data.id, data.status, userEmail));
+      case 'deleteVoluntario': return respond(deleteVoluntario(data.id, userEmail));
 
       // Cursos
       case 'getCursos':   return respond(getCursos());
@@ -928,6 +970,9 @@ function doPost(e) {
       case 'updateNotificacao': return respond(updateNotificacao(data.id, data.payload, userEmail));
       case 'deleteNotificacao': return respond(deleteNotificacao(data.id, userEmail));
       case 'sendLembrete':      return respond(sendLembreteManual(data.payload, userEmail));
+
+      // Documentos
+      case 'uploadDocumento': return respond(uploadDocumento(userEmail, data.payload));
 
       // Auditoria
       case 'getAuditoria': return respond(getAuditoria());

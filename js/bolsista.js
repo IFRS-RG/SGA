@@ -8,6 +8,7 @@ const Bolsista = (() => {
   let _mesBolsistas = [];
   let _mesVols      = [];
   let _cursos       = [];
+  let _membroRec    = {};
   let _profileComplete = false;
   let _editMode     = true;
   let _viewMasked   = true;
@@ -67,8 +68,8 @@ const Bolsista = (() => {
     const user = _session?.userInfo || {};
 
     try {
-      const [bolsistasAll, volsAll, cursosAll] = await Promise.all([
-        API.getBolsistas(), API.getVoluntarios(), API.getCursos()
+      const [bolsistasAll, volsAll, cursosAll, membroRec] = await Promise.all([
+        API.getBolsistas(), API.getVoluntarios(), API.getCursos(), API.getPerfilMembro()
       ]);
 
       _mesBolsistas = (bolsistasAll || []).filter(b => b.Email === user.email && b.Status === 'Ativo');
@@ -77,13 +78,13 @@ const Bolsista = (() => {
 
       const isBolsista   = _mesBolsistas.length > 0;
       const tipo         = isBolsista ? 'bolsista' : 'voluntario';
-      const firstRec     = _mesBolsistas[0] || _mesVols[0] || {};
+      _membroRec = membroRec || {};
 
-      _profileComplete = isComplete(firstRec, tipo);
+      _profileComplete = isComplete(_membroRec, tipo);
       _editMode        = !_profileComplete;
       setTabsEnabled(_profileComplete);
 
-      renderPerfilForm(user, firstRec, tipo);
+      renderPerfilForm(user, _membroRec, tipo);
     } catch (e) {
       container.innerHTML = `<div class="empty-state text-danger">Erro ao carregar perfil: ${esc(e.message)}</div>`;
     }
@@ -329,26 +330,23 @@ const Bolsista = (() => {
   function editPerfil() {
     _editMode = true;
     const user = _session?.userInfo || {};
-    const isBolsista = _mesBolsistas.length > 0;
-    const tipo = isBolsista ? 'bolsista' : 'voluntario';
-    renderPerfilForm(user, _mesBolsistas[0] || _mesVols[0] || {}, tipo);
+    const tipo = _mesBolsistas.length > 0 ? 'bolsista' : 'voluntario';
+    renderPerfilForm(user, _membroRec, tipo);
   }
 
   function cancelEditPerfil() {
     if (!_profileComplete) return;
     _editMode = false;
     const user = _session?.userInfo || {};
-    const isBolsista = _mesBolsistas.length > 0;
-    const tipo = isBolsista ? 'bolsista' : 'voluntario';
-    renderPerfilForm(user, _mesBolsistas[0] || _mesVols[0] || {}, tipo);
+    const tipo = _mesBolsistas.length > 0 ? 'bolsista' : 'voluntario';
+    renderPerfilForm(user, _membroRec, tipo);
   }
 
   function toggleMaskPerfil() {
     _viewMasked = !_viewMasked;
     const user = _session?.userInfo || {};
-    const isBolsista = _mesBolsistas.length > 0;
-    const tipo = isBolsista ? 'bolsista' : 'voluntario';
-    renderPerfilForm(user, _mesBolsistas[0] || _mesVols[0] || {}, tipo);
+    const tipo = _mesBolsistas.length > 0 ? 'bolsista' : 'voluntario';
+    renderPerfilForm(user, _membroRec, tipo);
   }
 
   function _buildUploadRow(inputId, label, fileName, optional = false) {
@@ -412,10 +410,7 @@ const Bolsista = (() => {
     };
 
     try {
-      const calls = [];
-      if (_mesBolsistas.length) calls.push(API.updatePerfilBolsista(payload));
-      if (_mesVols.length)      calls.push(API.updatePerfilVoluntario(payload));
-      await Promise.all(calls);
+      await API.updatePerfilMembro(payload);
       toast('Dados salvos com sucesso.', 'success');
       await loadPerfil();
     } catch (e) { toast(e.message, 'error'); }
@@ -432,11 +427,9 @@ const Bolsista = (() => {
       return;
     }
     statusEl.textContent = 'Enviando...';
-    const isBolsista = _mesBolsistas.length > 0;
-    const sheetName  = isBolsista ? 'Bolsistas' : 'Voluntarios';
     try {
       const base64 = await _fileToBase64(file);
-      await API.uploadDocumento({ base64, fileName, mimeType: 'application/pdf', sheetName });
+      await API.uploadDocumento({ base64, fileName, mimeType: 'application/pdf' });
       statusEl.textContent = '✓ Enviado';
       statusEl.style.color = 'var(--success)';
       toast(`${fileName} enviado com sucesso.`, 'success');

@@ -34,6 +34,7 @@
     <button class="subtab-btn active" data-subtab="coord">Coordenadores</button>
     <button class="subtab-btn" data-subtab="editais">Editais</button>
     <button class="subtab-btn" data-subtab="acoes">Ações</button>
+    <button class="subtab-btn" data-subtab="membros">Membros</button>
     <button class="subtab-btn" data-subtab="bolsistas">Bolsistas</button>
     <button class="subtab-btn" data-subtab="voluntarios">Voluntários</button>
     <button class="subtab-btn" data-subtab="cursos">Cursos</button>
@@ -96,6 +97,21 @@
       </div>
     </div>
     <div class="table-wrap"><div id="table-acoes"></div></div>
+  </div>
+
+  <!-- Membros -->
+  <div id="subtab-membros" class="tab-content" style="padding:1.25rem">
+    <div class="toolbar" style="flex-wrap:wrap;gap:.5rem">
+      <button class="btn btn-primary" onclick="Admin.Membros.openAdd()">+ Adicionar</button>
+      <input class="form-control" style="width:220px" placeholder="Buscar..." id="search-membros" oninput="Admin.Membros.render()">
+      <select class="form-select" style="width:130px" id="filter-membros-status" onchange="Admin.Membros.render()">
+        <option value="">Todos</option><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option>
+      </select>
+      <div class="toolbar-right">
+        <button class="btn btn-ghost btn-sm" onclick="Admin.Membros.exportXLS()">XLS</button>
+      </div>
+    </div>
+    <div class="table-wrap"><div id="table-membros"></div></div>
   </div>
 
   <!-- Bolsistas -->
@@ -168,6 +184,7 @@
       <option value="">Status</option><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option>
     </select>
     <button class="btn btn-primary btn-sm" onclick="Admin.TodasAcoes.load()">Filtrar</button>
+    <button class="btn btn-ghost btn-sm" id="fa-sort-btn" onclick="Admin.TodasAcoes.toggleSort()">Coord ↑</button>
     <div style="margin-left:auto;display:flex;gap:.5rem">
       <button class="btn btn-ghost btn-sm" onclick="Admin.TodasAcoes.exportXLS()">XLS</button>
       <button class="btn btn-ghost btn-sm" onclick="Admin.TodasAcoes.exportPDF()">PDF</button>

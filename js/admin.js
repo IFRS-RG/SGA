@@ -7,7 +7,7 @@ const Admin = (() => {
   // ── State ────────────────────────────────────────────────
   const state = {
     coordenadores: [], editais: [],
-    acoes: [], bolsistas: [], voluntarios: [], cursos: [],
+    acoes: [], membros: [], bolsistas: [], voluntarios: [], cursos: [],
     assiduidades: [], notificacoes: [], logs: [],
     permissoes: []
   };
@@ -78,28 +78,28 @@ const Admin = (() => {
 
   async function loadAll() {
     try {
-      const [coords, editais, acoes, bolsistas, vols, cursos, session] = await Promise.all([
-        API.getCoordenadores(), API.getEditais(),
-        API.getAcoes(), API.getBolsistas(), API.getVoluntarios(), API.getCursos(),
+      const [coords, editais, acoes, membros, bolsistas, vols, cursos, session] = await Promise.all([
+        API.getCoordenadores(), API.getEditais(), API.getAcoes(),
+        API.getMembros(), API.getBolsistas(), API.getVoluntarios(), API.getCursos(),
         Promise.resolve(loadSession())
       ]);
-      state.coordenadores = coords   || [];
-      state.editais       = editais  || [];
-      state.acoes         = acoes    || [];
+      state.coordenadores = coords    || [];
+      state.editais       = editais   || [];
+      state.acoes         = acoes     || [];
+      state.membros       = membros   || [];
       state.bolsistas     = bolsistas || [];
-      state.voluntarios   = vols     || [];
-      state.cursos        = cursos   || [];
+      state.voluntarios   = vols      || [];
+      state.cursos        = cursos    || [];
       state.permissoes    = session?.roleInfo?.permissions || [];
 
-      // Populate dynamic filter dropdowns
-      _populateSelect('filter-acoes-coord',  state.coordenadores, c => ({ value: c.Email, label: c.Nome }), 'Coordenador');
-      _populateSelect('filter-acoes-edital', state.editais, e => ({ value: e.ID, label: `${e.Numero}/${e.Ano} — ${e.Titulo}` }), 'Edital');
-      _populateSelect('filter-bolsistas-acao',  state.acoes.filter(a => a.Status === 'Ativo'), a => ({ value: a.ID, label: a.Titulo }), 'Ação');
+      _populateSelect('filter-acoes-coord',      state.coordenadores, c => ({ value: c.Email, label: c.Nome }), 'Coordenador');
+      _populateSelect('filter-acoes-edital',     state.editais, e => ({ value: e.ID, label: `${e.Numero}/${e.Ano} — ${e.Titulo}` }), 'Edital');
+      _populateSelect('filter-bolsistas-acao',   state.acoes.filter(a => a.Status === 'Ativo'), a => ({ value: a.ID, label: a.Titulo }), 'Ação');
       _populateSelect('filter-voluntarios-acao', state.acoes.filter(a => a.Status === 'Ativo'), a => ({ value: a.ID, label: a.Titulo }), 'Ação');
       _populateSelect('fa-coord', state.coordenadores, c => ({ value: c.Email, label: c.Nome }), 'Coordenador');
 
-      Coord.render(); Editais.render();
-      Acoes.render(); Bolsistas.render(); Voluntarios.render(); Cursos.render();
+      Coord.render(); Editais.render(); Acoes.render();
+      Membros.render(); Bolsistas.render(); Voluntarios.render(); Cursos.render();
     } catch(e) { toast('Erro ao carregar dados: ' + e.message, 'error'); }
   }
 
@@ -428,6 +428,119 @@ const Admin = (() => {
     exportPDF(){exportPDF('Ações',['Título','Coordenador','Ano','Segmento','Status'],this.filtered().map(r=>[r.Titulo,r.coordenadorNome,r.AnoExecucao,r.Segmento,r.Status]));}
   };
 
+  // ── MEMBROS ───────────────────────────────────────────────
+  const Membros = {
+    filtered() {
+      const q  = (document.getElementById('search-membros')?.value || '').toLowerCase();
+      const st = document.getElementById('filter-membros-status')?.value || '';
+      return state.membros
+        .filter(r => (!q || r.Nome?.toLowerCase().includes(q) || r.Email?.toLowerCase().includes(q)) && (!st || r.Status === st))
+        .sort((a, b) => (a.Nome || '').localeCompare(b.Nome || ''));
+    },
+    render() {
+      const rows = this.filtered();
+      const el   = document.getElementById('table-membros');
+      if (!rows.length) { showEmpty('table-membros'); return; }
+      el.innerHTML = `<table><thead><tr>
+        <th>Nome</th><th>E-mail</th><th>Status</th><th>Ações</th>
+      </tr></thead>
+      <tbody>${rows.map(r => `<tr>
+        <td>${esc(r.Nome)}</td><td>${esc(r.Email)}</td>
+        <td>${statusBadge(r.Status)}</td>
+        <td class="td-actions">
+          <button class="btn btn-ghost btn-xs" onclick="Admin.Membros.verPerfil('${r.ID}')">Ver perfil</button>
+          <button class="btn btn-ghost btn-xs" onclick="Admin.Membros.openEdit('${r.ID}')">Editar</button>
+          <button class="btn ${r.Status==='Ativo'?'btn-warning':'btn-success'} btn-xs" onclick="Admin.Membros.toggle('${r.ID}','${r.Status==='Ativo'?'Inativo':'Ativo'}')">
+            ${r.Status==='Ativo'?'Inativar':'Ativar'}</button>
+          <button class="btn btn-danger btn-xs" onclick="Admin.Membros.delete_('${r.ID}')">Excluir</button>
+        </td></tr>`).join('')}</tbody></table>`;
+    },
+    verPerfil(id) {
+      const r = state.membros.find(x => x.ID === id);
+      if (!r) return;
+      const dataRows = [
+        ['CPF', r.CPF], ['Telefone', r.Telefone], ['Nascimento', r.DataNascimento],
+        ['Endereço', r.Endereco], ['E-mail Pessoal', r.EmailPessoal],
+        ['Curso', r.cursoLabel || r.CursoID], ['Matrícula', r.Matricula],
+        ['Ingresso', r.AnoSemestreIngresso], ['Semestre Atual', r.SemestreAtual],
+        ['Início Atividades', r.DataInicio],
+        ['Banco', r.Banco], ['Agência', r.Agencia], ['Conta', r.Conta], ['Tipo Conta', r.TipoConta]
+      ].filter(([, v]) => v).map(([k, v]) =>
+        `<tr><td class="text-muted text-small" style="padding:.35rem .5rem;white-space:nowrap">${k}</td>
+             <td style="padding:.35rem .5rem">${esc(String(v))}</td></tr>`
+      ).join('');
+
+      const docs = r.docs || [];
+      const docsHtml = docs.length
+        ? docs.map(d => `<tr>
+            <td class="text-small" style="padding:.35rem .5rem">${esc(d.name)}</td>
+            <td style="padding:.35rem .5rem"><a href="${esc(d.url)}" target="_blank" class="btn btn-ghost btn-xs">Abrir</a></td>
+          </tr>`).join('')
+        : `<tr><td colspan="2" class="text-muted text-small" style="padding:.35rem .5rem">Nenhum documento enviado.</td></tr>`;
+
+      const repoBtn = r.DriveFolder
+        ? `<a href="https://drive.google.com/drive/folders/${esc(r.DriveFolder)}" target="_blank"
+             class="btn btn-ghost btn-sm" style="margin-bottom:1rem">📁 Repositório</a>`
+        : '';
+
+      openModal(`Perfil — ${esc(r.Nome)}`,
+        `${repoBtn}
+         <table style="width:100%;margin-bottom:1.25rem">
+           ${dataRows || `<tr><td class="text-muted text-small" style="padding:.35rem .5rem">Dados ainda não preenchidos pelo membro.</td></tr>`}
+         </table>
+         <div class="form-section-title">Documentos</div>
+         <table style="width:100%">${docsHtml}</table>`,
+        () => closeModal(), 'Fechar');
+    },
+    openAdd() { openModal('Adicionar Membro', this._form(), async () => { await this._save(); }); },
+    openEdit(id) {
+      const r = state.membros.find(x => x.ID === id);
+      if (!r) return;
+      openModal('Editar Membro', this._form(r), async () => { await this._save(id); });
+    },
+    async _save(id) {
+      const nome  = document.getElementById('f-nome');
+      const email = document.getElementById('f-email');
+      if (!validateForm([{ el: nome }, { el: email }])) return;
+      const p = { nome: nome.value.trim(), email: email.value.trim() };
+      setBusy(true);
+      try {
+        id ? await API.updateMembro(id, p) : await API.addMembro(p);
+        toast('Membro ' + (id ? 'atualizado' : 'adicionado') + '.', 'success');
+        closeModal();
+        state.membros = await API.getMembros() || [];
+        this.render();
+      } catch(e) { toast(e.message, 'error'); } finally { setBusy(false); }
+    },
+    async toggle(id, st) {
+      try {
+        await API.toggleMembro(id, st);
+        state.membros = await API.getMembros() || [];
+        this.render();
+        toast(`Status alterado para ${st}.`, 'success');
+      } catch(e) { toast(e.message, 'error'); }
+    },
+    async delete_(id) {
+      const r = state.membros.find(x => x.ID === id);
+      if (!confirm(`Excluir membro "${r?.Nome || id}"?\nVínculos de bolsista/voluntário existentes não serão removidos automaticamente.`)) return;
+      try {
+        await API.deleteMembro(id);
+        toast('Membro excluído.', 'success');
+        state.membros = await API.getMembros() || [];
+        this.render();
+      } catch(e) { toast(e.message, 'error'); }
+    },
+    _form(r) {
+      return `<div class="form-group"><label class="form-label">*Nome completo</label>
+        <input class="form-control" id="f-nome" value="${esc(r?.Nome || '')}"></div>
+        <div class="form-group"><label class="form-label">*E-mail institucional do aluno</label>
+        <input class="form-control" id="f-email" type="email" value="${esc(r?.Email || '')}"></div>`;
+    },
+    exportXLS() {
+      exportXLS(['Nome', 'E-mail', 'Status'], this.filtered().map(r => [r.Nome, r.Email, r.Status]), 'Membros');
+    }
+  };
+
   // ── BOLSISTAS ─────────────────────────────────────────────
   const Bolsistas = {
     filtered() {
@@ -453,42 +566,25 @@ const Admin = (() => {
         <td>${esc(r.editalLabel||'—')}</td>
         <td>${esc(r.CargaHoraria)}</td><td>${statusBadge(r.Status)}</td>
         <td class="td-actions">
-          <button class="btn btn-ghost btn-xs" onclick="Admin.Bolsistas.verPerfil('${r.ID}')">Ver perfil</button>
           <button class="btn btn-ghost btn-xs" onclick="Admin.Bolsistas.openEdit('${r.ID}')">Editar</button>
           <button class="btn ${r.Status==='Ativo'?'btn-warning':'btn-success'} btn-xs" onclick="Admin.Bolsistas.toggle('${r.ID}','${r.Status==='Ativo'?'Inativo':'Ativo'}')">
             ${r.Status==='Ativo'?'Inativar':'Ativar'}</button>
           <button class="btn btn-danger btn-xs" onclick="Admin.Bolsistas.delete_('${r.ID}')">Excluir</button>
         </td></tr>`).join('')}</tbody></table>`;
     },
-    verPerfil(id) {
-      const r = state.bolsistas.find(x => x.ID === id);
-      if (!r) return;
-      const rows = [
-        ['CPF', r.CPF], ['Telefone', r.Telefone], ['Nascimento', r.DataNascimento],
-        ['Endereço', r.Endereco], ['E-mail Pessoal', r.EmailPessoal],
-        ['Curso', r.Curso || r.editalLabel], ['Matrícula', r.Matricula],
-        ['Ingresso', r.AnoSemestreIngresso], ['Semestre Atual', r.SemestreAtual],
-        ['Início Atividades', r.DataInicio],
-        ['Banco', r.Banco], ['Agência', r.Agencia], ['Conta', r.Conta], ['Tipo Conta', r.TipoConta]
-      ].filter(([,v]) => v).map(([k,v]) =>
-        `<tr><td class="text-muted text-small" style="padding:.35rem .5rem;white-space:nowrap">${k}</td><td style="padding:.35rem .5rem">${esc(String(v))}</td></tr>`
-      ).join('');
-      openModal(`Perfil — ${esc(r.Nome)}`,
-        `<table style="width:100%">${rows || '<tr><td class="text-muted">Dados ainda não preenchidos pelo bolsista.</td></tr>'}</table>`,
-        () => closeModal(), 'Fechar');
-    },
     openAdd(){openModal('Adicionar Bolsista',this._form(),async()=>{await this._save();});},
     openEdit(id){const r=state.bolsistas.find(x=>x.ID===id);openModal('Editar Bolsista',this._form(r),async()=>{await this._save(id);});},
     async _save(id) {
-      const ch = document.getElementById('f-ch')?.value;
-      const p  = {
-        nome: document.getElementById('f-nome')?.value,
-        email: document.getElementById('f-email')?.value,
-        acaoId: document.getElementById('f-acao')?.value,
-        editalId: document.getElementById('f-edital')?.value,
-        cargaHoraria: ch==='Outra' ? document.getElementById('f-ch-other')?.value : ch
+      const ch       = document.getElementById('f-ch')?.value;
+      const membroId = document.getElementById('f-membro')?.value;
+      if (!membroId) { toast('Selecione um membro.', 'warning'); return; }
+      const p = {
+        membroId,
+        acaoId:       document.getElementById('f-acao')?.value,
+        editalId:     document.getElementById('f-edital')?.value || '',
+        cargaHoraria: ch === 'Outra' ? document.getElementById('f-ch-other')?.value : ch
       };
-      if (!validateForm([{el:document.getElementById('f-nome')},{el:document.getElementById('f-email')}])) return;
+      if (!validateForm([{el:document.getElementById('f-acao')}])) return;
       setBusy(true);
       try {
         id ? await API.updateBolsista(id, p) : await API.addBolsista(p);
@@ -510,11 +606,15 @@ const Admin = (() => {
       } catch(e){toast(e.message,'error');}
     },
     _form(r) {
-      const acOpts = state.acoes.filter(a=>a.Status==='Ativo').map(a=>`<option value="${a.ID}" ${r?.AcaoID===a.ID?'selected':''}>${esc(a.Titulo)}</option>`).join('');
-      const editaisOpts = '<option value="">Sem edital</option>' + state.editais.filter(e=>e.Status==='Ativo').map(e=>`<option value="${e.ID}" ${r?.EditalID===e.ID?'selected':''}>${e.Numero}/${e.Ano} — ${esc(e.Titulo)}</option>`).join('');
+      const memOpts = state.membros.filter(m => m.Status === 'Ativo')
+        .map(m => `<option value="${esc(m.ID)}" ${r?.MembroID===m.ID?'selected':''}>${esc(m.Nome)} — ${esc(m.Email)}</option>`).join('');
+      const acOpts = state.acoes.filter(a=>a.Status==='Ativo')
+        .map(a=>`<option value="${a.ID}" ${r?.AcaoID===a.ID?'selected':''}>${esc(a.Titulo)}</option>`).join('');
+      const editaisOpts = '<option value="">Sem edital</option>' + state.editais.filter(e=>e.Status==='Ativo')
+        .map(e=>`<option value="${e.ID}" ${r?.EditalID===e.ID?'selected':''}>${e.Numero}/${e.Ano} — ${esc(e.Titulo)}</option>`).join('');
       const chs = ['4h','8h','12h','16h','20h','Outra'].map(h=>`<option ${r?.CargaHoraria===h?'selected':''}>${h}</option>`).join('');
-      return `<div class="form-group"><label class="form-label">*Nome completo</label><input class="form-control" id="f-nome" value="${esc(r?.Nome||'')}"></div>
-      <div class="form-group"><label class="form-label">*E-mail</label><input class="form-control" id="f-email" type="email" value="${esc(r?.Email||'')}"></div>
+      return `<div class="form-group"><label class="form-label">*Membro</label>
+        <select class="form-select" id="f-membro"><option value="">Selecione...</option>${memOpts}</select></div>
       <div class="form-group"><label class="form-label">*Ação</label><select class="form-select" id="f-acao">${acOpts}</select></div>
       <div class="form-group"><label class="form-label">Edital</label><select class="form-select" id="f-edital">${editaisOpts}</select></div>
       <div class="form-row">
@@ -551,7 +651,6 @@ const Admin = (() => {
         <td>${esc(r.acaoTitulo||r.AcaoID)}</td>
         <td>${esc(r.CargaHoraria||'—')}</td><td>${statusBadge(r.Status)}</td>
         <td class="td-actions">
-          <button class="btn btn-ghost btn-xs" onclick="Admin.Voluntarios.verPerfil('${r.ID}')">Ver perfil</button>
           <button class="btn btn-ghost btn-xs" onclick="Admin.Voluntarios.openEdit('${r.ID}')">Editar</button>
           <button class="btn ${r.Status==='Ativo'?'btn-warning':'btn-success'} btn-xs" onclick="Admin.Voluntarios.toggle('${r.ID}','${r.Status==='Ativo'?'Inativo':'Ativo'}')">
             ${r.Status==='Ativo'?'Inativar':'Ativar'}</button>
@@ -561,14 +660,15 @@ const Admin = (() => {
     openAdd(){openModal('Adicionar Voluntário',this._form(),async()=>{await this._save();});},
     openEdit(id){const r=state.voluntarios.find(x=>x.ID===id);openModal('Editar Voluntário',this._form(r),async()=>{await this._save(id);});},
     async _save(id) {
-      const ch = document.getElementById('f-ch')?.value;
+      const ch       = document.getElementById('f-ch')?.value;
+      const membroId = document.getElementById('f-membro')?.value;
+      if (!membroId) { toast('Selecione um membro.', 'warning'); return; }
       const p = {
-        nome:         document.getElementById('f-nome')?.value,
-        email:        document.getElementById('f-email')?.value,
+        membroId,
         acaoId:       document.getElementById('f-acao')?.value,
         cargaHoraria: ch === 'Outra' ? document.getElementById('f-ch-other')?.value : ch
       };
-      if (!validateForm([{el:document.getElementById('f-nome')},{el:document.getElementById('f-email')}])) return;
+      if (!validateForm([{el:document.getElementById('f-acao')}])) return;
       setBusy(true);
       try {
         id ? await API.updateVoluntario(id, p) : await API.addVoluntario(p);
@@ -589,28 +689,14 @@ const Admin = (() => {
         this.render();
       } catch(e){toast(e.message,'error');}
     },
-    verPerfil(id) {
-      const r = state.voluntarios.find(x => x.ID === id);
-      if (!r) return;
-      const rows = [
-        ['CPF', r.CPF], ['Telefone', r.Telefone], ['Nascimento', r.DataNascimento],
-        ['Endereço', r.Endereco], ['E-mail Pessoal', r.EmailPessoal],
-        ['Curso', r.cursoLabel || r.CursoID], ['Matrícula', r.Matricula],
-        ['Ingresso', r.AnoSemestreIngresso], ['Semestre Atual', r.SemestreAtual],
-        ['Início Atividades', r.DataInicio],
-        ['Banco', r.Banco], ['Agência', r.Agencia], ['Conta', r.Conta], ['Tipo Conta', r.TipoConta]
-      ].filter(([,v]) => v).map(([k,v]) =>
-        `<tr><td class="text-muted text-small" style="padding:.35rem .5rem;white-space:nowrap">${k}</td><td style="padding:.35rem .5rem">${esc(String(v))}</td></tr>`
-      ).join('');
-      openModal(`Perfil — ${esc(r.Nome)}`,
-        `<table style="width:100%">${rows || '<tr><td class="text-muted">Dados ainda não preenchidos pelo voluntário.</td></tr>'}</table>`,
-        () => closeModal(), 'Fechar');
-    },
     _form(r) {
-      const acOpts = state.acoes.filter(a=>a.Status==='Ativo').map(a=>`<option value="${a.ID}" ${r?.AcaoID===a.ID?'selected':''}>${esc(a.Titulo)}</option>`).join('');
+      const memOpts = state.membros.filter(m => m.Status === 'Ativo')
+        .map(m => `<option value="${esc(m.ID)}" ${r?.MembroID===m.ID?'selected':''}>${esc(m.Nome)} — ${esc(m.Email)}</option>`).join('');
+      const acOpts = state.acoes.filter(a=>a.Status==='Ativo')
+        .map(a=>`<option value="${a.ID}" ${r?.AcaoID===a.ID?'selected':''}>${esc(a.Titulo)}</option>`).join('');
       const chs = ['4h','8h','12h','16h','20h','Outra'].map(h=>`<option ${r?.CargaHoraria===h?'selected':''}>${h}</option>`).join('');
-      return `<div class="form-group"><label class="form-label">*Nome completo</label><input class="form-control" id="f-nome" value="${esc(r?.Nome||'')}"></div>
-      <div class="form-group"><label class="form-label">*E-mail institucional</label><input class="form-control" id="f-email" type="email" value="${esc(r?.Email||'')}"></div>
+      return `<div class="form-group"><label class="form-label">*Membro</label>
+        <select class="form-select" id="f-membro"><option value="">Selecione...</option>${memOpts}</select></div>
       <div class="form-group"><label class="form-label">*Ação</label><select class="form-select" id="f-acao">${acOpts}</select></div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">*Carga Horária</label>
@@ -1077,7 +1163,7 @@ const Admin = (() => {
   // ── Public API ────────────────────────────────────────────
   return {
     init, closeModal, loadAll,
-    Coord, Editais, Acoes, Bolsistas, Voluntarios, Cursos,
+    Coord, Editais, Acoes, Membros, Bolsistas, Voluntarios, Cursos,
     TodasAcoes, Assiduidade, Configuracoes, Logs
   };
 
