@@ -93,8 +93,8 @@ a { color: var(--brand-light); }
 /* ── Toolbar / página ────────────────────────────────────── */
 .page-actions { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
 .page-toolbar { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
-.search { flex: 1; min-width: 200px; max-width: 380px; }
-.toolbar-select { flex: 0 0 auto; width: auto; min-width: 150px; }
+.page-toolbar .search { flex: 1 1 240px; width: auto; min-width: 200px; max-width: 420px; }
+.page-toolbar .toolbar-select { flex: 0 0 auto; width: auto; min-width: 170px; }
 .toolbar-spacer { flex: 1; }
 .toolbar-count { color: var(--text-muted); font-size: 13px; margin: 0 0 12px 2px; }
 
