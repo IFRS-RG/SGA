@@ -9,9 +9,21 @@ function getPerfis(email) {
   // Injeta o super admin no topo (sempre presente, não editável).
   return {
     perfisDisponiveis: PERFIS,
+    segmentosAcesso: SEGMENTOS_ACESSO,
     superAdmin: SUPER_ADMIN,
     registros: perfis
   };
+}
+
+// Valida/normaliza o segmento conforme o perfil.
+function _resolveSegmento(perfil, segmento) {
+  if (perfil === 'Admin') return 'Todos';          // Admin sempre geral
+  const seg = segmento || '';
+  if (SEGMENTOS_ACESSO.indexOf(seg) === -1) throw new Error('Segmento inválido.');
+  if (perfil === 'Gestor' && seg === 'Todos') {
+    throw new Error('Gestor de Segmento precisa de um segmento específico (não "Todos").');
+  }
+  return seg;
 }
 
 // payload: { email, nome, perfil }
@@ -21,12 +33,13 @@ function addPerfil(payload, adminEmail) {
   if (!alvo) throw new Error('E-mail é obrigatório.');
   if (alvo === SUPER_ADMIN) throw new Error('O super admin já tem acesso geral e não pode ser editado.');
   if (PERFIS.indexOf(payload.perfil) === -1) throw new Error('Perfil inválido.');
+  const segmento = _resolveSegmento(payload.perfil, payload.segmento);
 
   const existe = sheetRows('Perfis').some(p => String(p.Email).toLowerCase() === alvo);
   if (existe) throw new Error('Este e-mail já tem um perfil cadastrado. Edite o registro existente.');
 
   getSheet('Perfis').appendRow([
-    alvo, payload.nome || '', payload.perfil, 'Ativo', nowBR(), adminEmail
+    alvo, payload.nome || '', payload.perfil, segmento, 'Ativo', nowBR(), adminEmail
   ]);
   return { ok: true };
 }
@@ -40,11 +53,15 @@ function updatePerfil(email, payload, adminEmail) {
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][COL.Perfis.Email]).toLowerCase() === alvo) {
       const row = data[i];
-      if (payload.nome   !== undefined) row[COL.Perfis.Nome]   = payload.nome;
+      if (payload.nome !== undefined) row[COL.Perfis.Nome] = payload.nome;
       if (payload.perfil !== undefined) {
         if (PERFIS.indexOf(payload.perfil) === -1) throw new Error('Perfil inválido.');
         row[COL.Perfis.Perfil] = payload.perfil;
       }
+      // Segmento depende do perfil final; usa o novo valor ou mantém o existente.
+      const perfilFinal = row[COL.Perfis.Perfil];
+      const segIn = payload.segmento !== undefined ? payload.segmento : row[COL.Perfis.Segmento];
+      row[COL.Perfis.Segmento] = _resolveSegmento(perfilFinal, segIn);
       if (payload.status !== undefined) row[COL.Perfis.Status] = payload.status;
       row[COL.Perfis.AtualizadoEm]  = nowBR();
       row[COL.Perfis.AtualizadoPor] = adminEmail;

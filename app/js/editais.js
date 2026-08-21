@@ -7,7 +7,7 @@ const Editais = {
   data: [],
   filter: '',
 
-  canWrite() { return this.role === 'Admin' || this.role === 'Coordenador'; },
+  canWrite() { return this.role === 'Admin' || this.role === 'Gestor'; },
 
   async mount(container, role) {
     this.container = container;

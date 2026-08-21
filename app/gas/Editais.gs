@@ -3,7 +3,7 @@
 // CRUD + clonar + upload de documentos PDF (verificados)
 // ============================================================
 
-const EDITAL_WRITERS = ['Admin', 'Coordenador'];
+const EDITAL_WRITERS = ['Admin', 'Gestor'];
 
 // Monta o objeto de linha a partir do payload do formulário.
 function _editalRow(id, p, criadoEm, criadoPor) {

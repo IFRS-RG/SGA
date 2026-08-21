@@ -15,6 +15,7 @@ const SGA_CONFIG = {
 };
 
 // Listas compartilhadas com o backend.
-const SEGMENTOS  = ['Ensino', 'Pesquisa', 'Extensão', 'Indissociável', 'Conjunto'];
-const TIPOS_DOC  = ['Edital', 'Retificação', 'Anexo', 'Demais publicações'];
-const PERFIS     = ['Admin', 'Coordenador', 'Visualizador'];
+const SEGMENTOS        = ['Ensino', 'Pesquisa', 'Extensão', 'Indissociável', 'Conjunto'];
+const TIPOS_DOC        = ['Edital', 'Retificação', 'Anexo', 'Demais publicações'];
+const PERFIS           = ['Admin', 'Gestor', 'Visualizador'];
+const SEGMENTOS_ACESSO = ['Todos', 'Ensino', 'Pesquisa', 'Extensão', 'Indissociável'];

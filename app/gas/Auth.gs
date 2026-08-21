@@ -24,21 +24,26 @@ function verifyGoogleToken(token) {
 
 // Determina o perfil do usuário.
 //   Admin        → SUPER_ADMIN, ou registro Ativo na aba Perfis com perfil "Admin"
-//   Coordenador  → registro Ativo na aba Perfis
-//   Visualizador → registro Ativo na aba Perfis
+//   Gestor       → registro Ativo na aba Perfis (gerencia um segmento)
+//   Visualizador → registro Ativo na aba Perfis (leitura)
 //   sem-acesso   → autenticado mas sem perfil cadastrado
 function getRole(email) {
   if (!email) return { role: 'sem-acesso', reason: 'E-mail não fornecido.' };
   email = String(email).toLowerCase();
 
   if (email === SUPER_ADMIN) {
-    return { role: 'Admin', email: email, superAdmin: true };
+    return { role: 'Admin', email: email, segmento: 'Todos', superAdmin: true };
   }
 
   const perfis = sheetRows('Perfis');
   const rec = perfis.find(p => String(p.Email).toLowerCase() === email && p.Status === 'Ativo');
   if (rec) {
-    return { role: rec.Perfil, email: email, nome: rec.Nome || '' };
+    return {
+      role: rec.Perfil,
+      email: email,
+      nome: rec.Nome || '',
+      segmento: rec.Perfil === 'Admin' ? 'Todos' : (rec.Segmento || 'Todos')
+    };
   }
 
   return {

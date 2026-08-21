@@ -45,3 +45,11 @@ app/
 8. **Publicar frontend:** suba `app/` no GitHub Pages (ou aponte o Pages para essa pasta).
 
 O super admin (`projetos@riogrande.ifrs.edu.br`) já entra como **Admin** sem precisar de cadastro. Ele libera os demais em **Admin → Perfis de acesso**.
+
+## Perfis de acesso
+
+- **Admin** — acesso geral, todos os segmentos, gerencia perfis.
+- **Gestor de Segmento** — a diretoria/setor; cria e gerencia editais (e, futuramente, ações) do seu segmento (Ensino/Pesquisa/Extensão/Indissociável).
+- **Visualizador** — somente leitura (de um segmento ou todos).
+
+Editais são criados/editados por **Admin** e **Gestor**. Cada perfil (exceto Admin) carrega um **Segmento**.

@@ -11,13 +11,23 @@ function initSheets() {
   Object.keys(HEADERS).forEach(name => {
     let sh = book.getSheetByName(name);
     if (!sh) sh = book.insertSheet(name);
+    const headers = HEADERS[name];
+
     if (sh.getLastRow() === 0) {
-      const headers = HEADERS[name];
+      // Aba nova/vazia: cria o cabeçalho.
       sh.appendRow(headers);
-      sh.getRange(1, 1, 1, headers.length)
-        .setBackground('#1e3a5f').setFontColor('#ffffff').setFontWeight('bold');
-      sh.setFrozenRows(1);
+    } else if (sh.getLastRow() === 1) {
+      // Só tem cabeçalho (sem dados): sincroniza colunas com o schema atual (seguro).
+      const cur = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].join('|');
+      if (cur !== headers.join('|')) {
+        sh.getRange(1, 1, 1, Math.max(headers.length, sh.getLastColumn())).clearContent();
+        sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+      }
     }
+    // (Se já houver dados, não mexe no cabeçalho para não desalinhar colunas.)
+    sh.getRange(1, 1, 1, headers.length)
+      .setBackground('#1e3a5f').setFontColor('#ffffff').setFontWeight('bold');
+    sh.setFrozenRows(1);
   });
 
   // Remove a aba padrão "Página1"/"Sheet1" se estiver vazia.

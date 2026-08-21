@@ -28,7 +28,8 @@ const Admin = {
       <tr>
         <td>${esc(r.Email)}</td>
         <td>${esc(r.Nome || '—')}</td>
-        <td><span class="badge badge-perfil">${esc(r.Perfil)}</span></td>
+        <td><span class="badge badge-perfil">${esc(this.perfilLabel(r.Perfil))}</span></td>
+        <td>${esc(r.Segmento || 'Todos')}</td>
         <td>${r.Status === 'Ativo' ? '<span class="badge badge-ok">Ativo</span>' : '<span class="badge badge-muted">Inativo</span>'}</td>
         <td class="col-actions">
           <button class="btn btn-ghost btn-xs" onclick="Admin.openForm('${esc(r.Email)}')">Editar</button>
@@ -57,38 +58,68 @@ const Admin = {
         ${regs.length ? `
         <div class="table-wrap">
           <table class="data-table">
-            <thead><tr><th>E-mail</th><th>Nome</th><th>Perfil</th><th>Status</th><th class="col-actions">Ações</th></tr></thead>
+            <thead><tr><th>E-mail</th><th>Nome</th><th>Perfil</th><th>Segmento</th><th>Status</th><th class="col-actions">Ações</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>` : emptyState('Nenhum perfil cadastrado além do super admin.')}
       </section>`;
   },
 
+  perfilLabel(p) { return p === 'Gestor' ? 'Gestor de Segmento' : p; },
+
   openForm(email) {
     const r = email ? (this.data.registros || []).find(x => String(x.Email).toLowerCase() === email.toLowerCase()) : null;
     const perfis = this.data.perfisDisponiveis || PERFIS;
+    const segs   = this.data.segmentosAcesso || SEGMENTOS_ACESSO;
     const body = `
       <div class="fg"><label>E-mail *</label>
         <input class="input" id="p-email" value="${esc(r ? r.Email : '')}" ${r ? 'disabled' : ''} placeholder="usuario@riogrande.ifrs.edu.br"></div>
       <div class="fg"><label>Nome</label><input class="input" id="p-nome" value="${esc(r ? r.Nome : '')}"></div>
       <div class="form-grid">
-        <div class="fg"><label>Perfil</label><select class="input" id="p-perfil">${optionsHtml(perfis, r ? r.Perfil : 'Visualizador')}</select></div>
-        ${r ? `<div class="fg"><label>Status</label><select class="input" id="p-status"><option ${r.Status !== 'Inativo' ? 'selected' : ''}>Ativo</option><option ${r.Status === 'Inativo' ? 'selected' : ''}>Inativo</option></select></div>` : ''}
-      </div>`;
+        <div class="fg"><label>Perfil</label>
+          <select class="input" id="p-perfil" onchange="Admin.onPerfilChange()">${optionsHtml(perfis, r ? r.Perfil : 'Visualizador')}</select></div>
+        <div class="fg"><label>Segmento</label>
+          <select class="input" id="p-segmento">${optionsHtml(segs, r ? (r.Segmento || 'Todos') : 'Todos')}</select></div>
+      </div>
+      ${r ? `<div class="fg"><label>Status</label><select class="input" id="p-status"><option ${r.Status !== 'Inativo' ? 'selected' : ''}>Ativo</option><option ${r.Status === 'Inativo' ? 'selected' : ''}>Inativo</option></select></div>` : ''}
+      <p class="section-sub" id="p-seg-hint" style="margin-top:2px"></p>`;
     openModal(r ? 'Editar acesso' : 'Adicionar acesso', body,
       async () => { await this.save(r ? r.Email : null); }, { confirmLabel: r ? 'Salvar' : 'Adicionar' });
+    this.onPerfilChange();
+  },
+
+  // Ajusta o campo Segmento conforme o perfil escolhido.
+  onPerfilChange() {
+    const perfil = val('p-perfil');
+    const segEl = document.getElementById('p-segmento');
+    const hint = document.getElementById('p-seg-hint');
+    if (!segEl) return;
+    if (perfil === 'Admin') {
+      segEl.value = 'Todos'; segEl.disabled = true;
+      if (hint) hint.textContent = 'Administrador tem acesso a todos os segmentos.';
+    } else {
+      segEl.disabled = false;
+      if (perfil === 'Gestor' && segEl.value === 'Todos') {
+        const first = Array.from(segEl.options).find(o => o.value !== 'Todos');
+        if (first) segEl.value = first.value;
+      }
+      if (hint) hint.textContent = perfil === 'Gestor'
+        ? 'Gestor gerencia editais e ações de um segmento específico.'
+        : 'Visualizador pode ver um segmento específico ou todos.';
+    }
   },
 
   async save(email) {
+    const segmento = (document.getElementById('p-segmento') || {}).value;
     setBusy(true);
     try {
       if (email) {
-        await API.updatePerfil(email, { nome: val('p-nome'), perfil: val('p-perfil'), status: val('p-status') });
+        await API.updatePerfil(email, { nome: val('p-nome'), perfil: val('p-perfil'), segmento, status: val('p-status') });
         toast('Acesso atualizado.', 'success');
       } else {
         const novo = val('p-email');
         if (!novo) { toast('E-mail é obrigatório.', 'error'); setBusy(false); return; }
-        await API.addPerfil({ email: novo, nome: val('p-nome'), perfil: val('p-perfil') });
+        await API.addPerfil({ email: novo, nome: val('p-nome'), perfil: val('p-perfil'), segmento });
         toast('Acesso adicionado.', 'success');
       }
       closeModal();

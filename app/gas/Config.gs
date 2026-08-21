@@ -20,10 +20,16 @@ const DRIVE_ROOT_ID  = '';
 const SUPER_ADMIN    = 'projetos@riogrande.ifrs.edu.br';
 
 // Perfis de acesso disponíveis no sistema.
-const PERFIS = ['Admin', 'Coordenador', 'Visualizador'];
+//   Admin       → acesso geral (todos os segmentos)
+//   Gestor      → diretoria/setor: gerencia editais/ações de UM segmento
+//   Visualizador→ somente leitura
+const PERFIS = ['Admin', 'Gestor', 'Visualizador'];
 
-// Segmentos (mesma lista da V1).
+// Segmentos das AÇÕES/EDITAIS (mesma lista da V1).
 const SEGMENTOS = ['Ensino', 'Pesquisa', 'Extensão', 'Indissociável', 'Conjunto'];
+
+// Segmentos usados no PERFIL de acesso ('Todos' = geral).
+const SEGMENTOS_ACESSO = ['Todos', 'Ensino', 'Pesquisa', 'Extensão', 'Indissociável'];
 
 // Tipos de documento no upload de PDF do edital.
 const TIPOS_DOC = ['Edital', 'Retificação', 'Anexo', 'Demais publicações'];
@@ -41,7 +47,7 @@ const COL = {
     DataUpload: 6, EnviadoPor: 7
   },
   Perfis: {
-    Email: 0, Nome: 1, Perfil: 2, Status: 3, AtualizadoEm: 4, AtualizadoPor: 5
+    Email: 0, Nome: 1, Perfil: 2, Segmento: 3, Status: 4, AtualizadoEm: 5, AtualizadoPor: 6
   }
 };
 
@@ -52,7 +58,7 @@ const HEADERS = {
             'CriadoEm', 'CriadoPor'],
   EditalDocumentos: ['ID', 'EditalID', 'Tipo', 'NomeArquivo', 'DriveFileId',
                      'DriveUrl', 'DataUpload', 'EnviadoPor'],
-  Perfis: ['Email', 'Nome', 'Perfil', 'Status', 'AtualizadoEm', 'AtualizadoPor']
+  Perfis: ['Email', 'Nome', 'Perfil', 'Segmento', 'Status', 'AtualizadoEm', 'AtualizadoPor']
 };
 
 // ── Helpers genéricos ────────────────────────────────────────

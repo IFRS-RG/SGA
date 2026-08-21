@@ -8,7 +8,7 @@ const App = {
 
   // Definição do menu. `roles` = perfis que enxergam o item.
   menu: [
-    { id: 'editais', label: 'Editais', icon: '📄', roles: ['Admin', 'Coordenador', 'Visualizador'], module: 'Editais' },
+    { id: 'editais', label: 'Editais', icon: '📄', roles: ['Admin', 'Gestor', 'Visualizador'], module: 'Editais' },
     { id: 'admin',   label: 'Admin',   icon: '⚙️', roles: ['Admin'], module: 'Admin' }
   ],
 
