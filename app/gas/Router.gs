@@ -40,6 +40,8 @@ function doPost(e) {
       // ── Documentos de edital ──
       case 'getEditalDocs':
         return respond(getEditalDocs(data.editalId));
+      case 'getEditalFolderUrl':
+        return respond(getEditalFolderUrl(data.editalId));
       case 'uploadEditalDoc':
         return respond(uploadEditalDoc(data.payload, userEmail));
       case 'deleteEditalDoc':

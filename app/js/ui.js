@@ -102,3 +102,36 @@ function fileToBase64(file) {
 function emptyState(text, actionHtml = '') {
   return `<div class="empty-state"><p>${esc(text)}</p>${actionHtml}</div>`;
 }
+
+// ── Export XLS (CSV com tab, abre no Excel) ───────────────────
+function exportXLS(headers, rows, filename) {
+  let csv = '﻿'; // BOM p/ acentuação no Excel
+  csv += headers.join('\t') + '\n';
+  rows.forEach(r => { csv += r.map(c => String(c == null ? '' : c).replace(/\t/g, ' ').replace(/\n/g, ' ')).join('\t') + '\n'; });
+  const blob = new Blob([csv], { type: 'application/vnd.ms-excel;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename + '.xls'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Export PDF (janela de impressão → salvar como PDF) ────────
+function exportPDF(title, headers, rows) {
+  const tr = rows.map(r => '<tr>' + r.map(c => `<td>${esc(c == null ? '' : c)}</td>`).join('') + '</tr>').join('');
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+    <style>
+      body{font-family:Arial,sans-serif;font-size:11px;color:#1f2937;padding:16px;}
+      h2{margin:0 0 12px;color:#1e3a5f;}
+      table{width:100%;border-collapse:collapse;}
+      th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:left;font-size:10px;}
+      td{padding:5px 8px;border-bottom:1px solid #eee;}
+      tr:nth-child(even){background:#f5f7fa;}
+      p.gen{color:#999;font-size:10px;margin-top:12px;}
+    </style></head><body>
+    <h2>${esc(title)}</h2>
+    <table><thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${tr}</tbody></table>
+    <p class="gen">Gerado em ${new Date().toLocaleString('pt-BR')} · SGA — IFRS Campus Rio Grande</p>
+    </body></html>`;
+  const win = window.open('', '_blank');
+  win.document.write(html); win.document.close(); win.focus(); win.print();
+}

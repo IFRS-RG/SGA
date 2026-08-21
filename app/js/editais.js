@@ -6,12 +6,25 @@ const Editais = {
   role: null,
   data: [],
   filter: '',
+  filterSeg: '',
+  filterStatus: '',
+  sortKey: 'numAno',
+  sortDir: 'desc',
 
   canWrite() { return this.role === 'Admin' || this.role === 'Gestor'; },
 
   async mount(container, role) {
     this.container = container;
     this.role = role;
+    // Fecha menus suspensos ao clicar fora (registra uma vez só).
+    if (!this._menuInit) {
+      document.addEventListener('click', (ev) => {
+        document.querySelectorAll('details.row-menu[open]').forEach(d => {
+          if (!d.contains(ev.target)) d.open = false;
+        });
+      });
+      this._menuInit = true;
+    }
     await this.reload();
   },
 
@@ -24,67 +37,158 @@ const Editais = {
     }
   },
 
+  // Converte data (ISO/Date/texto) para yyyy-mm-dd (inputs e export).
+  dateVal(v) {
+    if (!v) return '';
+    const s = String(v);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const d = new Date(s);
+    return isNaN(d) ? s : d.toISOString().slice(0, 10);
+  },
+
   filtered() {
     const q = this.filter.toLowerCase();
-    if (!q) return this.data;
-    return this.data.filter(e =>
-      [e.Numero, e.Ano, e.Titulo, e.Segmento, e.AgenciaFomento]
-        .some(v => String(v || '').toLowerCase().includes(q)));
+    return this.data.filter(e => {
+      if (this.filterSeg && e.Segmento !== this.filterSeg) return false;
+      if (this.filterStatus && (e.Status || 'Ativo') !== this.filterStatus) return false;
+      if (!q) return true;
+      return [e.Numero, e.Ano, e.Titulo, e.Segmento, e.AgenciaFomento]
+        .some(v => String(v || '').toLowerCase().includes(q));
+    });
+  },
+
+  sortedFiltered() {
+    const rows = this.filtered().slice();
+    const dir = this.sortDir === 'asc' ? 1 : -1;
+    const key = this.sortKey;
+    const v = (e) => {
+      switch (key) {
+        case 'numAno':   return (Number(e.Ano) || 0) * 100000 + (Number(e.Numero) || 0);
+        case 'titulo':   return String(e.Titulo || '').toLowerCase();
+        case 'segmento': return String(e.Segmento || '').toLowerCase();
+        case 'status':   return String(e.Status || '').toLowerCase();
+        case 'docs':     return Number(e.docsCount) || 0;
+        default:         return 0;
+      }
+    };
+    return rows.sort((a, b) => { const x = v(a), y = v(b); return x < y ? -dir : x > y ? dir : 0; });
+  },
+
+  th(key, label) {
+    const active = this.sortKey === key;
+    const arrow = active ? (this.sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+    return `<th class="sortable${active ? ' sorted' : ''}" onclick="Editais.sort('${key}')">${label}${arrow}</th>`;
+  },
+
+  sort(key) {
+    if (this.sortKey === key) this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+    else { this.sortKey = key; this.sortDir = 'asc'; }
+    this.render();
   },
 
   render() {
-    const rows = this.filtered();
-    const novo = this.canWrite()
-      ? `<button class="btn btn-primary" onclick="Editais.openForm()">+ Novo edital</button>` : '';
+    const rows = this.sortedFiltered();
+    const w = this.canWrite();
+    const novo = w ? `<button class="btn btn-primary" onclick="Editais.openForm()">+ Novo edital</button>` : '';
+
+    const segOpts = ['<option value="">Todos os segmentos</option>']
+      .concat(SEGMENTOS.map(s => `<option ${this.filterSeg === s ? 'selected' : ''}>${s}</option>`)).join('');
+    const stOpts = `<option value="">Todos os status</option>
+      <option ${this.filterStatus === 'Ativo' ? 'selected' : ''}>Ativo</option>
+      <option ${this.filterStatus === 'Inativo' ? 'selected' : ''}>Inativo</option>`;
 
     const table = rows.length ? `
-      <div class="table-wrap">
+      <div class="table-wrap menus">
         <table class="data-table">
           <thead><tr>
-            <th>Nº / Ano</th><th>Título</th><th>Segmento</th>
-            <th>Inscrições</th><th>Docs</th><th>Status</th><th class="col-actions">Ações</th>
+            ${this.th('numAno', 'Nº / Ano')}
+            ${this.th('titulo', 'Título')}
+            ${this.th('segmento', 'Segmento')}
+            ${this.th('docs', 'Docs')}
+            ${this.th('status', 'Status')}
+            <th class="col-actions">Ações</th>
           </tr></thead>
-          <tbody>
-          ${rows.map(e => this.rowHtml(e)).join('')}
-          </tbody>
+          <tbody>${rows.map(e => this.rowHtml(e)).join('')}</tbody>
         </table>
-      </div>` : emptyState('Nenhum edital cadastrado ainda.',
-        this.canWrite() ? `<button class="btn btn-primary" onclick="Editais.openForm()">+ Criar o primeiro edital</button>` : '');
+      </div>`
+      : emptyState(this.data.length ? 'Nenhum edital corresponde aos filtros.' : 'Nenhum edital cadastrado ainda.',
+          (w && !this.data.length) ? `<button class="btn btn-primary" onclick="Editais.openForm()">+ Criar o primeiro edital</button>` : '');
 
     this.container.innerHTML = `
       <div class="page-toolbar">
         <input class="input search" id="ed-search" placeholder="Buscar por número, título, segmento…"
                value="${esc(this.filter)}" oninput="Editais.onSearch(this.value)">
+        <select class="input toolbar-select" onchange="Editais.onFilterSeg(this.value)">${segOpts}</select>
+        <select class="input toolbar-select" onchange="Editais.onFilterStatus(this.value)">${stOpts}</select>
+        <div class="toolbar-spacer"></div>
+        <button class="btn btn-ghost" onclick="Editais.exportXLS()">⬇ XLS</button>
+        <button class="btn btn-ghost" onclick="Editais.exportPDF()">⬇ PDF</button>
         ${novo}
       </div>
+      <div class="toolbar-count">${rows.length} de ${this.data.length} edital(is)</div>
       ${table}`;
   },
 
   rowHtml(e) {
-    const insc = (e.InscricoesInicio || e.InscricoesFim)
-      ? `${esc(e.InscricoesInicio || '?')} – ${esc(e.InscricoesFim || '?')}` : '—';
-    const badge = e.Status === 'Ativo'
-      ? '<span class="badge badge-ok">Ativo</span>'
-      : '<span class="badge badge-muted">Inativo</span>';
+    const badge = (e.Status === 'Inativo')
+      ? '<span class="badge badge-muted">Inativo</span>'
+      : '<span class="badge badge-ok">Ativo</span>';
     const w = this.canWrite();
     return `<tr>
       <td><strong>${esc(e.Numero || '—')}</strong><span class="cell-sub">/${esc(e.Ano || '')}</span></td>
       <td>${esc(e.Titulo || '')}</td>
       <td>${esc(e.Segmento || '—')}</td>
-      <td>${insc}</td>
       <td><button class="chip" title="Anexar / ver PDFs" onclick="Editais.openDocs('${e.ID}')">📎 ${e.docsCount || 0}</button></td>
       <td>${badge}</td>
       <td class="col-actions">
-        <button class="btn btn-ghost btn-xs" onclick="Editais.openDocs('${e.ID}')">📎 Documentos</button>
-        ${e.Link ? `<a class="btn btn-ghost btn-xs" href="${esc(e.Link)}" target="_blank" rel="noopener">Link</a>` : ''}
-        ${w ? `<button class="btn btn-ghost btn-xs" onclick="Editais.openForm('${e.ID}')">Editar</button>` : ''}
-        ${w ? `<button class="btn btn-ghost btn-xs" onclick="Editais.clone('${e.ID}')">Clonar</button>` : ''}
-        ${w ? `<button class="btn btn-danger btn-xs" onclick="Editais.remove('${e.ID}')">Excluir</button>` : ''}
+        <details class="row-menu">
+          <summary class="btn btn-ghost btn-xs">Ações ▾</summary>
+          <div class="row-menu-list">
+            <button onclick="Editais.openFolder('${e.ID}')">📁 Pasta no Drive</button>
+            <button onclick="Editais.openDocs('${e.ID}')">📎 Documentos</button>
+            ${e.Link ? `<a href="${esc(e.Link)}" target="_blank" rel="noopener">🔗 Link do edital</a>` : ''}
+            ${w ? `<button onclick="Editais.openForm('${e.ID}')">✏️ Editar</button>` : ''}
+            ${w ? `<button onclick="Editais.clone('${e.ID}')">⧉ Clonar</button>` : ''}
+            ${w ? `<button class="danger" onclick="Editais.remove('${e.ID}')">🗑 Excluir</button>` : ''}
+          </div>
+        </details>
       </td>
     </tr>`;
   },
 
-  onSearch(v) { this.filter = v; this.render(); document.getElementById('ed-search').focus(); },
+  onSearch(v) {
+    this.filter = v; this.render();
+    const s = document.getElementById('ed-search');
+    if (s) { s.focus(); s.setSelectionRange(v.length, v.length); }
+  },
+  onFilterSeg(v) { this.filterSeg = v; this.render(); },
+  onFilterStatus(v) { this.filterStatus = v; this.render(); },
+
+  openFolder(id) {
+    const win = window.open('', '_blank');   // abre no gesto do clique (evita bloqueio de popup)
+    API.getEditalFolderUrl(id)
+      .then(res => { if (win) win.location = res.url; })
+      .catch(e => { if (win) win.close(); toast(e.message, 'error'); });
+  },
+
+  exportXLS() {
+    const rows = this.sortedFiltered().map(e => [
+      e.Numero, e.Ano, e.Titulo, e.Segmento, e.Fomento, e.TipoInterno, e.Bolsas, e.CusteioCapital,
+      e.AgenciaFomento, this.dateVal(e.DataPublicacao), this.dateVal(e.InscricoesInicio),
+      this.dateVal(e.InscricoesFim), this.dateVal(e.DataResultado), e.Link, e.Status
+    ]);
+    exportXLS(['Número', 'Ano', 'Título', 'Segmento', 'Fomento', 'Interno/Externo', 'Bolsas',
+      'Custeio/Capital', 'Agência', 'Publicação', 'Inscr. início', 'Inscr. fim', 'Resultado',
+      'Link', 'Status'], rows, 'Editais');
+  },
+
+  exportPDF() {
+    const rows = this.sortedFiltered().map(e => [
+      e.Numero + '/' + e.Ano, e.Titulo, e.Segmento,
+      this.dateVal(e.InscricoesInicio), this.dateVal(e.InscricoesFim), e.Status
+    ]);
+    exportPDF('Editais — SGA', ['Nº/Ano', 'Título', 'Segmento', 'Inscr. início', 'Inscr. fim', 'Status'], rows);
+  },
 
   // ── Formulário (novo / editar) ──────────────────────────────
   openForm(id) {
@@ -121,11 +225,11 @@ const Editais = {
     </div>
     <fieldset class="form-fieldset"><legend>Datas</legend>
       <div class="form-grid form-grid-3">
-        <div class="fg"><label>Publicação</label><input type="date" class="input" id="f-dpub" value="${esc(e.DataPublicacao || '')}"></div>
-        <div class="fg"><label>Inscrições — início</label><input type="date" class="input" id="f-ini" value="${esc(e.InscricoesInicio || '')}"></div>
-        <div class="fg"><label>Inscrições — fim</label><input type="date" class="input" id="f-fim" value="${esc(e.InscricoesFim || '')}"></div>
+        <div class="fg"><label>Publicação</label><input type="date" class="input" id="f-dpub" value="${esc(this.dateVal(e.DataPublicacao))}"></div>
+        <div class="fg"><label>Inscrições — início</label><input type="date" class="input" id="f-ini" value="${esc(this.dateVal(e.InscricoesInicio))}"></div>
+        <div class="fg"><label>Inscrições — fim</label><input type="date" class="input" id="f-fim" value="${esc(this.dateVal(e.InscricoesFim))}"></div>
       </div>
-      <div class="fg"><label>Resultado</label><input type="date" class="input" id="f-resu" value="${esc(e.DataResultado || '')}"></div>
+      <div class="fg"><label>Resultado</label><input type="date" class="input" id="f-resu" value="${esc(this.dateVal(e.DataResultado))}"></div>
     </fieldset>
     <div class="fg"><label>Link do edital (onde está salvo — SEI, SIGAA, Drive…)</label>
       <input class="input" id="f-link" placeholder="https://…" value="${esc(e.Link || '')}"></div>`;

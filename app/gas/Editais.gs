@@ -124,6 +124,15 @@ function getEditalDocs(editalId) {
   return sheetRows('EditalDocumentos').filter(d => String(d.EditalID) === String(editalId));
 }
 
+// Garante a pasta do edital ({segmento}/{ano do edital}/{label}) e retorna a URL.
+function getEditalFolderUrl(editalId) {
+  const edital = sheetRows('Editais').find(e => String(e.ID) === String(editalId));
+  if (!edital) throw new Error('Edital não encontrado.');
+  const label  = (edital.Numero || '') + '-' + (edital.Ano || '') + ' ' + (edital.Titulo || '');
+  const folder = _editalFolder(label.trim(), edital.Ano, edital.Segmento);
+  return { url: folder.getUrl() };
+}
+
 // Valida que o arquivo enviado é mesmo um PDF (magic bytes "%PDF").
 function _isPdf(bytes) {
   return bytes.length >= 4 &&

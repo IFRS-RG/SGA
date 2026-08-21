@@ -44,7 +44,8 @@ const API = {
   cloneEdital:  (id)          => gasCall('cloneEdital',  { id }),
 
   // Documentos de edital
-  getEditalDocs:   (editalId) => gasCall('getEditalDocs',   { editalId }),
+  getEditalDocs:      (editalId) => gasCall('getEditalDocs',      { editalId }),
+  getEditalFolderUrl: (editalId) => gasCall('getEditalFolderUrl', { editalId }),
   uploadEditalDoc: (payload)     => gasCall('uploadEditalDoc', { payload }),
   deleteEditalDoc: (docId)       => gasCall('deleteEditalDoc', { docId }),
   renameEditalDoc: (docId, nome) => gasCall('renameEditalDoc', { docId, nome }),
