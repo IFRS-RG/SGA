@@ -97,27 +97,27 @@ const Editais = {
     e = e || {};
     const simNao = (v) => `<option ${v === 'Sim' ? 'selected' : ''}>Sim</option><option ${v !== 'Sim' ? 'selected' : ''}>Não</option>`;
     return `
+    <!-- Campos principais — mesma disposição da V1 -->
     <div class="form-grid">
-      <div class="fg"><label>Número *</label><input class="input" id="f-numero" value="${esc(e.Numero || '')}"></div>
-      <div class="fg"><label>Ano *</label><input class="input" id="f-ano" value="${esc(e.Ano || new Date().getFullYear())}"></div>
+      <div class="fg"><label>*Número</label><input class="input" id="f-numero" value="${esc(e.Numero || '')}"></div>
+      <div class="fg"><label>*Ano</label><input class="input" id="f-ano" value="${esc(e.Ano || new Date().getFullYear())}"></div>
     </div>
-    <div class="fg"><label>Título *</label><input class="input" id="f-titulo" value="${esc(e.Titulo || '')}"></div>
-
+    <div class="fg"><label>*Título</label><input class="input" id="f-titulo" value="${esc(e.Titulo || '')}"></div>
     <div class="form-grid">
-      <div class="fg"><label>Segmento</label><select class="input" id="f-segmento">${optionsHtml(SEGMENTOS, e.Segmento)}</select></div>
+      <div class="fg"><label>*Fomento/Auxílio</label><select class="input" id="f-fomento">${simNao(e.Fomento)}</select></div>
+      <div class="fg"><label>*Interno/Externo</label><select class="input" id="f-tipo"><option ${e.TipoInterno === 'Interno' ? 'selected' : ''}>Interno</option><option ${e.TipoInterno === 'Externo' ? 'selected' : ''}>Externo</option></select></div>
+    </div>
+    <div class="fg"><label>*Segmento</label><select class="input" id="f-segmento">${optionsHtml(SEGMENTOS, e.Segmento)}</select></div>
+    <div class="form-grid">
+      <div class="fg"><label>*Bolsas</label><select class="input" id="f-bolsas">${simNao(e.Bolsas)}</select></div>
+      <div class="fg"><label>*Custeio/Capital</label><select class="input" id="f-custeio">${simNao(e.CusteioCapital)}</select></div>
+    </div>
+
+    <!-- Campos adicionais -->
+    <div class="form-grid">
       <div class="fg"><label>Agência / Órgão de fomento</label><input class="input" id="f-agencia" value="${esc(e.AgenciaFomento || '')}"></div>
-    </div>
-
-    <div class="form-grid form-grid-3">
-      <div class="fg"><label>Fomento / Auxílio</label><select class="input" id="f-fomento">${simNao(e.Fomento)}</select></div>
-      <div class="fg"><label>Tipo</label><select class="input" id="f-tipo"><option ${e.TipoInterno === 'Interno' ? 'selected' : ''}>Interno</option><option ${e.TipoInterno === 'Externo' ? 'selected' : ''}>Externo</option></select></div>
-      <div class="fg"><label>Bolsas</label><select class="input" id="f-bolsas">${simNao(e.Bolsas)}</select></div>
-    </div>
-    <div class="form-grid">
-      <div class="fg"><label>Custeio / Capital</label><select class="input" id="f-custeio">${simNao(e.CusteioCapital)}</select></div>
       <div class="fg"><label>Status</label><select class="input" id="f-status"><option ${e.Status !== 'Inativo' ? 'selected' : ''}>Ativo</option><option ${e.Status === 'Inativo' ? 'selected' : ''}>Inativo</option></select></div>
     </div>
-
     <fieldset class="form-fieldset"><legend>Datas</legend>
       <div class="form-grid form-grid-3">
         <div class="fg"><label>Publicação</label><input type="date" class="input" id="f-dpub" value="${esc(e.DataPublicacao || '')}"></div>
@@ -126,7 +126,6 @@ const Editais = {
       </div>
       <div class="fg"><label>Resultado</label><input type="date" class="input" id="f-resu" value="${esc(e.DataResultado || '')}"></div>
     </fieldset>
-
     <div class="fg"><label>Link do edital (onde está salvo — SEI, SIGAA, Drive…)</label>
       <input class="input" id="f-link" placeholder="https://…" value="${esc(e.Link || '')}"></div>`;
   },
