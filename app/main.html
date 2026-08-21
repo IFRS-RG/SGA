@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SGA</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <span class="sidebar-logo">SGA</span>
+        <span class="sidebar-name">Gestão de Ações</span>
+      </div>
+      <nav class="sidebar-nav" id="sidebar-nav"><!-- itens injetados por app.js --></nav>
+      <div class="sidebar-user" id="sidebar-user"></div>
+    </aside>
+
+    <!-- Conteúdo -->
+    <div class="main-area">
+      <header class="topbar">
+        <button class="btn-icon" id="menu-toggle" aria-label="Menu">&#9776;</button>
+        <h1 class="topbar-title" id="page-title">Editais</h1>
+        <div class="topbar-spacer"></div>
+        <span class="topbar-perfil" id="topbar-perfil"></span>
+      </header>
+      <main class="content" id="content">
+        <div class="loading-page"><div class="spinner"></div><p>Carregando…</p></div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal genérico -->
+  <div class="modal-overlay" id="modal-overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <header class="modal-header">
+        <h2 id="modal-title">Título</h2>
+        <button class="btn-icon" id="modal-close" aria-label="Fechar">&times;</button>
+      </header>
+      <div class="modal-body" id="modal-body"></div>
+      <footer class="modal-footer" id="modal-footer">
+        <button class="btn btn-ghost" id="modal-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="modal-confirm">Salvar</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast-wrap" class="toast-wrap"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/editais.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

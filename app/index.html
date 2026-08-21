@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SGA — Entrar</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body class="login-body">
+  <main class="login-card">
+    <div class="login-brand">
+      <div class="login-logo">SGA</div>
+      <h1>Sistema de Gestão de Ações</h1>
+      <p class="login-sub">IFRS · Campus Rio Grande</p>
+    </div>
+
+    <p class="login-hint">Entre com sua conta institucional Google.</p>
+    <div id="google-btn" class="google-btn-wrap"></div>
+
+    <p id="login-msg" class="login-msg" hidden></p>
+    <footer class="login-footer">Ensino · Pesquisa · Extensão</footer>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    // Se já houver sessão, vai direto pra aplicação.
+    if (getIdToken()) location.href = 'main.html';
+
+    window.addEventListener('load', () => {
+      const wrap = document.getElementById('google-btn');
+      if (!window.google || !google.accounts) {
+        showMsg('Não foi possível carregar o login do Google. Verifique sua conexão.');
+        return;
+      }
+      if (SGA_CONFIG.GOOGLE_CLIENT_ID.startsWith('COLE_')) {
+        showMsg('Configuração pendente: preencha o GOOGLE_CLIENT_ID em js/config.js.');
+        return;
+      }
+      initLoginButton(wrap, () => { location.href = 'main.html'; });
+    });
+
+    function showMsg(t) {
+      const m = document.getElementById('login-msg');
+      m.textContent = t; m.hidden = false;
+    }
+  </script>
+</body>
+</html>
