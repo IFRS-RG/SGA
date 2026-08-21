@@ -188,12 +188,16 @@ const Editais = {
 
     const w = this.canWrite();
     this._docs = docs;  // usado por renameDoc para achar o nome atual
+    const ed = this.data.find(x => String(x.ID) === String(id));
+    const anoDefault = (ed && ed.Ano) ? ed.Ano : new Date().getFullYear();
     const uploader = w ? `
       <div class="upload-box">
         <div class="fg"><label>Nome do documento</label>
           <input class="input" id="doc-nome" placeholder="ex.: Edital 12-2026 — Chamada de bolsistas"></div>
-        <div class="form-grid">
+        <div class="form-grid form-grid-3">
           <div class="fg"><label>Tipo</label><select class="input" id="doc-tipo">${optionsHtml(TIPOS_DOC)}</select></div>
+          <div class="fg"><label>Ano da pasta</label>
+            <input type="number" class="input" id="doc-ano" value="${esc(anoDefault)}" title="Pasta do Drive onde o PDF será guardado"></div>
           <div class="fg"><label>Arquivo PDF</label><input type="file" accept="application/pdf" class="input" id="doc-file" onchange="Editais.onDocFile()"></div>
         </div>
         <button class="btn btn-primary" id="doc-upload-btn" onclick="Editais.uploadDoc('${id}')">Enviar PDF</button>
@@ -228,15 +232,17 @@ const Editais = {
     const fileEl = document.getElementById('doc-file');
     const tipo = val('doc-tipo');
     const nome = val('doc-nome');
+    const ano  = val('doc-ano');
     const file = fileEl.files[0];
     if (!file) { toast('Selecione um arquivo PDF.', 'error'); return; }
     if (file.type && file.type !== 'application/pdf') { toast('O arquivo precisa ser um PDF.', 'error'); return; }
+    if (!ano) { toast('Informe o ano da pasta.', 'error'); return; }
 
     const btn = document.getElementById('doc-upload-btn');
     btn.disabled = true; btn.textContent = 'Enviando…';
     try {
       const base64 = await fileToBase64(file);
-      await API.uploadEditalDoc({ editalId, tipo, nome, fileName: file.name, base64 });
+      await API.uploadEditalDoc({ editalId, tipo, nome, ano, fileName: file.name, base64 });
       toast('PDF enviado.', 'success');
       await this.renderDocs(editalId);
       // Atualiza a contagem na tabela.

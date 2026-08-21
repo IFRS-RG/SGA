@@ -145,8 +145,10 @@ function uploadEditalDoc(payload, email) {
   let fileName = String(payload.nome || payload.fileName || 'documento').trim() || 'documento';
   if (!/\.pdf$/i.test(fileName)) fileName += '.pdf';
 
+  // Ano da pasta: escolhido no upload (pode diferir do ano do edital); default = ano do edital.
+  const anoPasta = String(payload.ano || edital.Ano || '').trim() || 'Sem ano';
   const label  = (edital.Numero || '') + '-' + (edital.Ano || '') + ' ' + (edital.Titulo || '');
-  const folder = _editalFolder(label.trim(), edital.Ano);
+  const folder = _editalFolder(label.trim(), anoPasta);
   const blob   = Utilities.newBlob(bytes, 'application/pdf', fileName);
   const file   = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
