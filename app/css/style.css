@@ -22,6 +22,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }   /* vence display:flex do .modal-overlay */
 html, body { margin: 0; padding: 0; }
 body { background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.5; }
 a { color: var(--brand-light); }

@@ -18,11 +18,10 @@ const Editais = {
   async reload() {
     try {
       this.data = await API.getEditais() || [];
+      this.render();
     } catch (e) {
-      this.container.innerHTML = emptyState('Erro ao carregar editais: ' + e.message);
-      return;
+      this.container.innerHTML = emptyState('Erro ao carregar editais: ' + (e && e.message ? e.message : e));
     }
-    this.render();
   },
 
   filtered() {
@@ -248,3 +247,6 @@ const Editais = {
       }, 'Remover');
   }
 };
+
+// Necessário: app.js chama window['Editais'].mount e os onclick inline usam Editais.*
+window.Editais = Editais;

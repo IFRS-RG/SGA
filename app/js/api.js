@@ -6,14 +6,21 @@ async function gasCall(action, extra = {}) {
   const body  = JSON.stringify({ action, token, ...extra });
 
   let resp;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 30000);
   try {
     resp = await fetch(SGA_CONFIG.GAS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS no GAS
-      body
+      body,
+      signal: ctrl.signal
     });
   } catch (e) {
-    throw new Error('Falha de conexão com o servidor.');
+    throw new Error(e.name === 'AbortError'
+      ? 'O servidor demorou demais para responder (timeout).'
+      : 'Falha de conexão com o servidor.');
+  } finally {
+    clearTimeout(timer);
   }
 
   if (!resp.ok) throw new Error('HTTP ' + resp.status);

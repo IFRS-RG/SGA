@@ -16,11 +16,10 @@ const Admin = {
   async reload() {
     try {
       this.data = await API.getPerfis();
+      this.render();
     } catch (e) {
-      this.container.innerHTML = emptyState('Erro ao carregar perfis: ' + e.message);
-      return;
+      this.container.innerHTML = emptyState('Erro ao carregar perfis: ' + (e && e.message ? e.message : e));
     }
-    this.render();
   },
 
   render() {
@@ -104,3 +103,6 @@ const Admin = {
     }, 'Remover');
   }
 };
+
+// Necessário: app.js chama window['Admin'].mount e os onclick inline usam Admin.*
+window.Admin = Admin;

@@ -92,4 +92,7 @@ const App = {
   }
 };
 
+// Expõe no window: handlers inline (onclick) e App.navigate → window[module] dependem disso.
+window.App = App;
+
 window.addEventListener('DOMContentLoaded', () => App.init());
