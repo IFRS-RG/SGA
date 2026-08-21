@@ -103,12 +103,17 @@ function emptyState(text, actionHtml = '') {
   return `<div class="empty-state"><p>${esc(text)}</p>${actionHtml}</div>`;
 }
 
-// ── Export XLS (CSV com tab, abre no Excel) ───────────────────
+// ── Export XLS (tabela HTML — Excel separa em colunas certinho) ─
 function exportXLS(headers, rows, filename) {
-  let csv = '﻿'; // BOM p/ acentuação no Excel
-  csv += headers.join('\t') + '\n';
-  rows.forEach(r => { csv += r.map(c => String(c == null ? '' : c).replace(/\t/g, ' ').replace(/\n/g, ' ')).join('\t') + '\n'; });
-  const blob = new Blob([csv], { type: 'application/vnd.ms-excel;charset=utf-8' });
+  const thead = '<tr>' + headers.map(h => `<th>${esc(h)}</th>`).join('') + '</tr>';
+  const tbody = rows.map(r => '<tr>' + r.map(c => `<td>${esc(c == null ? '' : c)}</td>`).join('') + '</tr>').join('');
+  const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">
+    <style>
+      table{border-collapse:collapse;}
+      th{background:#1e3a5f;color:#fff;font-weight:bold;}
+      th,td{border:1px solid #cbd5e1;padding:4px 8px;mso-number-format:"\\@";}
+    </style></head><body><table>${thead}${tbody}</table></body></html>`;
+  const blob = new Blob(['﻿' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href = url; a.download = filename + '.xls'; a.click();

@@ -91,6 +91,7 @@ a { color: var(--brand-light); }
 .content { padding: 24px; flex: 1; }
 
 /* ── Toolbar / página ────────────────────────────────────── */
+.page-actions { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
 .page-toolbar { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
 .search { flex: 1; min-width: 200px; max-width: 380px; }
 .toolbar-select { flex: 0 0 auto; width: auto; min-width: 150px; }

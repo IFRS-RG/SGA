@@ -115,15 +115,16 @@ const Editais = {
           (w && !this.data.length) ? `<button class="btn btn-primary" onclick="Editais.openForm()">+ Criar o primeiro edital</button>` : '');
 
     this.container.innerHTML = `
+      <div class="page-actions">
+        <button class="btn btn-ghost" onclick="Editais.exportXLS()">📊 XLS</button>
+        <button class="btn btn-ghost" onclick="Editais.exportPDF()">📕 PDF</button>
+        ${novo}
+      </div>
       <div class="page-toolbar">
         <input class="input search" id="ed-search" placeholder="Buscar por número, título, segmento…"
                value="${esc(this.filter)}" oninput="Editais.onSearch(this.value)">
         <select class="input toolbar-select" onchange="Editais.onFilterSeg(this.value)">${segOpts}</select>
         <select class="input toolbar-select" onchange="Editais.onFilterStatus(this.value)">${stOpts}</select>
-        <div class="toolbar-spacer"></div>
-        <button class="btn btn-ghost" onclick="Editais.exportXLS()">⬇ XLS</button>
-        <button class="btn btn-ghost" onclick="Editais.exportPDF()">⬇ PDF</button>
-        ${novo}
       </div>
       <div class="toolbar-count">${rows.length} de ${this.data.length} edital(is)</div>
       ${table}`;
