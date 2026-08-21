@@ -16,6 +16,9 @@ const Editais = {
   filterAno: '',
   sortKey: 'numAno',
   sortDir: 'desc',
+  page: 1,
+  pageSize: 25,
+  expanded: new Set(),
 
   canWrite() { return this.role === 'Admin' || this.role === 'Gestor'; },
 
@@ -90,11 +93,17 @@ const Editais = {
   sort(key) {
     if (this.sortKey === key) this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
     else { this.sortKey = key; this.sortDir = 'asc'; }
+    this.page = 1;
     this.render();
   },
 
   render() {
-    const rows = this.sortedFiltered();
+    const all = this.sortedFiltered();
+    const totalPages = Math.max(1, Math.ceil(all.length / this.pageSize));
+    if (this.page > totalPages) this.page = totalPages;
+    if (this.page < 1) this.page = 1;
+    const start = (this.page - 1) * this.pageSize;
+    const rows = all.slice(start, start + this.pageSize);
     const w = this.canWrite();
     const novo = w ? `<button class="btn btn-primary" onclick="Editais.openForm()">+ Novo edital</button>` : '';
 
@@ -137,17 +146,29 @@ const Editais = {
         <select class="input toolbar-select" onchange="Editais.onFilterStatus(this.value)">${stOpts}</select>
         <select class="input toolbar-select" onchange="Editais.onFilterAno(this.value)">${anoOpts}</select>
       </div>
-      <div class="toolbar-count">${rows.length} de ${this.data.length} edital(is)</div>
-      ${table}`;
+      <div class="toolbar-count">${all.length} de ${this.data.length} edital(is)${all.length > this.pageSize ? ` · página ${this.page}/${totalPages}` : ''}</div>
+      ${table}
+      ${totalPages > 1 ? this.pagerHtml(totalPages) : ''}`;
   },
 
+  pagerHtml(totalPages) {
+    return `<div class="pager">
+      <button class="btn btn-ghost btn-xs" onclick="Editais.goPage(${this.page - 1})" ${this.page === 1 ? 'disabled' : ''}>‹ Anterior</button>
+      <span class="pager-info">Página ${this.page} de ${totalPages}</span>
+      <button class="btn btn-ghost btn-xs" onclick="Editais.goPage(${this.page + 1})" ${this.page === totalPages ? 'disabled' : ''}>Próxima ›</button>
+    </div>`;
+  },
+
+  goPage(p) { this.page = p; this.render(); window.scrollTo({ top: 0, behavior: 'smooth' }); },
+
   rowHtml(e) {
+    const open = this.expanded.has(e.ID);
     const badge = (e.Status === 'Inativo')
       ? '<span class="badge badge-muted">Inativo</span>'
       : '<span class="badge badge-ok">Ativo</span>';
     const w = this.canWrite();
-    return `<tr>
-      <td><strong>${esc(e.Numero || '—')}</strong><span class="cell-sub">/${esc(e.Ano || '')}</span></td>
+    const main = `<tr class="data-row${open ? ' is-open' : ''}" onclick="Editais.toggleDetail('${e.ID}', event)">
+      <td><span class="caret">${open ? '▾' : '▸'}</span><strong>${esc(e.Numero || '—')}</strong><span class="cell-sub">/${esc(e.Ano || '')}</span></td>
       <td>${esc(e.Titulo || '')}</td>
       <td>${esc(e.Segmento || '—')}</td>
       <td><button class="chip" title="Anexar / ver PDFs" onclick="Editais.openDocs('${e.ID}')">📎 ${e.docsCount || 0}</button></td>
@@ -166,16 +187,42 @@ const Editais = {
         </details>
       </td>
     </tr>`;
+    const detail = open ? `<tr class="detail-row"><td colspan="6">${this.detailHtml(e)}</td></tr>` : '';
+    return main + detail;
+  },
+
+  detailHtml(e) {
+    const cell = (k, v) => `<div><span class="dk">${esc(k)}</span><span class="dv">${v}</span></div>`;
+    const insc = (e.InscricoesInicio || e.InscricoesFim)
+      ? `${esc(this.dateVal(e.InscricoesInicio) || '?')} – ${esc(this.dateVal(e.InscricoesFim) || '?')}` : '—';
+    const link = e.Link ? `<a href="${esc(e.Link)}" target="_blank" rel="noopener">abrir ↗</a>` : '—';
+    return `<div class="detail-grid">
+      ${cell('Interno/Externo', esc(e.TipoInterno || '—'))}
+      ${cell('Fomento/Auxílio', esc(e.Fomento || '—'))}
+      ${cell('Bolsas', esc(e.Bolsas || '—'))}
+      ${cell('Custeio/Capital', esc(e.CusteioCapital || '—'))}
+      ${cell('Agência / Órgão', esc(e.AgenciaFomento || '—'))}
+      ${cell('Publicação', esc(this.dateVal(e.DataPublicacao) || '—'))}
+      ${cell('Inscrições', insc)}
+      ${cell('Resultado', esc(this.dateVal(e.DataResultado) || '—'))}
+      ${cell('Link', link)}
+    </div>`;
+  },
+
+  toggleDetail(id, ev) {
+    if (ev && ev.target.closest('.col-actions, .chip, a, details')) return;
+    if (this.expanded.has(id)) this.expanded.delete(id); else this.expanded.add(id);
+    this.render();
   },
 
   onSearch(v) {
-    this.filter = v; this.render();
+    this.filter = v; this.page = 1; this.render();
     const s = document.getElementById('ed-search');
     if (s) { s.focus(); s.setSelectionRange(v.length, v.length); }
   },
-  onFilterSeg(v) { this.filterSeg = v; this.render(); },
-  onFilterStatus(v) { this.filterStatus = v; this.render(); },
-  onFilterAno(v) { this.filterAno = v; this.render(); },
+  onFilterSeg(v) { this.filterSeg = v; this.page = 1; this.render(); },
+  onFilterStatus(v) { this.filterStatus = v; this.page = 1; this.render(); },
+  onFilterAno(v) { this.filterAno = v; this.page = 1; this.render(); },
 
   openFolder(id) {
     const win = window.open('', '_blank');   // abre no gesto do clique (evita bloqueio de popup)

@@ -137,6 +137,19 @@ a { color: var(--brand-light); }
 .col-actions { text-align: right; white-space: nowrap; }
 .col-actions .btn { margin-left: 4px; }
 
+/* Linha expansível (detalhes) */
+.data-row { cursor: pointer; }
+.data-row.is-open { background: #fafbfd; }
+.caret { display: inline-block; width: 14px; color: var(--text-muted); font-size: 10px; }
+.detail-row > td { background: #f8fafc; padding: 14px 16px 16px; }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 22px; }
+.detail-grid .dk { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--text-muted); margin-bottom: 2px; }
+.detail-grid .dv { font-size: 14px; }
+
+/* Paginação */
+.pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 14px; }
+.pager-info { font-size: 13px; color: var(--text-muted); }
+
 /* ── Badges / chips ──────────────────────────────────────── */
 .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 12px; font-weight: 600; }
 .badge-ok { background: #e3f4ea; color: var(--accent-dark); }
