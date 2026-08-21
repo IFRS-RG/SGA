@@ -187,11 +187,14 @@ const Editais = {
     catch (e) { document.getElementById('modal-body').innerHTML = emptyState('Erro: ' + e.message); return; }
 
     const w = this.canWrite();
+    this._docs = docs;  // usado por renameDoc para achar o nome atual
     const uploader = w ? `
       <div class="upload-box">
+        <div class="fg"><label>Nome do documento</label>
+          <input class="input" id="doc-nome" placeholder="ex.: Edital 12-2026 — Chamada de bolsistas"></div>
         <div class="form-grid">
           <div class="fg"><label>Tipo</label><select class="input" id="doc-tipo">${optionsHtml(TIPOS_DOC)}</select></div>
-          <div class="fg"><label>Arquivo PDF</label><input type="file" accept="application/pdf" class="input" id="doc-file"></div>
+          <div class="fg"><label>Arquivo PDF</label><input type="file" accept="application/pdf" class="input" id="doc-file" onchange="Editais.onDocFile()"></div>
         </div>
         <button class="btn btn-primary" id="doc-upload-btn" onclick="Editais.uploadDoc('${id}')">Enviar PDF</button>
       </div>` : '';
@@ -203,6 +206,7 @@ const Editais = {
             <span class="doc-type doc-type--${this.tipoClass(d.Tipo)}">${esc(d.Tipo)}</span>
             <a class="doc-name" href="${esc(d.DriveUrl)}" target="_blank" rel="noopener">${esc(d.NomeArquivo)}</a>
             <span class="doc-date">${esc(d.DataUpload || '')}</span>
+            ${w ? `<button class="btn btn-ghost btn-xs" onclick="Editais.renameDoc('${d.ID}','${id}')">Renomear</button>` : ''}
             ${w ? `<button class="btn btn-danger btn-xs" onclick="Editais.deleteDoc('${d.ID}','${id}')">Remover</button>` : ''}
           </li>`).join('')}
       </ul>` : emptyState('Nenhum documento enviado ainda.');
@@ -214,9 +218,16 @@ const Editais = {
     return { 'Edital': 'edital', 'Retificação': 'retif', 'Anexo': 'anexo', 'Demais publicações': 'demais' }[t] || 'demais';
   },
 
+  onDocFile() {
+    const f = document.getElementById('doc-file');
+    const n = document.getElementById('doc-nome');
+    if (f && n && !n.value && f.files[0]) n.value = f.files[0].name.replace(/\.pdf$/i, '');
+  },
+
   async uploadDoc(editalId) {
     const fileEl = document.getElementById('doc-file');
     const tipo = val('doc-tipo');
+    const nome = val('doc-nome');
     const file = fileEl.files[0];
     if (!file) { toast('Selecione um arquivo PDF.', 'error'); return; }
     if (file.type && file.type !== 'application/pdf') { toast('O arquivo precisa ser um PDF.', 'error'); return; }
@@ -225,7 +236,7 @@ const Editais = {
     btn.disabled = true; btn.textContent = 'Enviando…';
     try {
       const base64 = await fileToBase64(file);
-      await API.uploadEditalDoc({ editalId, tipo, fileName: file.name, base64 });
+      await API.uploadEditalDoc({ editalId, tipo, nome, fileName: file.name, base64 });
       toast('PDF enviado.', 'success');
       await this.renderDocs(editalId);
       // Atualiza a contagem na tabela.
@@ -247,6 +258,23 @@ const Editais = {
           await this.reload();
         } catch (e) { toast(e.message, 'error'); }
       }, 'Remover');
+  },
+
+  renameDoc(docId, editalId) {
+    const d = (this._docs || []).find(x => String(x.ID) === String(docId));
+    const atual = d ? String(d.NomeArquivo || '').replace(/\.pdf$/i, '') : '';
+    openModal('Renomear documento',
+      `<div class="fg"><label>Novo nome</label><input class="input" id="rn-nome" value="${esc(atual)}"></div>`,
+      async () => {
+        const novo = val('rn-nome');
+        if (!novo) { toast('Informe um nome.', 'error'); return; }
+        setBusy(true);
+        try {
+          await API.renameEditalDoc(docId, novo);
+          toast('Documento renomeado.', 'success');
+          await this.openDocs(editalId);
+        } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
+      }, { confirmLabel: 'Renomear' });
   }
 };
 

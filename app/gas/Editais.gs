@@ -99,18 +99,23 @@ function cloneEdital(id, email) {
 // Documentos PDF
 // ============================================================
 
+// Acha ou cria uma subpasta pelo nome, dentro de `parent`.
+function _childFolder(parent, name) {
+  const it = parent.getFoldersByName(name);
+  return it.hasNext() ? it.next() : parent.createFolder(name);
+}
+
 // Pasta raiz (cria "SGA — Editais" na raiz do Drive se DRIVE_ROOT_ID vazio).
 function _editaisRootFolder() {
   if (DRIVE_ROOT_ID) return DriveApp.getFolderById(DRIVE_ROOT_ID);
-  const it = DriveApp.getFoldersByName('SGA — Editais');
-  return it.hasNext() ? it.next() : DriveApp.createFolder('SGA — Editais');
+  return _childFolder(DriveApp.getRootFolder(), 'SGA — Editais');
 }
 
-function _editalFolder(editalId, editalLabel) {
+// Estrutura: raiz / {Ano} / {Edital}.
+function _editalFolder(editalLabel, ano) {
   const root = _editaisRootFolder();
-  const name = editalLabel || editalId;
-  const it = root.getFoldersByName(name);
-  return it.hasNext() ? it.next() : root.createFolder(name);
+  const anoFolder = _childFolder(root, String(ano || 'Sem ano'));
+  return _childFolder(anoFolder, editalLabel);
 }
 
 function getEditalDocs(editalId) {
@@ -136,11 +141,12 @@ function uploadEditalDoc(payload, email) {
   const bytes = Utilities.base64Decode(payload.base64);
   if (!_isPdf(bytes)) throw new Error('O arquivo enviado não é um PDF válido.');
 
-  let fileName = String(payload.fileName || 'documento.pdf');
+  // Nome do documento: usa o nome informado; senão, o nome do arquivo enviado.
+  let fileName = String(payload.nome || payload.fileName || 'documento').trim() || 'documento';
   if (!/\.pdf$/i.test(fileName)) fileName += '.pdf';
 
   const label  = (edital.Numero || '') + '-' + (edital.Ano || '') + ' ' + (edital.Titulo || '');
-  const folder = _editalFolder(payload.editalId, label.trim());
+  const folder = _editalFolder(label.trim(), edital.Ano);
   const blob   = Utilities.newBlob(bytes, 'application/pdf', fileName);
   const file   = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
@@ -161,6 +167,22 @@ function deleteEditalDoc(docId, email) {
   const idx = findRowIndex('EditalDocumentos', docId);
   if (idx !== -1) getSheet('EditalDocumentos').deleteRow(idx);
   return { ok: true };
+}
+
+// Renomeia o documento (arquivo no Drive + registro na planilha).
+function renameEditalDoc(docId, novoNome, email) {
+  requirePerfil(email, EDITAL_WRITERS);
+  const doc = sheetRows('EditalDocumentos').find(d => String(d.ID) === String(docId));
+  if (!doc) throw new Error('Documento não encontrado.');
+  let nome = String(novoNome || '').trim();
+  if (!nome) throw new Error('O nome não pode ficar vazio.');
+  if (!/\.pdf$/i.test(nome)) nome += '.pdf';
+  try { if (doc.DriveFileId) DriveApp.getFileById(doc.DriveFileId).setName(nome); } catch (e) {}
+  const idx = findRowIndex('EditalDocumentos', docId);
+  if (idx !== -1) {
+    getSheet('EditalDocumentos').getRange(idx, COL.EditalDocumentos.NomeArquivo + 1).setValue(nome);
+  }
+  return { ok: true, nome: nome };
 }
 
 function _deleteDocFile(fileId) {

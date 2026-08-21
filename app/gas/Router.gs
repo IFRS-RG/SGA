@@ -44,6 +44,8 @@ function doPost(e) {
         return respond(uploadEditalDoc(data.payload, userEmail));
       case 'deleteEditalDoc':
         return respond(deleteEditalDoc(data.docId, userEmail));
+      case 'renameEditalDoc':
+        return respond(renameEditalDoc(data.docId, data.nome, userEmail));
 
       // ── Admin: perfis de acesso ──
       case 'getPerfis':

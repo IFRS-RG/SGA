@@ -45,8 +45,9 @@ const API = {
 
   // Documentos de edital
   getEditalDocs:   (editalId) => gasCall('getEditalDocs',   { editalId }),
-  uploadEditalDoc: (payload)  => gasCall('uploadEditalDoc', { payload }),
-  deleteEditalDoc: (docId)    => gasCall('deleteEditalDoc', { docId }),
+  uploadEditalDoc: (payload)     => gasCall('uploadEditalDoc', { payload }),
+  deleteEditalDoc: (docId)       => gasCall('deleteEditalDoc', { docId }),
+  renameEditalDoc: (docId, nome) => gasCall('renameEditalDoc', { docId, nome }),
 
   // Admin — perfis de acesso
   getPerfis:    ()               => gasCall('getPerfis'),
