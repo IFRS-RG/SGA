@@ -72,9 +72,10 @@ const Editais = {
       <td>${esc(e.Titulo || '')}</td>
       <td>${esc(e.Segmento || '—')}</td>
       <td>${insc}</td>
-      <td><button class="chip" onclick="Editais.openDocs('${e.ID}')">${e.docsCount || 0} 📎</button></td>
+      <td><button class="chip" title="Anexar / ver PDFs" onclick="Editais.openDocs('${e.ID}')">📎 ${e.docsCount || 0}</button></td>
       <td>${badge}</td>
       <td class="col-actions">
+        <button class="btn btn-ghost btn-xs" onclick="Editais.openDocs('${e.ID}')">📎 Documentos</button>
         ${e.Link ? `<a class="btn btn-ghost btn-xs" href="${esc(e.Link)}" target="_blank" rel="noopener">Link</a>` : ''}
         ${w ? `<button class="btn btn-ghost btn-xs" onclick="Editais.openForm('${e.ID}')">Editar</button>` : ''}
         ${w ? `<button class="btn btn-ghost btn-xs" onclick="Editais.clone('${e.ID}')">Clonar</button>` : ''}
@@ -142,10 +143,12 @@ const Editais = {
     if (!p.numero || !p.titulo) { toast('Número e Título são obrigatórios.', 'error'); return; }
     setBusy(true);
     try {
-      id ? await API.updateEdital(id, p) : await API.addEdital(p);
+      const res = id ? await API.updateEdital(id, p) : await API.addEdital(p);
       toast(id ? 'Edital atualizado.' : 'Edital criado.', 'success');
       closeModal();
       await this.reload();
+      // Ao criar um edital novo, já abre a janela de Documentos para anexar os PDFs.
+      if (!id && res && res.id) this.openDocs(res.id);
     } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
   },
 
