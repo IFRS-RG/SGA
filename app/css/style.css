@@ -163,6 +163,10 @@ a { color: var(--brand-light); }
 .btn-danger:hover { background: #fcefed; }
 .btn-xs { padding: 5px 10px; font-size: 12.5px; border-radius: 6px; }
 .btn-ico { vertical-align: -3px; margin-right: 2px; }
+.icon-btn { display: inline-flex; align-items: center; cursor: pointer; padding: 2px; border-radius: 6px; }
+.icon-btn:hover { opacity: .82; }
+.icon-btn:focus-visible { outline: 2px solid var(--brand-light); outline-offset: 2px; }
+.icon-btn .btn-ico { vertical-align: 0; margin: 0; }
 .btn-block { width: 100%; }
 
 /* ── Formulários ─────────────────────────────────────────── */

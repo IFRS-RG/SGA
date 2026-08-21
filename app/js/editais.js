@@ -3,8 +3,8 @@
 // ============================================================
 
 // Ícones dos botões de export (SVG inline — sem requisições externas).
-const ICON_PDF = '<svg class="btn-ico" viewBox="0 0 40 48" width="15" height="18" aria-hidden="true"><path d="M4 2h20l12 12v30a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#fff" stroke="#2b2b2b" stroke-width="2.5"/><path d="M24 2v12h12" fill="none" stroke="#2b2b2b" stroke-width="2.5" stroke-linejoin="round"/><rect x="1" y="21" width="25" height="13" rx="2" fill="#e01f26"/><text x="13.5" y="31" font-family="Arial" font-size="8.5" font-weight="bold" fill="#fff" text-anchor="middle">PDF</text><path d="M33 29v8m-4-4 4 4 4-4" fill="none" stroke="#e01f26" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const ICON_XLS = '<svg class="btn-ico" viewBox="0 0 40 48" width="15" height="18" aria-hidden="true"><path d="M4 2h20l12 12v30a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#fff" stroke="#2b2b2b" stroke-width="2.5"/><path d="M24 2v12h12" fill="none" stroke="#2b2b2b" stroke-width="2.5" stroke-linejoin="round"/><g fill="#159a4f"><rect x="6" y="7" width="8" height="4.5"/><rect x="16" y="7" width="8" height="4.5"/><rect x="6" y="13.5" width="8" height="4.5"/><rect x="16" y="13.5" width="8" height="4.5"/></g><rect x="1" y="21" width="25" height="13" rx="2" fill="#159a4f"/><text x="13.5" y="31" font-family="Arial" font-size="8.5" font-weight="bold" fill="#fff" text-anchor="middle">XLS</text><path d="M33 29v8m-4-4 4 4 4-4" fill="none" stroke="#159a4f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ICON_PDF = '<svg class="btn-ico" viewBox="0 0 40 48" width="30" height="36" aria-hidden="true"><path d="M4 2h20l12 12v30a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#fff" stroke="#2b2b2b" stroke-width="2.5"/><path d="M24 2v12h12" fill="none" stroke="#2b2b2b" stroke-width="2.5" stroke-linejoin="round"/><rect x="1" y="21" width="25" height="13" rx="2" fill="#e01f26"/><text x="13.5" y="31" font-family="Arial" font-size="8.5" font-weight="bold" fill="#fff" text-anchor="middle">PDF</text><path d="M33 29v8m-4-4 4 4 4-4" fill="none" stroke="#e01f26" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ICON_XLS = '<svg class="btn-ico" viewBox="0 0 40 48" width="30" height="36" aria-hidden="true"><path d="M4 2h20l12 12v30a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#fff" stroke="#2b2b2b" stroke-width="2.5"/><path d="M24 2v12h12" fill="none" stroke="#2b2b2b" stroke-width="2.5" stroke-linejoin="round"/><g fill="#159a4f"><rect x="6" y="7" width="8" height="4.5"/><rect x="16" y="7" width="8" height="4.5"/><rect x="6" y="13.5" width="8" height="4.5"/><rect x="16" y="13.5" width="8" height="4.5"/></g><rect x="1" y="21" width="25" height="13" rx="2" fill="#159a4f"/><text x="13.5" y="31" font-family="Arial" font-size="8.5" font-weight="bold" fill="#fff" text-anchor="middle">XLS</text><path d="M33 29v8m-4-4 4 4 4-4" fill="none" stroke="#159a4f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 const Editais = {
   container: null,
@@ -126,8 +126,8 @@ const Editais = {
 
     this.container.innerHTML = `
       <div class="page-actions">
-        <button class="btn btn-ghost" onclick="Editais.exportXLS()">${ICON_XLS} XLS</button>
-        <button class="btn btn-ghost" onclick="Editais.exportPDF()">${ICON_PDF} PDF</button>
+        <span class="icon-btn" role="button" tabindex="0" title="Exportar XLS" onclick="Editais.exportXLS()">${ICON_XLS}</span>
+        <span class="icon-btn" role="button" tabindex="0" title="Exportar PDF" onclick="Editais.exportPDF()">${ICON_PDF}</span>
         ${novo}
       </div>
       <div class="page-toolbar">
