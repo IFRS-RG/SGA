@@ -105,16 +105,18 @@ function _childFolder(parent, name) {
   return it.hasNext() ? it.next() : parent.createFolder(name);
 }
 
-// Pasta raiz (cria "SGA — Editais" na raiz do Drive se DRIVE_ROOT_ID vazio).
+// Pasta raiz. Use DRIVE_ROOT_ID (recomendado — a pasta "SGA - ARQUIVOS" foi movida/renomeada).
+// Fallback: cria/acha "SGA - ARQUIVOS" na raiz do My Drive.
 function _editaisRootFolder() {
   if (DRIVE_ROOT_ID) return DriveApp.getFolderById(DRIVE_ROOT_ID);
-  return _childFolder(DriveApp.getRootFolder(), 'SGA — Editais');
+  return _childFolder(DriveApp.getRootFolder(), 'SGA - ARQUIVOS');
 }
 
-// Estrutura: raiz / {Ano} / {Edital}.
-function _editalFolder(editalLabel, ano) {
+// Estrutura: raiz / {Segmento} / {Ano} / {Edital}.
+function _editalFolder(editalLabel, ano, segmento) {
   const root = _editaisRootFolder();
-  const anoFolder = _childFolder(root, String(ano || 'Sem ano'));
+  const segFolder = _childFolder(root, String(segmento || 'Sem segmento'));
+  const anoFolder = _childFolder(segFolder, String(ano || 'Sem ano'));
   return _childFolder(anoFolder, editalLabel);
 }
 
@@ -148,10 +150,10 @@ function uploadEditalDoc(payload, email) {
   // Ano da pasta: escolhido no upload (pode diferir do ano do edital); default = ano do edital.
   const anoPasta = String(payload.ano || edital.Ano || '').trim() || 'Sem ano';
   const label  = (edital.Numero || '') + '-' + (edital.Ano || '') + ' ' + (edital.Titulo || '');
-  // Estrutura: {ano}/{edital}/Documentos/*.pdf  (+ pasta "Ações" reservada ao lado).
-  const editalFolder = _editalFolder(label.trim(), anoPasta);
-  _childFolder(editalFolder, 'Ações');                       // reservada p/ o módulo de Ações
-  const folder = _childFolder(editalFolder, 'Documentos');   // onde os PDFs ficam
+  // Estrutura: {segmento}/{ano}/{edital}/Documentos Edital/*.pdf (+ pasta "Ações" ao lado).
+  const editalFolder = _editalFolder(label.trim(), anoPasta, edital.Segmento);
+  _childFolder(editalFolder, 'Ações');                              // reservada p/ o módulo de Ações
+  const folder = _childFolder(editalFolder, 'Documentos Edital');   // onde os PDFs ficam
   const blob   = Utilities.newBlob(bytes, 'application/pdf', fileName);
   const file   = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);

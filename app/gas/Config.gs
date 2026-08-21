@@ -12,9 +12,9 @@
 
 const SPREADSHEET_ID = '15UBg8zHMZz5nSejT-5YMyrwbz8IAn6sizFQ4q4ZPuTk';
 
-// Pasta raiz do Drive onde os PDFs de editais serão guardados.
-// Deixe vazio ('') para o sistema criar uma pasta "SGA — Editais" na raiz do Drive.
-const DRIVE_ROOT_ID  = '';
+// Pasta raiz do Drive onde os arquivos são guardados ("SGA - ARQUIVOS", movida/renomeada).
+// Deixe vazio ('') para o sistema criar uma pasta "SGA - ARQUIVOS" na raiz do My Drive.
+const DRIVE_ROOT_ID  = '1HcZMS3oX6C5C8ED4E8a-9AgtqugdJjy0';
 
 // E-mail com acesso geral (super admin). Sempre tem perfil "Admin".
 const SUPER_ADMIN    = 'projetos@riogrande.ifrs.edu.br';
