@@ -1,6 +1,11 @@
 // ============================================================
 // SGA — Módulo Editais (frontend)
 // ============================================================
+
+// Ícones dos botões de export (SVG inline — sem requisições externas).
+const ICON_PDF = '<svg class="btn-ico" viewBox="0 0 40 48" width="15" height="18" aria-hidden="true"><path d="M4 2h20l12 12v30a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#fff" stroke="#2b2b2b" stroke-width="2.5"/><path d="M24 2v12h12" fill="none" stroke="#2b2b2b" stroke-width="2.5" stroke-linejoin="round"/><rect x="1" y="21" width="25" height="13" rx="2" fill="#e01f26"/><text x="13.5" y="31" font-family="Arial" font-size="8.5" font-weight="bold" fill="#fff" text-anchor="middle">PDF</text><path d="M33 29v8m-4-4 4 4 4-4" fill="none" stroke="#e01f26" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ICON_XLS = '<svg class="btn-ico" viewBox="0 0 40 48" width="15" height="18" aria-hidden="true"><path d="M4 2h20l12 12v30a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#fff" stroke="#2b2b2b" stroke-width="2.5"/><path d="M24 2v12h12" fill="none" stroke="#2b2b2b" stroke-width="2.5" stroke-linejoin="round"/><g fill="#159a4f"><rect x="6" y="7" width="8" height="4.5"/><rect x="16" y="7" width="8" height="4.5"/><rect x="6" y="13.5" width="8" height="4.5"/><rect x="16" y="13.5" width="8" height="4.5"/></g><rect x="1" y="21" width="25" height="13" rx="2" fill="#159a4f"/><text x="13.5" y="31" font-family="Arial" font-size="8.5" font-weight="bold" fill="#fff" text-anchor="middle">XLS</text><path d="M33 29v8m-4-4 4 4 4-4" fill="none" stroke="#159a4f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
 const Editais = {
   container: null,
   role: null,
@@ -8,6 +13,7 @@ const Editais = {
   filter: '',
   filterSeg: '',
   filterStatus: '',
+  filterAno: '',
   sortKey: 'numAno',
   sortDir: 'desc',
 
@@ -51,6 +57,7 @@ const Editais = {
     return this.data.filter(e => {
       if (this.filterSeg && e.Segmento !== this.filterSeg) return false;
       if (this.filterStatus && (e.Status || 'Ativo') !== this.filterStatus) return false;
+      if (this.filterAno && String(e.Ano) !== this.filterAno) return false;
       if (!q) return true;
       return [e.Numero, e.Ano, e.Titulo, e.Segmento, e.AgenciaFomento]
         .some(v => String(v || '').toLowerCase().includes(q));
@@ -96,6 +103,9 @@ const Editais = {
     const stOpts = `<option value="">Todos os status</option>
       <option ${this.filterStatus === 'Ativo' ? 'selected' : ''}>Ativo</option>
       <option ${this.filterStatus === 'Inativo' ? 'selected' : ''}>Inativo</option>`;
+    const anos = [...new Set(this.data.map(e => String(e.Ano)).filter(Boolean))].sort((a, b) => b - a);
+    const anoOpts = ['<option value="">Todos os anos</option>']
+      .concat(anos.map(a => `<option ${this.filterAno === a ? 'selected' : ''}>${a}</option>`)).join('');
 
     const table = rows.length ? `
       <div class="table-wrap menus">
@@ -116,8 +126,8 @@ const Editais = {
 
     this.container.innerHTML = `
       <div class="page-actions">
-        <button class="btn btn-ghost" onclick="Editais.exportXLS()">📊 XLS</button>
-        <button class="btn btn-ghost" onclick="Editais.exportPDF()">📕 PDF</button>
+        <button class="btn btn-ghost" onclick="Editais.exportXLS()">${ICON_XLS} XLS</button>
+        <button class="btn btn-ghost" onclick="Editais.exportPDF()">${ICON_PDF} PDF</button>
         ${novo}
       </div>
       <div class="page-toolbar">
@@ -125,6 +135,7 @@ const Editais = {
                value="${esc(this.filter)}" oninput="Editais.onSearch(this.value)">
         <select class="input toolbar-select" onchange="Editais.onFilterSeg(this.value)">${segOpts}</select>
         <select class="input toolbar-select" onchange="Editais.onFilterStatus(this.value)">${stOpts}</select>
+        <select class="input toolbar-select" onchange="Editais.onFilterAno(this.value)">${anoOpts}</select>
       </div>
       <div class="toolbar-count">${rows.length} de ${this.data.length} edital(is)</div>
       ${table}`;
@@ -164,6 +175,7 @@ const Editais = {
   },
   onFilterSeg(v) { this.filterSeg = v; this.render(); },
   onFilterStatus(v) { this.filterStatus = v; this.render(); },
+  onFilterAno(v) { this.filterAno = v; this.render(); },
 
   openFolder(id) {
     const win = window.open('', '_blank');   // abre no gesto do clique (evita bloqueio de popup)
