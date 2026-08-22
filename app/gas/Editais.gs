@@ -41,6 +41,7 @@ function _editalRow(id, p, criadoEm, criadoPor) {
     JSON.stringify(p.bolsas || []),
     p.dataPublicacao || '',
     JSON.stringify(p.cronograma || []),
+    JSON.stringify(p.editaisPai || []),
     p.statusManual || '',
     criadoEm,
     criadoPor
@@ -65,6 +66,7 @@ function getEditais() {
     e.tipoFomento  = _parseJson(e.TipoFomentoJSON, {});
     e.bolsas       = _parseJson(e.BolsasJSON, []);
     e.cronograma   = _parseJson(e.CronogramaJSON, []);
+    e.editaisPai   = _parseJson(e.EditaisPaiJSON, []);
     e.DataPublicacao = _dateStr(e.DataPublicacao);
     e.Status       = _computeStatus(e);   // Vigente / Encerrado (manual)
     return e;
@@ -123,7 +125,8 @@ function cloneEdital(id, email) {
     bolsa: orig.Bolsa, agenciaBolsa: orig.AgenciaBolsa,
     bolsas: _parseJson(orig.BolsasJSON, []),
     dataPublicacao: _dateStr(orig.DataPublicacao),
-    cronograma: _parseJson(orig.CronogramaJSON, []), statusManual: orig.StatusManual || ''
+    cronograma: _parseJson(orig.CronogramaJSON, []),
+    editaisPai: _parseJson(orig.EditaisPaiJSON, []), statusManual: orig.StatusManual || ''
   };
   const newId = genId();
   getSheet('Editais').appendRow(_editalRow(newId, p, nowBR(), email));

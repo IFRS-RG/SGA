@@ -170,7 +170,7 @@ const Editais = {
     const w = this.canWrite();
     return `<tr>
       <td><strong>${esc(e.Numero || '—')}</strong><span class="cell-sub">/${esc(e.Ano || '')}</span></td>
-      <td>${esc(e.Titulo || '')}</td>
+      <td>${(e.editaisPai || []).length ? '<span class="link-chip" title="Edital vinculado (filho)">↳ vinculado</span> ' : ''}${esc(e.Titulo || '')}</td>
       <td>${esc(e.Segmento || '—')}</td>
       <td>${badge}</td>
       <td class="col-actions">
@@ -235,6 +235,17 @@ const Editais = {
           <td>${(c.inicio || c.fim) ? `${esc(this.dateVal(c.inicio) || '?')} – ${esc(this.dateVal(c.fim) || '?')}` : '—'}</td></tr>`).join('')}</tbody></table>`;
     }
 
+    // Vínculos (pais e filhos).
+    const lbl = (x) => `${esc(x.Numero)}/${esc(x.Ano)} — ${esc(x.Titulo)}`;
+    const pais = (e.editaisPai || []).map(String)
+      .map(pid => { const p = this.data.find(x => String(x.ID) === pid); return p ? lbl(p) : pid; });
+    const filhos = (this.data || []).filter(x => (x.editaisPai || []).map(String).indexOf(String(e.ID)) >= 0);
+    const vinc = (pais.length || filhos.length) ? `<h4 class="detail-sec">🔗 Vínculos</h4>
+      <div class="detail-grid">
+        ${cell('Editais pai', pais.length ? pais.join('<br>') : '—')}
+        ${cell('Editais vinculados (filhos)', filhos.length ? filhos.map(lbl).join('<br>') : '—')}
+      </div>` : '';
+
     const body = `
       <h3 class="detail-title">${esc(e.Titulo || '')} ${this.statusBadge(e)}</h3>
       ${e.Resumo ? `<p class="detail-resumo">${esc(e.Resumo)}</p>` : ''}
@@ -249,6 +260,7 @@ const Editais = {
         ${cell('Documentos', (e.docsCount || 0) + ' PDF(s)')}
         ${cell('Link da publicação', link)}
       </div>
+      ${vinc}
       ${recurso}
       ${crono}`;
     openModal('Edital ' + (e.Numero || '') + '/' + (e.Ano || ''), body, null, { hideFooter: true });
@@ -304,12 +316,13 @@ const Editais = {
       fomento: e.Fomento, agenciaFomento: e.AgenciaFomento, tipoFomento: e.tipoFomento || {},
       custeio: e.Custeio, capital: e.Capital, bolsa: e.Bolsa, agenciaBolsa: e.AgenciaBolsa,
       bolsas: (e.bolsas || []).slice(), dataPublicacao: e.DataPublicacao,
-      cronograma: (e.cronograma || []).slice(), statusManual: e.StatusManual
+      cronograma: (e.cronograma || []).slice(), editaisPai: (e.editaisPai || []).map(String),
+      statusManual: e.StatusManual
     } : {
       numero: '', ano: new Date().getFullYear(), titulo: '', resumo: '', segmento: '',
       categoria: 'Interno', tipoEdital: '', regime: '', link: '', fomento: 'Não',
       agenciaFomento: '', tipoFomento: {}, custeio: '', capital: '', bolsa: 'Não',
-      agenciaBolsa: '', bolsas: [], dataPublicacao: '', cronograma: [], statusManual: ''
+      agenciaBolsa: '', bolsas: [], dataPublicacao: '', cronograma: [], editaisPai: [], statusManual: ''
     };
     this.formEditalId = id || null;
     this._formMinH = 0;
@@ -407,6 +420,9 @@ const Editais = {
     const saveBtn = `<button type="button" id="wiz-save" class="btn btn-primary" onclick="Editais.save()">${this.formEditalId ? 'Salvar' : 'Criar edital'}</button>`;
     const doneBtn = `<button type="button" class="btn btn-primary" onclick="closeModal()">Concluir</button>`;
     const nav = (left, right) => `<div class="ftab-nav">${left || '<span></span>'}${right}</div>`;
+    const paiSel = (f.editaisPai || []).map(String);
+    const paiOpts = (this.data || []).filter(x => String(x.ID) !== String(this.formEditalId))
+      .map(x => `<option value="${esc(x.ID)}" ${paiSel.indexOf(String(x.ID)) >= 0 ? 'selected' : ''}>${esc(x.Numero)}/${esc(x.Ano)} — ${esc(x.Titulo)}</option>`).join('');
 
     const dados = `<div class="ftab-sec" ${hide('dados')}>
       <div class="form-grid">
@@ -424,6 +440,9 @@ const Editais = {
         <div class="fg"><label>Regime</label><input class="input" id="f-regime" list="dl-regime" value="${esc(f.regime || '')}" placeholder="Chamada única, Fluxo contínuo… ou outro"></div>
       </div>
       <div class="fg"><label>Link da publicação</label><input class="input" id="f-link" placeholder="https://…" value="${esc(f.link || '')}"></div>
+      <div class="fg"><label>Vinculado a (editais pai) — opcional</label>
+        <select class="input" id="f-pais" multiple size="4">${paiOpts || ''}</select>
+        <span class="field-hint">Ctrl/Cmd para escolher vários. Vazio = edital pai (raiz).</span></div>
       <div class="fg"><label>Status</label><select class="input" id="f-statusmanual">
           <option ${f.statusManual !== 'Encerrado' ? 'selected' : ''}>Vigente</option>
           <option ${f.statusManual === 'Encerrado' ? 'selected' : ''}>Encerrado</option>
@@ -473,6 +492,8 @@ const Editais = {
     f.numero = val('f-numero'); f.ano = val('f-ano'); f.titulo = val('f-titulo'); f.resumo = val('f-resumo');
     f.segmento = val('f-segmento'); f.categoria = val('f-categoria'); f.tipoEdital = val('f-tipoedital');
     f.regime = val('f-regime'); f.link = val('f-link'); f.statusManual = val('f-statusmanual');
+    const paiEl = document.getElementById('f-pais');
+    if (paiEl) f.editaisPai = Array.from(paiEl.selectedOptions).map(o => o.value);
     f.fomento = val('f-fomento'); f.agenciaFomento = val('f-agfomento');
     f.custeio = val('f-custeio'); f.capital = val('f-capital');
     f.bolsa = val('f-bolsa'); f.agenciaBolsa = val('f-agbolsa');
@@ -524,7 +545,8 @@ const Editais = {
         segmento: b.segmento || '', tipo: b.tipo || '', ch: b.ch || '',
         valor: parseMoney(b.valor), nBolsas: b.nBolsas || '', periodoMeses: b.periodoMeses || ''
       })),
-      dataPublicacao: f.dataPublicacao, cronograma: f.cronograma, statusManual: f.statusManual
+      dataPublicacao: f.dataPublicacao, cronograma: f.cronograma,
+      editaisPai: f.editaisPai || [], statusManual: f.statusManual
     };
     const wb = document.getElementById('wiz-save');
     if (wb) { wb.disabled = true; wb.textContent = 'Salvando…'; }
