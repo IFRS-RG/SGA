@@ -421,8 +421,10 @@ const Editais = {
     const doneBtn = `<button type="button" class="btn btn-primary" onclick="closeModal()">Concluir</button>`;
     const nav = (left, right) => `<div class="ftab-nav">${left || '<span></span>'}${right}</div>`;
     const paiSel = (f.editaisPai || []).map(String);
-    const paiOpts = (this.data || []).filter(x => String(x.ID) !== String(this.formEditalId))
-      .map(x => `<option value="${esc(x.ID)}" ${paiSel.indexOf(String(x.ID)) >= 0 ? 'selected' : ''}>${esc(x.Numero)}/${esc(x.Ano)} — ${esc(x.Titulo)}</option>`).join('');
+    const outrosEditais = (this.data || []).filter(x => String(x.ID) !== String(this.formEditalId));
+    const paiChecks = outrosEditais.length
+      ? outrosEditais.map(x => `<label class="chk-item"><input type="checkbox" class="pai-chk" value="${esc(x.ID)}" ${paiSel.indexOf(String(x.ID)) >= 0 ? 'checked' : ''}> ${esc(x.Numero)}/${esc(x.Ano)} — ${esc(x.Titulo)}</label>`).join('')
+      : '<p class="line-empty">Nenhum outro edital cadastrado para vincular.</p>';
 
     const dados = `<div class="ftab-sec" ${hide('dados')}>
       <div class="form-grid">
@@ -440,9 +442,9 @@ const Editais = {
         <div class="fg"><label>Regime</label><input class="input" id="f-regime" list="dl-regime" value="${esc(f.regime || '')}" placeholder="Chamada única, Fluxo contínuo… ou outro"></div>
       </div>
       <div class="fg"><label>Link da publicação</label><input class="input" id="f-link" placeholder="https://…" value="${esc(f.link || '')}"></div>
-      <div class="fg"><label>Vinculado a (editais pai) — opcional</label>
-        <select class="input" id="f-pais" multiple size="4">${paiOpts || ''}</select>
-        <span class="field-hint">Ctrl/Cmd para escolher vários. Vazio = edital pai (raiz).</span></div>
+      <div class="fg"><label>É um sub-edital? Marque o(s) edital(is) principal(is) a que ele pertence:</label>
+        <div class="chk-list" id="pais-box">${paiChecks}</div>
+        <span class="field-hint">Deixe tudo desmarcado se este for um edital principal (não vinculado a outro).</span></div>
       <div class="fg"><label>Status</label><select class="input" id="f-statusmanual">
           <option ${f.statusManual !== 'Encerrado' ? 'selected' : ''}>Vigente</option>
           <option ${f.statusManual === 'Encerrado' ? 'selected' : ''}>Encerrado</option>
@@ -492,8 +494,9 @@ const Editais = {
     f.numero = val('f-numero'); f.ano = val('f-ano'); f.titulo = val('f-titulo'); f.resumo = val('f-resumo');
     f.segmento = val('f-segmento'); f.categoria = val('f-categoria'); f.tipoEdital = val('f-tipoedital');
     f.regime = val('f-regime'); f.link = val('f-link'); f.statusManual = val('f-statusmanual');
-    const paiEl = document.getElementById('f-pais');
-    if (paiEl) f.editaisPai = Array.from(paiEl.selectedOptions).map(o => o.value);
+    if (document.getElementById('pais-box')) {
+      f.editaisPai = Array.from(document.querySelectorAll('.pai-chk:checked')).map(c => c.value);
+    }
     f.fomento = val('f-fomento'); f.agenciaFomento = val('f-agfomento');
     f.custeio = val('f-custeio'); f.capital = val('f-capital');
     f.bolsa = val('f-bolsa'); f.agenciaBolsa = val('f-agbolsa');
