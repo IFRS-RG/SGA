@@ -8,8 +8,11 @@ const App = {
 
   // Definição do menu. `roles` = perfis que enxergam o item.
   menu: [
-    { id: 'editais', label: 'Editais', icon: '📄', roles: ['Admin', 'Gestor', 'Visualizador'], module: 'Editais' },
-    { id: 'admin',   label: 'Admin',   icon: '⚙️', roles: ['Admin'], module: 'Admin' }
+    { id: 'editais',      label: 'Editais',      icon: '📄', roles: ['Admin', 'Gestor', 'Visualizador'], module: 'Editais' },
+    { id: 'acoes',        label: 'Ações',        icon: '🎯', roles: ['Admin', 'Gestor', 'Visualizador'], soon: true },
+    { id: 'certificados', label: 'Certificados', icon: '📜', roles: ['Admin', 'Gestor', 'Visualizador'], soon: true },
+    { id: 'processos',    label: 'Processos',    icon: '🗂️', roles: ['Admin', 'Gestor', 'Visualizador'], soon: true },
+    { id: 'admin',        label: 'Admin',        icon: '⚙️', roles: ['Admin'], module: 'Admin' }
   ],
 
   async init() {
@@ -69,8 +72,14 @@ const App = {
     document.getElementById('sidebar').classList.remove('open');
 
     const content = document.getElementById('content');
-    content.innerHTML = '<div class="loading-page"><div class="spinner"></div><p>Carregando…</p></div>';
 
+    // Itens ainda sem funcionalidade.
+    if (item.soon) {
+      content.innerHTML = emptyState('🚧 ' + item.label + ' — em construção. Em breve.');
+      return;
+    }
+
+    content.innerHTML = '<div class="loading-page"><div class="spinner"></div><p>Carregando…</p></div>';
     // Cada módulo expõe um método mount(containerEl, role).
     window[item.module].mount(content, this.role);
   },
