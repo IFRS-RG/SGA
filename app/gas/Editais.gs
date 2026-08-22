@@ -79,6 +79,7 @@ function addEdital(p, email) {
   if (!p.numero || !p.titulo) throw new Error('Número e Título são obrigatórios.');
   const id = genId();
   getSheet('Editais').appendRow(_editalRow(id, p, nowBR(), email));
+  _syncEditalShortcuts(id, []);
   return { ok: true, id: id };
 }
 
@@ -89,9 +90,11 @@ function updateEdital(id, p, email) {
   if (idx === -1) throw new Error('Edital não encontrado.');
   const sh  = getSheet('Editais');
   const old = sh.getRange(idx, 1, 1, HEADERS.Editais.length).getValues()[0];
+  const oldParents = _parseJson(old[COL.Editais.EditaisPaiJSON], []);
   // Preserva CriadoEm/CriadoPor originais.
   const row = _editalRow(id, p, old[COL.Editais.CriadoEm], old[COL.Editais.CriadoPor]);
   sh.getRange(idx, 1, 1, row.length).setValues([row]);
+  _syncEditalShortcuts(id, oldParents);
   return { ok: true };
 }
 
@@ -100,6 +103,8 @@ function deleteEdital(id, email) {
   requirePerfil(email, EDITAL_WRITERS);
   const idx = findRowIndex('Editais', id);
   if (idx === -1) throw new Error('Edital não encontrado.');
+  const edital = sheetRows('Editais').find(e => String(e.ID) === String(id));
+  if (edital) _removeEditalShortcuts(edital);
   getSheet('Editais').deleteRow(idx);
   // Remove também os documentos vinculados (linhas da aba + arquivos do Drive).
   const docs = sheetRows('EditalDocumentos').filter(d => String(d.EditalID) === String(id));
@@ -171,6 +176,77 @@ function getEditalFolderUrl(editalId) {
   return { url: folder.getUrl() };
 }
 
+// ── Vínculos no Drive: atalho do filho dentro de {pai}/Vinculados ─────────
+function _editalLabel(e) {
+  return ((e.Numero || '') + '-' + (e.Ano || '') + ' ' + (e.Titulo || '')).trim();
+}
+function _vinculadosFolder(edital) {
+  return _childFolder(_editalFolder(_editalLabel(edital), edital.Ano, edital.Segmento), 'Vinculados');
+}
+function _findShortcuts(folderId, targetId) {
+  try {
+    const res = Drive.Files.list({
+      q: "'" + folderId + "' in parents and mimeType='application/vnd.google-apps.shortcut' and trashed=false",
+      maxResults: 200
+    });
+    return (res.items || []).filter(f => f.shortcutDetails && f.shortcutDetails.targetId === targetId);
+  } catch (e) { return []; }
+}
+
+// Sincroniza os atalhos do edital filho nos seus pais (cria nos atuais, remove dos antigos).
+function _syncEditalShortcuts(childId, oldParentIds) {
+  try {
+    const editais = sheetRows('Editais');
+    const child = editais.find(e => String(e.ID) === String(childId));
+    if (!child) return;
+    const newParents = _parseJson(child.EditaisPaiJSON, []).map(String);
+    oldParentIds = (oldParentIds || []).map(String);
+    if (!newParents.length && !oldParentIds.length) return;
+
+    const childFolderId = _editalFolder(_editalLabel(child), child.Ano, child.Segmento).getId();
+    const scName = '↳ ' + _editalLabel(child);
+    const parentById = (pid) => editais.find(e => String(e.ID) === String(pid));
+
+    newParents.forEach(pid => {
+      try {
+        const p = parentById(pid); if (!p) return;
+        const vinc = _vinculadosFolder(p);
+        if (!_findShortcuts(vinc.getId(), childFolderId).length) {
+          Drive.Files.insert({
+            title: scName, mimeType: 'application/vnd.google-apps.shortcut',
+            parents: [{ id: vinc.getId() }], shortcutDetails: { targetId: childFolderId }
+          });
+        }
+      } catch (e) {}
+    });
+
+    oldParentIds.filter(pid => newParents.indexOf(pid) < 0).forEach(pid => {
+      try {
+        const p = parentById(pid); if (!p) return;
+        const vinc = _vinculadosFolder(p);
+        _findShortcuts(vinc.getId(), childFolderId).forEach(sc => { try { Drive.Files.trash(sc.id); } catch (e) {} });
+      } catch (e) {}
+    });
+  } catch (e) { /* serviço Drive indisponível ou erro — não bloqueia o salvamento */ }
+}
+
+// Remove todos os atalhos deste filho (usado ao excluir o edital).
+function _removeEditalShortcuts(edital) {
+  try {
+    const parents = _parseJson(edital.EditaisPaiJSON, []).map(String);
+    if (!parents.length) return;
+    const editais = sheetRows('Editais');
+    const cid = _editalFolder(_editalLabel(edital), edital.Ano, edital.Segmento).getId();
+    parents.forEach(pid => {
+      try {
+        const p = editais.find(e => String(e.ID) === String(pid)); if (!p) return;
+        const vinc = _vinculadosFolder(p);
+        _findShortcuts(vinc.getId(), cid).forEach(sc => { try { Drive.Files.trash(sc.id); } catch (e) {} });
+      } catch (e) {}
+    });
+  } catch (e) {}
+}
+
 // Valida que o arquivo enviado é mesmo um PDF (magic bytes "%PDF").
 function _isPdf(bytes) {
   return bytes.length >= 4 &&
@@ -210,6 +286,7 @@ function uploadEditalDoc(payload, email) {
     id, payload.editalId, payload.tipo, fileName,
     file.getId(), file.getUrl(), nowBR(), email
   ]);
+  _syncEditalShortcuts(payload.editalId, []);   // garante atalhos nos pais (se vinculado)
   return { ok: true, id: id, url: file.getUrl() };
 }
 
