@@ -18,7 +18,6 @@ const Editais = {
   sortDir: 'desc',
   page: 1,
   pageSize: 25,
-  expanded: new Set(),
 
   canWrite() { return this.role === 'Admin' || this.role === 'Gestor'; },
 
@@ -123,7 +122,6 @@ const Editais = {
             ${this.th('numAno', 'Nº / Ano')}
             ${this.th('titulo', 'Título')}
             ${this.th('segmento', 'Segmento')}
-            ${this.th('docs', 'Docs')}
             ${this.th('status', 'Status')}
             <th class="col-actions">Ações</th>
           </tr></thead>
@@ -162,21 +160,20 @@ const Editais = {
   goPage(p) { this.page = p; this.render(); window.scrollTo({ top: 0, behavior: 'smooth' }); },
 
   rowHtml(e) {
-    const open = this.expanded.has(e.ID);
     const badge = (e.Status === 'Inativo')
       ? '<span class="badge badge-muted">Inativo</span>'
       : '<span class="badge badge-ok">Ativo</span>';
     const w = this.canWrite();
-    const main = `<tr class="data-row${open ? ' is-open' : ''}" onclick="Editais.toggleDetail('${e.ID}', event)">
-      <td><span class="caret">${open ? '▾' : '▸'}</span><strong>${esc(e.Numero || '—')}</strong><span class="cell-sub">/${esc(e.Ano || '')}</span></td>
+    return `<tr>
+      <td><strong>${esc(e.Numero || '—')}</strong><span class="cell-sub">/${esc(e.Ano || '')}</span></td>
       <td>${esc(e.Titulo || '')}</td>
       <td>${esc(e.Segmento || '—')}</td>
-      <td><button class="chip" title="Anexar / ver PDFs" onclick="Editais.openDocs('${e.ID}')">📎 ${e.docsCount || 0}</button></td>
       <td>${badge}</td>
       <td class="col-actions">
         <details class="row-menu">
           <summary class="btn btn-ghost btn-xs">Ações ▾</summary>
           <div class="row-menu-list">
+            <button onclick="Editais.openDetails('${e.ID}')">🔎 Ver detalhes</button>
             <button onclick="Editais.openFolder('${e.ID}')">📁 Pasta no Drive</button>
             <button onclick="Editais.openDocs('${e.ID}')">📎 Documentos</button>
             ${e.Link ? `<a href="${esc(e.Link)}" target="_blank" rel="noopener">🔗 Link do edital</a>` : ''}
@@ -187,32 +184,35 @@ const Editais = {
         </details>
       </td>
     </tr>`;
-    const detail = open ? `<tr class="detail-row"><td colspan="6">${this.detailHtml(e)}</td></tr>` : '';
-    return main + detail;
   },
 
-  detailHtml(e) {
+  // Popup com todos os dados do edital.
+  openDetails(id) {
+    const e = this.data.find(x => String(x.ID) === String(id));
+    if (!e) return;
     const cell = (k, v) => `<div><span class="dk">${esc(k)}</span><span class="dv">${v}</span></div>`;
-    const insc = (e.InscricoesInicio || e.InscricoesFim)
-      ? `${esc(this.dateVal(e.InscricoesInicio) || '?')} – ${esc(this.dateVal(e.InscricoesFim) || '?')}` : '—';
     const link = e.Link ? `<a href="${esc(e.Link)}" target="_blank" rel="noopener">abrir ↗</a>` : '—';
-    return `<div class="detail-grid">
-      ${cell('Interno/Externo', esc(e.TipoInterno || '—'))}
-      ${cell('Fomento/Auxílio', esc(e.Fomento || '—'))}
-      ${cell('Bolsas', esc(e.Bolsas || '—'))}
-      ${cell('Custeio/Capital', esc(e.CusteioCapital || '—'))}
-      ${cell('Agência / Órgão', esc(e.AgenciaFomento || '—'))}
-      ${cell('Publicação', esc(this.dateVal(e.DataPublicacao) || '—'))}
-      ${cell('Inscrições', insc)}
-      ${cell('Resultado', esc(this.dateVal(e.DataResultado) || '—'))}
-      ${cell('Link', link)}
-    </div>`;
-  },
-
-  toggleDetail(id, ev) {
-    if (ev && ev.target.closest('.col-actions, .chip, a, details')) return;
-    if (this.expanded.has(id)) this.expanded.delete(id); else this.expanded.add(id);
-    this.render();
+    const body = `
+      <h3 class="detail-title">${esc(e.Titulo || '')}</h3>
+      <div class="detail-grid">
+        ${cell('Número', esc(e.Numero || '—'))}
+        ${cell('Ano', esc(e.Ano || '—'))}
+        ${cell('Segmento', esc(e.Segmento || '—'))}
+        ${cell('Status', esc(e.Status || 'Ativo'))}
+        ${cell('Interno/Externo', esc(e.TipoInterno || '—'))}
+        ${cell('Fomento/Auxílio', esc(e.Fomento || '—'))}
+        ${cell('Bolsas', esc(e.Bolsas || '—'))}
+        ${cell('Custeio/Capital', esc(e.CusteioCapital || '—'))}
+        ${cell('Agência / Órgão', esc(e.AgenciaFomento || '—'))}
+        ${cell('Publicação', esc(this.dateVal(e.DataPublicacao) || '—'))}
+        ${cell('Inscrições início', esc(this.dateVal(e.InscricoesInicio) || '—'))}
+        ${cell('Inscrições fim', esc(this.dateVal(e.InscricoesFim) || '—'))}
+        ${cell('Resultado', esc(this.dateVal(e.DataResultado) || '—'))}
+        ${cell('Documentos', (e.docsCount || 0) + ' PDF(s)')}
+        ${cell('Link', link)}
+      </div>`;
+    openModal('Edital ' + (e.Numero || '') + '/' + (e.Ano || ''), body, null,
+      { hideFooter: true });
   },
 
   onSearch(v) {
