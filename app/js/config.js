@@ -16,6 +16,24 @@ const SGA_CONFIG = {
 
 // Listas compartilhadas com o backend.
 const SEGMENTOS        = ['Ensino', 'Pesquisa', 'Extensão', 'Indissociável', 'Conjunto'];
+const SEGMENTOS_BASE   = ['Ensino', 'Pesquisa', 'Extensão', 'Indissociável'];
 const TIPOS_DOC        = ['Edital', 'Retificação', 'Anexo', 'Demais publicações'];
 const PERFIS           = ['Admin', 'Gestor', 'Visualizador'];
 const SEGMENTOS_ACESSO = ['Todos', 'Ensino', 'Pesquisa', 'Extensão', 'Indissociável'];
+
+const CATEGORIA_EDITAL = ['Interno', 'Externo'];
+const TIPO_EDITAL = ['Fomento', 'Auxílio', 'Apoio', 'Registro', 'Seleção', 'Premiação',
+  'Credenciamento', 'Chamamento Público', 'Avaliação', 'Mobilidade', 'Concessão',
+  'Institucionalização', 'Emergencial'];
+const REGIME_EDITAL = ['Chamada única', 'Chamada periódica', 'Chamada anual', 'Fluxo contínuo',
+  'Fluxo contínuo permanente', 'Fluxo contínuo com prazo', 'Chamada extraordinária',
+  'Chamada emergencial'];
+const TIPO_FOMENTO = {
+  'Ensino': ['PAIEN'], 'Pesquisa': ['AIPCTI'], 'Extensão': ['PAIEX'], 'Indissociável': ['PAIIND']
+};
+const TIPO_BOLSA = {
+  'Ensino': ['PIBEN'],
+  'Pesquisa': ['PIBIC', 'PIBIC-Af', 'PIBIC-EM', 'PROBIC', 'PIBITI', 'PROBITI'],
+  'Extensão': ['PIBEX'], 'Indissociável': ['PIBIND']
+};
+const CH_VALOR = { '4': 175, '8': 350, '12': 525, '16': 700 };

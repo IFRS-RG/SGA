@@ -5,37 +5,76 @@
 
 const EDITAL_WRITERS = ['Admin', 'Gestor'];
 
-// Monta o objeto de linha a partir do payload do formulário.
+function _num(v) {
+  if (v === '' || v == null) return 0;
+  return Number(v) || 0;
+}
+function _dateStr(v) {
+  if (!v) return '';
+  if (v instanceof Date) return Utilities.formatDate(v, 'America/Sao_Paulo', 'yyyy-MM-dd');
+  return String(v).slice(0, 10);
+}
+
+// Monta a linha (ordem = HEADERS.Editais) a partir do payload do formulário.
 function _editalRow(id, p, criadoEm, criadoPor) {
+  const custeio = _num(p.custeio);
+  const capital = _num(p.capital);
   return [
     id,
     p.numero || '',
     p.ano || '',
     p.titulo || '',
-    p.fomento || 'Não',
-    p.tipoInterno || 'Interno',
+    p.resumo || '',
     p.segmento || '',
-    p.bolsas || 'Não',
-    p.custeioCapital || 'Não',
-    p.dataPublicacao || '',
-    p.inscricoesInicio || '',
-    p.inscricoesFim || '',
-    p.dataResultado || '',
-    p.agenciaFomento || '',
+    p.categoria || 'Interno',
+    p.tipoEdital || '',
+    p.regime || '',
     p.link || '',
-    p.status || 'Ativo',
+    p.fomento || 'Não',
+    p.agenciaFomento || '',
+    JSON.stringify(p.tipoFomento || {}),
+    custeio,
+    capital,
+    custeio + capital,
+    p.bolsa || 'Não',
+    p.agenciaBolsa || '',
+    JSON.stringify(p.bolsas || []),
+    p.dataPublicacao || '',
+    p.vigenciaInicio || '',
+    p.vigenciaFim || '',
+    JSON.stringify(p.cronograma || []),
+    p.statusManual || '',
     criadoEm,
     criadoPor
   ];
+}
+
+// Status calculado: manual (se definido) ou pela vigência.
+function _computeStatus(e) {
+  if (e.StatusManual === 'Vigente' || e.StatusManual === 'Encerrado') return e.StatusManual;
+  const fim = _dateStr(e.VigenciaFim);
+  if (!fim) return 'Vigente';
+  const hoje = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd');
+  return hoje <= fim ? 'Vigente' : 'Encerrado';
+}
+
+function _parseJson(v, fallback) {
+  try { return JSON.parse(v || ''); } catch (e) { return fallback; }
 }
 
 // ── Listar ────────────────────────────────────────────────────
 function getEditais() {
   const editais = sheetRows('Editais');
   const docs    = sheetRows('EditalDocumentos');
-  // Anexa a contagem de documentos por edital.
   return editais.map(e => {
-    e.docsCount = docs.filter(d => String(d.EditalID) === String(e.ID)).length;
+    e.docsCount    = docs.filter(d => String(d.EditalID) === String(e.ID)).length;
+    e.tipoFomento  = _parseJson(e.TipoFomentoJSON, {});
+    e.bolsas       = _parseJson(e.BolsasJSON, []);
+    e.cronograma   = _parseJson(e.CronogramaJSON, []);
+    e.DataPublicacao = _dateStr(e.DataPublicacao);
+    e.VigenciaInicio = _dateStr(e.VigenciaInicio);
+    e.VigenciaFim    = _dateStr(e.VigenciaFim);
+    e.Status       = _computeStatus(e);   // Vigente / Encerrado (calculado)
     return e;
   });
 }
@@ -84,11 +123,16 @@ function cloneEdital(id, email) {
   if (!orig) throw new Error('Edital não encontrado.');
   const p = {
     numero: orig.Numero, ano: orig.Ano, titulo: '[Cópia] ' + orig.Titulo,
-    fomento: orig.Fomento, tipoInterno: orig.TipoInterno, segmento: orig.Segmento,
-    bolsas: orig.Bolsas, custeioCapital: orig.CusteioCapital,
-    dataPublicacao: orig.DataPublicacao, inscricoesInicio: orig.InscricoesInicio,
-    inscricoesFim: orig.InscricoesFim, dataResultado: orig.DataResultado,
-    agenciaFomento: orig.AgenciaFomento, link: orig.Link, status: 'Ativo'
+    resumo: orig.Resumo, segmento: orig.Segmento, categoria: orig.Categoria,
+    tipoEdital: orig.TipoEdital, regime: orig.Regime, link: orig.LinkPublicacao,
+    fomento: orig.Fomento, agenciaFomento: orig.AgenciaFomento,
+    tipoFomento: _parseJson(orig.TipoFomentoJSON, {}),
+    custeio: orig.Custeio, capital: orig.Capital,
+    bolsa: orig.Bolsa, agenciaBolsa: orig.AgenciaBolsa,
+    bolsas: _parseJson(orig.BolsasJSON, []),
+    dataPublicacao: _dateStr(orig.DataPublicacao),
+    vigenciaInicio: _dateStr(orig.VigenciaInicio), vigenciaFim: _dateStr(orig.VigenciaFim),
+    cronograma: _parseJson(orig.CronogramaJSON, []), statusManual: ''
   };
   const newId = genId();
   getSheet('Editais').appendRow(_editalRow(newId, p, nowBR(), email));

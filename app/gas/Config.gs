@@ -25,11 +25,39 @@ const SUPER_ADMIN    = 'projetos@riogrande.ifrs.edu.br';
 //   Visualizador→ somente leitura
 const PERFIS = ['Admin', 'Gestor', 'Visualizador'];
 
-// Segmentos das AÇÕES/EDITAIS (mesma lista da V1).
+// Segmentos das AÇÕES/EDITAIS. "Conjunto" engloba os 4 segmentos.
 const SEGMENTOS = ['Ensino', 'Pesquisa', 'Extensão', 'Indissociável', 'Conjunto'];
+// Os 4 segmentos "reais" (usados quando o edital é Conjunto).
+const SEGMENTOS_BASE = ['Ensino', 'Pesquisa', 'Extensão', 'Indissociável'];
 
 // Segmentos usados no PERFIL de acesso ('Todos' = geral).
 const SEGMENTOS_ACESSO = ['Todos', 'Ensino', 'Pesquisa', 'Extensão', 'Indissociável'];
+
+// Listas de edital.
+const CATEGORIA_EDITAL = ['Interno', 'Externo'];
+const TIPO_EDITAL = ['Fomento', 'Auxílio', 'Apoio', 'Registro', 'Seleção', 'Premiação',
+  'Credenciamento', 'Chamamento Público', 'Avaliação', 'Mobilidade', 'Concessão',
+  'Institucionalização', 'Emergencial'];
+const REGIME_EDITAL = ['Chamada única', 'Chamada periódica', 'Chamada anual', 'Fluxo contínuo',
+  'Fluxo contínuo permanente', 'Fluxo contínuo com prazo', 'Chamada extraordinária',
+  'Chamada emergencial'];
+
+// Tipos de fomento/auxílio por segmento (o form também aceita "Outro" via texto livre).
+const TIPO_FOMENTO = {
+  'Ensino': ['PAIEN'],
+  'Pesquisa': ['AIPCTI'],
+  'Extensão': ['PAIEX'],
+  'Indissociável': ['PAIIND']
+};
+// Tipos de bolsa por segmento.
+const TIPO_BOLSA = {
+  'Ensino': ['PIBEN'],
+  'Pesquisa': ['PIBIC', 'PIBIC-Af', 'PIBIC-EM', 'PROBIC', 'PIBITI', 'PROBITI'],
+  'Extensão': ['PIBEX'],
+  'Indissociável': ['PIBIND']
+};
+// Valor da bolsa por carga horária semanal (referência PIBEX/PIBEN).
+const CH_VALOR = { '4': 175, '8': 350, '12': 525, '16': 700 };
 
 // Tipos de documento no upload de PDF do edital.
 const TIPOS_DOC = ['Edital', 'Retificação', 'Anexo', 'Demais publicações'];
@@ -37,10 +65,11 @@ const TIPOS_DOC = ['Edital', 'Retificação', 'Anexo', 'Demais publicações'];
 // ── Índices de coluna (0-based) ──────────────────────────────
 const COL = {
   Editais: {
-    ID: 0, Numero: 1, Ano: 2, Titulo: 3, Fomento: 4, TipoInterno: 5, Segmento: 6,
-    Bolsas: 7, CusteioCapital: 8, DataPublicacao: 9, InscricoesInicio: 10,
-    InscricoesFim: 11, DataResultado: 12, AgenciaFomento: 13, Link: 14,
-    Status: 15, CriadoEm: 16, CriadoPor: 17
+    ID: 0, Numero: 1, Ano: 2, Titulo: 3, Resumo: 4, Segmento: 5, Categoria: 6,
+    TipoEdital: 7, Regime: 8, LinkPublicacao: 9, Fomento: 10, AgenciaFomento: 11,
+    TipoFomentoJSON: 12, Custeio: 13, Capital: 14, Total: 15, Bolsa: 16,
+    AgenciaBolsa: 17, BolsasJSON: 18, DataPublicacao: 19, VigenciaInicio: 20,
+    VigenciaFim: 21, CronogramaJSON: 22, StatusManual: 23, CriadoEm: 24, CriadoPor: 25
   },
   EditalDocumentos: {
     ID: 0, EditalID: 1, Tipo: 2, NomeArquivo: 3, DriveFileId: 4, DriveUrl: 5,
@@ -52,10 +81,11 @@ const COL = {
 };
 
 const HEADERS = {
-  Editais: ['ID', 'Numero', 'Ano', 'Titulo', 'Fomento', 'TipoInterno', 'Segmento',
-            'Bolsas', 'CusteioCapital', 'DataPublicacao', 'InscricoesInicio',
-            'InscricoesFim', 'DataResultado', 'AgenciaFomento', 'Link', 'Status',
-            'CriadoEm', 'CriadoPor'],
+  Editais: ['ID', 'Numero', 'Ano', 'Titulo', 'Resumo', 'Segmento', 'Categoria',
+            'TipoEdital', 'Regime', 'LinkPublicacao', 'Fomento', 'AgenciaFomento',
+            'TipoFomentoJSON', 'Custeio', 'Capital', 'Total', 'Bolsa', 'AgenciaBolsa',
+            'BolsasJSON', 'DataPublicacao', 'VigenciaInicio', 'VigenciaFim',
+            'CronogramaJSON', 'StatusManual', 'CriadoEm', 'CriadoPor'],
   EditalDocumentos: ['ID', 'EditalID', 'Tipo', 'NomeArquivo', 'DriveFileId',
                      'DriveUrl', 'DataUpload', 'EnviadoPor'],
   Perfis: ['Email', 'Nome', 'Perfil', 'Segmento', 'Status', 'AtualizadoEm', 'AtualizadoPor']

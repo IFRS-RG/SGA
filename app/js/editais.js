@@ -58,7 +58,7 @@ const Editais = {
     const q = this.filter.toLowerCase();
     return this.data.filter(e => {
       if (this.filterSeg && e.Segmento !== this.filterSeg) return false;
-      if (this.filterStatus && (e.Status || 'Ativo') !== this.filterStatus) return false;
+      if (this.filterStatus && (e.Status || 'Vigente') !== this.filterStatus) return false;
       if (this.filterAno && String(e.Ano) !== this.filterAno) return false;
       if (!q) return true;
       return [e.Numero, e.Ano, e.Titulo, e.Segmento, e.AgenciaFomento]
@@ -109,8 +109,8 @@ const Editais = {
     const segOpts = ['<option value="">Todos os segmentos</option>']
       .concat(SEGMENTOS.map(s => `<option ${this.filterSeg === s ? 'selected' : ''}>${s}</option>`)).join('');
     const stOpts = `<option value="">Todos os status</option>
-      <option ${this.filterStatus === 'Ativo' ? 'selected' : ''}>Ativo</option>
-      <option ${this.filterStatus === 'Inativo' ? 'selected' : ''}>Inativo</option>`;
+      <option ${this.filterStatus === 'Vigente' ? 'selected' : ''}>Vigente</option>
+      <option ${this.filterStatus === 'Encerrado' ? 'selected' : ''}>Encerrado</option>`;
     const anos = [...new Set(this.data.map(e => String(e.Ano)).filter(Boolean))].sort((a, b) => b - a);
     const anoOpts = ['<option value="">Todos os anos</option>']
       .concat(anos.map(a => `<option ${this.filterAno === a ? 'selected' : ''}>${a}</option>`)).join('');
@@ -159,10 +159,14 @@ const Editais = {
 
   goPage(p) { this.page = p; this.render(); window.scrollTo({ top: 0, behavior: 'smooth' }); },
 
+  statusBadge(e) {
+    return (e.Status === 'Encerrado')
+      ? '<span class="badge badge-danger-soft">Encerrado</span>'
+      : '<span class="badge badge-ok">Vigente</span>';
+  },
+
   rowHtml(e) {
-    const badge = (e.Status === 'Inativo')
-      ? '<span class="badge badge-muted">Inativo</span>'
-      : '<span class="badge badge-ok">Ativo</span>';
+    const badge = this.statusBadge(e);
     const w = this.canWrite();
     return `<tr>
       <td><strong>${esc(e.Numero || '—')}</strong><span class="cell-sub">/${esc(e.Ano || '')}</span></td>
@@ -176,7 +180,7 @@ const Editais = {
             <button onclick="Editais.openDetails('${e.ID}')">🔎 Ver detalhes</button>
             <button onclick="Editais.openFolder('${e.ID}')">📁 Pasta no Drive</button>
             <button onclick="Editais.openDocs('${e.ID}')">📎 Documentos</button>
-            ${e.Link ? `<a href="${esc(e.Link)}" target="_blank" rel="noopener">🔗 Link do edital</a>` : ''}
+            ${e.LinkPublicacao ? `<a href="${esc(e.LinkPublicacao)}" target="_blank" rel="noopener">🔗 Link da publicação</a>` : ''}
             ${w ? `<button onclick="Editais.openForm('${e.ID}')">✏️ Editar</button>` : ''}
             ${w ? `<button onclick="Editais.clone('${e.ID}')">⧉ Clonar</button>` : ''}
             ${w ? `<button class="danger" onclick="Editais.remove('${e.ID}')">🗑 Excluir</button>` : ''}
@@ -191,28 +195,64 @@ const Editais = {
     const e = this.data.find(x => String(x.ID) === String(id));
     if (!e) return;
     const cell = (k, v) => `<div><span class="dk">${esc(k)}</span><span class="dv">${v}</span></div>`;
-    const link = e.Link ? `<a href="${esc(e.Link)}" target="_blank" rel="noopener">abrir ↗</a>` : '—';
+    const link = e.LinkPublicacao ? `<a href="${esc(e.LinkPublicacao)}" target="_blank" rel="noopener">abrir ↗</a>` : '—';
+    const tf = e.tipoFomento || {};
+    const tfStr = Object.keys(tf).length
+      ? Object.keys(tf).map(s => `${s}: ${esc(tf[s] || '—')}`).join(' · ') : '—';
+
+    // Bloco Recurso (só se houver fomento).
+    let recurso = '';
+    if (e.Fomento === 'Sim') {
+      recurso = `<h4 class="detail-sec">💰 Recurso financeiro</h4>
+        <div class="detail-grid">
+          ${cell('Agência/Órgão', esc(e.AgenciaFomento || '—'))}
+          ${cell('Tipo de fomento', tfStr)}
+          ${cell('Custeio', fmtMoney(e.Custeio))}
+          ${cell('Capital', fmtMoney(e.Capital))}
+          ${cell('Total', fmtMoney(e.Total))}
+          ${cell('Bolsa', esc(e.Bolsa || 'Não'))}
+          ${e.Bolsa === 'Sim' ? cell('Agência/Órgão (bolsa)', esc(e.AgenciaBolsa || '—')) : ''}
+        </div>`;
+      if (e.Bolsa === 'Sim' && (e.bolsas || []).length) {
+        recurso += `<table class="mini-table"><thead><tr>
+          ${e.Segmento === 'Conjunto' ? '<th>Segmento</th>' : ''}<th>Tipo</th><th>CH</th><th>R$</th><th>Nº</th><th>Período</th>
+          </tr></thead><tbody>${e.bolsas.map(b => `<tr>
+            ${e.Segmento === 'Conjunto' ? `<td>${esc(b.segmento || '—')}</td>` : ''}
+            <td>${esc(b.tipo || '—')}</td><td>${esc(b.ch || '—')}</td><td>${fmtMoney(b.valor)}</td>
+            <td>${esc(b.nBolsas || '—')}</td><td>${esc(b.periodoMeses ? b.periodoMeses + ' meses' : '—')}</td>
+          </tr>`).join('')}</tbody></table>`;
+      }
+    }
+
+    // Cronograma.
+    let crono = `<h4 class="detail-sec">📅 Cronograma</h4>
+      <div class="detail-grid">
+        ${cell('Publicação', esc(this.dateVal(e.DataPublicacao) || '—'))}
+        ${cell('Vigência', (e.VigenciaInicio || e.VigenciaFim) ? `${esc(this.dateVal(e.VigenciaInicio) || '?')} – ${esc(this.dateVal(e.VigenciaFim) || '?')}` : '—')}
+      </div>`;
+    if ((e.cronograma || []).length) {
+      crono += `<table class="mini-table"><thead><tr><th>Etapa</th><th>Período</th></tr></thead>
+        <tbody>${e.cronograma.map(c => `<tr><td>${esc(c.etapa || '—')}</td>
+          <td>${(c.inicio || c.fim) ? `${esc(this.dateVal(c.inicio) || '?')} – ${esc(this.dateVal(c.fim) || '?')}` : '—'}</td></tr>`).join('')}</tbody></table>`;
+    }
+
     const body = `
-      <h3 class="detail-title">${esc(e.Titulo || '')}</h3>
+      <h3 class="detail-title">${esc(e.Titulo || '')} ${this.statusBadge(e)}</h3>
+      ${e.Resumo ? `<p class="detail-resumo">${esc(e.Resumo)}</p>` : ''}
       <div class="detail-grid">
         ${cell('Número', esc(e.Numero || '—'))}
         ${cell('Ano', esc(e.Ano || '—'))}
         ${cell('Segmento', esc(e.Segmento || '—'))}
-        ${cell('Status', esc(e.Status || 'Ativo'))}
-        ${cell('Interno/Externo', esc(e.TipoInterno || '—'))}
-        ${cell('Fomento/Auxílio', esc(e.Fomento || '—'))}
-        ${cell('Bolsas', esc(e.Bolsas || '—'))}
-        ${cell('Custeio/Capital', esc(e.CusteioCapital || '—'))}
-        ${cell('Agência / Órgão', esc(e.AgenciaFomento || '—'))}
-        ${cell('Publicação', esc(this.dateVal(e.DataPublicacao) || '—'))}
-        ${cell('Inscrições início', esc(this.dateVal(e.InscricoesInicio) || '—'))}
-        ${cell('Inscrições fim', esc(this.dateVal(e.InscricoesFim) || '—'))}
-        ${cell('Resultado', esc(this.dateVal(e.DataResultado) || '—'))}
+        ${cell('Categoria', esc(e.Categoria || '—'))}
+        ${cell('Tipo de edital', esc(e.TipoEdital || '—'))}
+        ${cell('Regime', esc(e.Regime || '—'))}
+        ${cell('Fomento/Auxílio', esc(e.Fomento || 'Não'))}
         ${cell('Documentos', (e.docsCount || 0) + ' PDF(s)')}
-        ${cell('Link', link)}
-      </div>`;
-    openModal('Edital ' + (e.Numero || '') + '/' + (e.Ano || ''), body, null,
-      { hideFooter: true });
+        ${cell('Link da publicação', link)}
+      </div>
+      ${recurso}
+      ${crono}`;
+    openModal('Edital ' + (e.Numero || '') + '/' + (e.Ano || ''), body, null, { hideFooter: true });
   },
 
   onSearch(v) {
@@ -231,87 +271,234 @@ const Editais = {
       .catch(e => { if (win) win.close(); toast(e.message, 'error'); });
   },
 
+  _tfStr(e) {
+    const tf = e.tipoFomento || {};
+    return Object.keys(tf).map(s => `${s}:${tf[s]}`).join(' | ');
+  },
+
   exportXLS() {
     const rows = this.sortedFiltered().map(e => [
-      e.Numero, e.Ano, e.Titulo, e.Segmento, e.Fomento, e.TipoInterno, e.Bolsas, e.CusteioCapital,
-      e.AgenciaFomento, this.dateVal(e.DataPublicacao), this.dateVal(e.InscricoesInicio),
-      this.dateVal(e.InscricoesFim), this.dateVal(e.DataResultado), e.Link, e.Status
+      e.Numero, e.Ano, e.Titulo, e.Segmento, e.Categoria, e.TipoEdital, e.Regime, e.Status,
+      e.Fomento, e.AgenciaFomento, this._tfStr(e), e.Custeio, e.Capital, e.Total,
+      e.Bolsa, e.AgenciaBolsa, this.dateVal(e.DataPublicacao),
+      this.dateVal(e.VigenciaInicio), this.dateVal(e.VigenciaFim), e.LinkPublicacao
     ]);
-    exportXLS(['Número', 'Ano', 'Título', 'Segmento', 'Fomento', 'Interno/Externo', 'Bolsas',
-      'Custeio/Capital', 'Agência', 'Publicação', 'Inscr. início', 'Inscr. fim', 'Resultado',
-      'Link', 'Status'], rows, 'Editais');
+    exportXLS(['Número', 'Ano', 'Título', 'Segmento', 'Categoria', 'Tipo de edital', 'Regime',
+      'Status', 'Fomento', 'Agência fomento', 'Tipo fomento', 'Custeio', 'Capital', 'Total',
+      'Bolsa', 'Agência bolsa', 'Publicação', 'Vigência início', 'Vigência fim', 'Link'], rows, 'Editais');
   },
 
   exportPDF() {
     const rows = this.sortedFiltered().map(e => [
-      e.Numero + '/' + e.Ano, e.Titulo, e.Segmento,
-      this.dateVal(e.InscricoesInicio), this.dateVal(e.InscricoesFim), e.Status
+      e.Numero + '/' + e.Ano, e.Titulo, e.Segmento, e.TipoEdital,
+      this.dateVal(e.VigenciaInicio), this.dateVal(e.VigenciaFim), e.Status
     ]);
-    exportPDF('Editais — SGA', ['Nº/Ano', 'Título', 'Segmento', 'Inscr. início', 'Inscr. fim', 'Status'], rows);
+    exportPDF('Editais — SGA', ['Nº/Ano', 'Título', 'Segmento', 'Tipo', 'Vig. início', 'Vig. fim', 'Status'], rows);
   },
 
-  // ── Formulário (novo / editar) ──────────────────────────────
+  // ── Formulário (novo / editar) — 3 abas ─────────────────────
   openForm(id) {
     const e = id ? this.data.find(x => x.ID === id) : null;
-    const title = id ? 'Editar edital' : 'Novo edital';
-    openModal(title, this.formHtml(e), async () => { await this.save(id); },
-      { confirmLabel: id ? 'Salvar' : 'Criar' });
+    this.formTab = 'dados';
+    this.form = e ? {
+      numero: e.Numero, ano: e.Ano, titulo: e.Titulo, resumo: e.Resumo, segmento: e.Segmento,
+      categoria: e.Categoria, tipoEdital: e.TipoEdital, regime: e.Regime, link: e.LinkPublicacao,
+      fomento: e.Fomento, agenciaFomento: e.AgenciaFomento, tipoFomento: e.tipoFomento || {},
+      custeio: e.Custeio, capital: e.Capital, bolsa: e.Bolsa, agenciaBolsa: e.AgenciaBolsa,
+      bolsas: (e.bolsas || []).slice(), dataPublicacao: e.DataPublicacao,
+      vigenciaInicio: e.VigenciaInicio, vigenciaFim: e.VigenciaFim,
+      cronograma: (e.cronograma || []).slice(), statusManual: e.StatusManual
+    } : {
+      numero: '', ano: new Date().getFullYear(), titulo: '', resumo: '', segmento: '',
+      categoria: 'Interno', tipoEdital: '', regime: '', link: '', fomento: 'Não',
+      agenciaFomento: '', tipoFomento: {}, custeio: '', capital: '', bolsa: 'Não',
+      agenciaBolsa: '', bolsas: [], dataPublicacao: '', vigenciaInicio: '', vigenciaFim: '',
+      cronograma: [], statusManual: ''
+    };
+    openModal(id ? 'Editar edital' : 'Novo edital', this.formBody(),
+      async () => { await this.save(id); }, { confirmLabel: id ? 'Salvar' : 'Criar' });
   },
 
-  formHtml(e) {
-    e = e || {};
-    const simNao = (v) => `<option ${v === 'Sim' ? 'selected' : ''}>Sim</option><option ${v !== 'Sim' ? 'selected' : ''}>Não</option>`;
-    return `
-    <!-- Campos principais — mesma disposição da V1 -->
-    <div class="form-grid">
-      <div class="fg"><label>*Número</label><input class="input" id="f-numero" value="${esc(e.Numero || '')}"></div>
-      <div class="fg"><label>*Ano</label><input class="input" id="f-ano" value="${esc(e.Ano || new Date().getFullYear())}"></div>
-    </div>
-    <div class="fg"><label>*Título</label><input class="input" id="f-titulo" value="${esc(e.Titulo || '')}"></div>
-    <div class="form-grid">
-      <div class="fg"><label>*Fomento/Auxílio</label><select class="input" id="f-fomento">${simNao(e.Fomento)}</select></div>
-      <div class="fg"><label>*Interno/Externo</label><select class="input" id="f-tipo"><option ${e.TipoInterno === 'Interno' ? 'selected' : ''}>Interno</option><option ${e.TipoInterno === 'Externo' ? 'selected' : ''}>Externo</option></select></div>
-    </div>
-    <div class="fg"><label>*Segmento</label><select class="input" id="f-segmento">${optionsHtml(SEGMENTOS, e.Segmento)}</select></div>
-    <div class="form-grid">
-      <div class="fg"><label>*Bolsas</label><select class="input" id="f-bolsas">${simNao(e.Bolsas)}</select></div>
-      <div class="fg"><label>*Custeio/Capital</label><select class="input" id="f-custeio">${simNao(e.CusteioCapital)}</select></div>
-    </div>
+  _segKey(s) { return { 'Ensino': 'ens', 'Pesquisa': 'pes', 'Extensão': 'ext', 'Indissociável': 'ind' }[s] || 'x'; },
 
-    <!-- Campos adicionais -->
-    <div class="form-grid">
-      <div class="fg"><label>Agência / Órgão de fomento</label><input class="input" id="f-agencia" value="${esc(e.AgenciaFomento || '')}"></div>
-      <div class="fg"><label>Status</label><select class="input" id="f-status"><option ${e.Status !== 'Inativo' ? 'selected' : ''}>Ativo</option><option ${e.Status === 'Inativo' ? 'selected' : ''}>Inativo</option></select></div>
-    </div>
-    <fieldset class="form-fieldset"><legend>Datas</legend>
-      <div class="form-grid form-grid-3">
-        <div class="fg"><label>Publicação</label><input type="date" class="input" id="f-dpub" value="${esc(this.dateVal(e.DataPublicacao))}"></div>
-        <div class="fg"><label>Inscrições — início</label><input type="date" class="input" id="f-ini" value="${esc(this.dateVal(e.InscricoesInicio))}"></div>
-        <div class="fg"><label>Inscrições — fim</label><input type="date" class="input" id="f-fim" value="${esc(this.dateVal(e.InscricoesFim))}"></div>
+  _datalists() {
+    return SEGMENTOS_BASE.map(s => {
+      const k = this._segKey(s);
+      const fom = (TIPO_FOMENTO[s] || []).map(o => `<option value="${esc(o)}">`).join('');
+      const bol = (TIPO_BOLSA[s] || []).map(o => `<option value="${esc(o)}">`).join('');
+      return `<datalist id="dl-fom-${k}">${fom}</datalist><datalist id="dl-bol-${k}">${bol}</datalist>`;
+    }).join('');
+  },
+
+  _fomentoTipoFields() {
+    const f = this.form;
+    const segs = f.segmento === 'Conjunto' ? SEGMENTOS_BASE : (SEGMENTOS_BASE.indexOf(f.segmento) >= 0 ? [f.segmento] : []);
+    if (!segs.length) return '<p class="line-empty">Escolha um segmento (aba Dados) para definir o tipo de fomento.</p>';
+    const inner = segs.map(s => {
+      const k = this._segKey(s);
+      return `<div class="fg"><label>Tipo de fomento${f.segmento === 'Conjunto' ? ' — ' + s : ''}</label>
+        <input class="input" id="f-tipofom-${s}" list="dl-fom-${k}" value="${esc((f.tipoFomento || {})[s] || '')}"
+               placeholder="${esc((TIPO_FOMENTO[s] || []).join(', '))} ou outro"></div>`;
+    }).join('');
+    return segs.length > 1 ? `<div class="form-grid">${inner}</div>` : inner;
+  },
+
+  _bolsaRow(b, i) {
+    const conjunto = this.form.segmento === 'Conjunto';
+    const lineSeg = conjunto ? (b.segmento || '') : this.form.segmento;
+    const k = this._segKey(lineSeg);
+    const segCell = conjunto
+      ? `<select class="input line-seg" id="bl-seg-${i}" onchange="Editais.formReRender()"><option value="">segmento…</option>${SEGMENTOS_BASE.map(s => `<option ${b.segmento === s ? 'selected' : ''}>${s}</option>`).join('')}</select>`
+      : `<input type="hidden" id="bl-seg-${i}" value="${esc(this.form.segmento || '')}">`;
+    return `<div class="line-row bolsa-row">
+      ${segCell}
+      <input class="input bl-tipo" id="bl-tipo-${i}" list="dl-bol-${k}" placeholder="Tipo" value="${esc(b.tipo || '')}">
+      <input class="input bl-ch" type="number" id="bl-ch-${i}" placeholder="CH" value="${esc(b.ch || '')}" onchange="Editais.chPrefill(${i})">
+      <input class="input bl-valor" id="bl-valor-${i}" placeholder="R$" value="${esc(b.valor || '')}">
+      <input class="input bl-num" type="number" id="bl-num-${i}" placeholder="Nº" value="${esc(b.nBolsas || '')}">
+      <input class="input bl-per" type="number" id="bl-per-${i}" placeholder="meses" value="${esc(b.periodoMeses || '')}">
+      <button class="btn btn-danger btn-xs" onclick="Editais.removeBolsa(${i})" title="Remover">✕</button>
+    </div>`;
+  },
+
+  _etapaRow(c, i) {
+    return `<div class="line-row crono-row">
+      <input class="input" id="cr-etapa-${i}" placeholder="Etapa (ex.: Inscrições)" value="${esc(c.etapa || '')}">
+      <input class="input" type="date" id="cr-ini-${i}" value="${esc(this.dateVal(c.inicio))}">
+      <input class="input" type="date" id="cr-fim-${i}" value="${esc(this.dateVal(c.fim))}">
+      <button class="btn btn-danger btn-xs" onclick="Editais.removeEtapa(${i})" title="Remover">✕</button>
+    </div>`;
+  },
+
+  formBody() {
+    const f = this.form;
+    const tab = (id, label) => `<button type="button" class="ftab ${this.formTab === id ? 'active' : ''}" onclick="Editais.switchTab('${id}')">${label}</button>`;
+    const hide = (id) => this.formTab === id ? '' : 'style="display:none"';
+    const opt = (list, sel) => list.map(o => `<option ${sel === o ? 'selected' : ''}>${esc(o)}</option>`).join('');
+
+    const dados = `<div class="ftab-sec" ${hide('dados')}>
+      <div class="form-grid">
+        <div class="fg"><label>*Número</label><input class="input" id="f-numero" value="${esc(f.numero || '')}"></div>
+        <div class="fg"><label>*Ano</label><input class="input" id="f-ano" value="${esc(f.ano || '')}"></div>
       </div>
-      <div class="fg"><label>Resultado</label><input type="date" class="input" id="f-resu" value="${esc(this.dateVal(e.DataResultado))}"></div>
-    </fieldset>
-    <div class="fg"><label>Link do edital (onde está salvo — SEI, SIGAA, Drive…)</label>
-      <input class="input" id="f-link" placeholder="https://…" value="${esc(e.Link || '')}"></div>`;
+      <div class="fg"><label>*Título</label><input class="input" id="f-titulo" value="${esc(f.titulo || '')}"></div>
+      <div class="fg"><label>Resumo</label><textarea class="input" id="f-resumo" rows="3">${esc(f.resumo || '')}</textarea></div>
+      <div class="form-grid">
+        <div class="fg"><label>*Segmento</label><select class="input" id="f-segmento" onchange="Editais.formReRender()"><option value="">—</option>${opt(SEGMENTOS, f.segmento)}</select></div>
+        <div class="fg"><label>Categoria</label><select class="input" id="f-categoria">${opt(CATEGORIA_EDITAL, f.categoria)}</select></div>
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label>Tipo de edital</label><select class="input" id="f-tipoedital"><option value="">—</option>${opt(TIPO_EDITAL, f.tipoEdital)}</select></div>
+        <div class="fg"><label>Regime</label><select class="input" id="f-regime"><option value="">—</option>${opt(REGIME_EDITAL, f.regime)}</select></div>
+      </div>
+      <div class="fg"><label>Link da publicação</label><input class="input" id="f-link" placeholder="https://…" value="${esc(f.link || '')}"></div>
+      <div class="fg"><label>Status</label><select class="input" id="f-statusmanual">
+          <option value="" ${!f.statusManual ? 'selected' : ''}>Automático (pela vigência)</option>
+          <option ${f.statusManual === 'Vigente' ? 'selected' : ''}>Vigente</option>
+          <option ${f.statusManual === 'Encerrado' ? 'selected' : ''}>Encerrado</option>
+        </select></div>
+    </div>`;
+
+    const recurso = `<div class="ftab-sec" ${hide('recurso')}>
+      <div class="fg"><label>Fomento / Auxílio</label><select class="input" id="f-fomento" onchange="Editais.formReRender()"><option ${f.fomento === 'Sim' ? 'selected' : ''}>Sim</option><option ${f.fomento !== 'Sim' ? 'selected' : ''}>Não</option></select></div>
+      <div ${f.fomento === 'Sim' ? '' : 'style="display:none"'}>
+        <div class="fg"><label>Agência / Órgão financiador</label><input class="input" id="f-agfomento" value="${esc(f.agenciaFomento || '')}"></div>
+        ${this._fomentoTipoFields()}
+        <div class="form-grid form-grid-3">
+          <div class="fg"><label>Custeio (R$)</label><input class="input" id="f-custeio" value="${esc(f.custeio || '')}" oninput="Editais.updateTotal()"></div>
+          <div class="fg"><label>Capital (R$)</label><input class="input" id="f-capital" value="${esc(f.capital || '')}" oninput="Editais.updateTotal()"></div>
+          <div class="fg"><label>Total</label><input class="input" id="f-total" readonly value="${fmtMoney(parseMoney(f.custeio) + parseMoney(f.capital))}"></div>
+        </div>
+        <div class="fg"><label>Bolsa</label><select class="input" id="f-bolsa" onchange="Editais.formReRender()"><option ${f.bolsa === 'Sim' ? 'selected' : ''}>Sim</option><option ${f.bolsa !== 'Sim' ? 'selected' : ''}>Não</option></select></div>
+        <div ${f.bolsa === 'Sim' ? '' : 'style="display:none"'}>
+          <div class="fg"><label>Agência / Órgão financiador (bolsa)</label><input class="input" id="f-agbolsa" value="${esc(f.agenciaBolsa || '')}"></div>
+          <div class="line-label"><span>Bolsas ${this.form.segmento === 'Conjunto' ? '(informe o segmento em cada linha)' : ''}</span><button type="button" class="btn btn-ghost btn-xs" onclick="Editais.addBolsa()">+ adicionar</button></div>
+          <div id="bolsa-lines">${(f.bolsas || []).map((b, i) => this._bolsaRow(b, i)).join('') || '<p class="line-empty">Nenhuma linha.</p>'}</div>
+        </div>
+      </div>
+    </div>`;
+
+    const crono = `<div class="ftab-sec" ${hide('crono')}>
+      <div class="fg"><label>Data da publicação</label><input type="date" class="input" id="f-datapub" value="${esc(this.dateVal(f.dataPublicacao))}"></div>
+      <div class="form-grid">
+        <div class="fg"><label>Vigência — início</label><input type="date" class="input" id="f-vigini" value="${esc(this.dateVal(f.vigenciaInicio))}"></div>
+        <div class="fg"><label>Vigência — fim</label><input type="date" class="input" id="f-vigfim" value="${esc(this.dateVal(f.vigenciaFim))}"></div>
+      </div>
+      <div class="line-label"><span>Etapas</span><button type="button" class="btn btn-ghost btn-xs" onclick="Editais.addEtapa()">+ adicionar</button></div>
+      <div id="crono-lines">${(f.cronograma || []).map((c, i) => this._etapaRow(c, i)).join('') || '<p class="line-empty">Nenhuma etapa.</p>'}</div>
+    </div>`;
+
+    return `<div class="ftabs">${tab('dados', '📋 Dados')}${tab('recurso', '💰 Recurso')}${tab('crono', '📅 Cronograma')}</div>
+      ${dados}${recurso}${crono}${this._datalists()}`;
+  },
+
+  switchTab(t) { this.harvest(); this.formTab = t; document.getElementById('modal-body').innerHTML = this.formBody(); },
+  formReRender() { this.harvest(); document.getElementById('modal-body').innerHTML = this.formBody(); },
+
+  harvest() {
+    const f = this.form;
+    f.numero = val('f-numero'); f.ano = val('f-ano'); f.titulo = val('f-titulo'); f.resumo = val('f-resumo');
+    f.segmento = val('f-segmento'); f.categoria = val('f-categoria'); f.tipoEdital = val('f-tipoedital');
+    f.regime = val('f-regime'); f.link = val('f-link'); f.statusManual = val('f-statusmanual');
+    f.fomento = val('f-fomento'); f.agenciaFomento = val('f-agfomento');
+    f.custeio = val('f-custeio'); f.capital = val('f-capital');
+    f.bolsa = val('f-bolsa'); f.agenciaBolsa = val('f-agbolsa');
+    f.dataPublicacao = val('f-datapub'); f.vigenciaInicio = val('f-vigini'); f.vigenciaFim = val('f-vigfim');
+    const segs = f.segmento === 'Conjunto' ? SEGMENTOS_BASE : (SEGMENTOS_BASE.indexOf(f.segmento) >= 0 ? [f.segmento] : []);
+    const tf = {};
+    segs.forEach(s => { const el = document.getElementById('f-tipofom-' + s); if (el) tf[s] = el.value.trim(); });
+    f.tipoFomento = tf;
+    f.bolsas = (f.bolsas || []).map((_, i) => ({
+      segmento: (document.getElementById('bl-seg-' + i) || {}).value || '',
+      tipo: val('bl-tipo-' + i), ch: val('bl-ch-' + i), valor: val('bl-valor-' + i),
+      nBolsas: val('bl-num-' + i), periodoMeses: val('bl-per-' + i)
+    }));
+    f.cronograma = (f.cronograma || []).map((_, i) => ({
+      etapa: val('cr-etapa-' + i), inicio: val('cr-ini-' + i), fim: val('cr-fim-' + i)
+    }));
+  },
+
+  addBolsa() { this.harvest(); this.form.bolsas.push({ segmento: this.form.segmento === 'Conjunto' ? '' : this.form.segmento, tipo: '', ch: '', valor: '', nBolsas: '', periodoMeses: '' }); this.formTab = 'recurso'; this.formReRenderKeep(); },
+  removeBolsa(i) { this.harvest(); this.form.bolsas.splice(i, 1); this.formTab = 'recurso'; this.formReRenderKeep(); },
+  addEtapa() { this.harvest(); this.form.cronograma.push({ etapa: '', inicio: '', fim: '' }); this.formTab = 'crono'; this.formReRenderKeep(); },
+  removeEtapa(i) { this.harvest(); this.form.cronograma.splice(i, 1); this.formTab = 'crono'; this.formReRenderKeep(); },
+  formReRenderKeep() { document.getElementById('modal-body').innerHTML = this.formBody(); },
+
+  chPrefill(i) {
+    const ch = (document.getElementById('bl-ch-' + i) || {}).value;
+    const v = CH_VALOR[String(ch)];
+    const el = document.getElementById('bl-valor-' + i);
+    if (v != null && el) el.value = String(v);
+  },
+
+  updateTotal() {
+    const el = document.getElementById('f-total');
+    if (el) el.value = fmtMoney(parseMoney(val('f-custeio')) + parseMoney(val('f-capital')));
   },
 
   async save(id) {
+    this.harvest();
+    const f = this.form;
+    if (!f.numero || !f.titulo) { toast('Número e Título são obrigatórios.', 'error'); this.formTab = 'dados'; this.formReRenderKeep(); return; }
     const p = {
-      numero: val('f-numero'), ano: val('f-ano'), titulo: val('f-titulo'),
-      segmento: val('f-segmento'), agenciaFomento: val('f-agencia'),
-      fomento: val('f-fomento'), tipoInterno: val('f-tipo'), bolsas: val('f-bolsas'),
-      custeioCapital: val('f-custeio'), status: val('f-status'),
-      dataPublicacao: val('f-dpub'), inscricoesInicio: val('f-ini'),
-      inscricoesFim: val('f-fim'), dataResultado: val('f-resu'), link: val('f-link')
+      numero: f.numero, ano: f.ano, titulo: f.titulo, resumo: f.resumo, segmento: f.segmento,
+      categoria: f.categoria, tipoEdital: f.tipoEdital, regime: f.regime, link: f.link,
+      fomento: f.fomento, agenciaFomento: f.agenciaFomento, tipoFomento: f.tipoFomento,
+      custeio: parseMoney(f.custeio), capital: parseMoney(f.capital),
+      bolsa: f.bolsa, agenciaBolsa: f.agenciaBolsa,
+      bolsas: (f.bolsas || []).map(b => ({
+        segmento: b.segmento || '', tipo: b.tipo || '', ch: b.ch || '',
+        valor: parseMoney(b.valor), nBolsas: b.nBolsas || '', periodoMeses: b.periodoMeses || ''
+      })),
+      dataPublicacao: f.dataPublicacao, vigenciaInicio: f.vigenciaInicio, vigenciaFim: f.vigenciaFim,
+      cronograma: f.cronograma, statusManual: f.statusManual
     };
-    if (!p.numero || !p.titulo) { toast('Número e Título são obrigatórios.', 'error'); return; }
     setBusy(true);
     try {
       const res = id ? await API.updateEdital(id, p) : await API.addEdital(p);
       toast(id ? 'Edital atualizado.' : 'Edital criado.', 'success');
       closeModal();
       await this.reload();
-      // Ao criar um edital novo, já abre a janela de Documentos para anexar os PDFs.
       if (!id && res && res.id) this.openDocs(res.id);
     } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
   },

@@ -88,6 +88,18 @@ function optionsHtml(list, selected) {
   return list.map(o => `<option ${o === selected ? 'selected' : ''}>${esc(o)}</option>`).join('');
 }
 
+// Dinheiro: parse "1.234,56" → 1234.56; formata número → "R$ 1.234,56".
+function parseMoney(s) {
+  s = String(s == null ? '' : s).trim();
+  if (!s) return 0;
+  if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
+  return parseFloat(s) || 0;
+}
+function fmtMoney(n) {
+  const v = typeof n === 'number' ? n : parseMoney(n);
+  return 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 // Lê um arquivo como base64 (sem o prefixo data:).
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
