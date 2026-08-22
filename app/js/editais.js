@@ -228,7 +228,6 @@ const Editais = {
     let crono = `<h4 class="detail-sec">📅 Cronograma</h4>
       <div class="detail-grid">
         ${cell('Publicação', esc(this.dateVal(e.DataPublicacao) || '—'))}
-        ${cell('Vigência', (e.VigenciaInicio || e.VigenciaFim) ? `${esc(this.dateVal(e.VigenciaInicio) || '?')} – ${esc(this.dateVal(e.VigenciaFim) || '?')}` : '—')}
       </div>`;
     if ((e.cronograma || []).length) {
       crono += `<table class="mini-table"><thead><tr><th>Etapa</th><th>Período</th></tr></thead>
@@ -280,20 +279,19 @@ const Editais = {
     const rows = this.sortedFiltered().map(e => [
       e.Numero, e.Ano, e.Titulo, e.Segmento, e.Categoria, e.TipoEdital, e.Regime, e.Status,
       e.Fomento, e.AgenciaFomento, this._tfStr(e), e.Custeio, e.Capital, e.Total,
-      e.Bolsa, e.AgenciaBolsa, this.dateVal(e.DataPublicacao),
-      this.dateVal(e.VigenciaInicio), this.dateVal(e.VigenciaFim), e.LinkPublicacao
+      e.Bolsa, e.AgenciaBolsa, this.dateVal(e.DataPublicacao), e.LinkPublicacao
     ]);
     exportXLS(['Número', 'Ano', 'Título', 'Segmento', 'Categoria', 'Tipo de edital', 'Regime',
       'Status', 'Fomento', 'Agência fomento', 'Tipo fomento', 'Custeio', 'Capital', 'Total',
-      'Bolsa', 'Agência bolsa', 'Publicação', 'Vigência início', 'Vigência fim', 'Link'], rows, 'Editais');
+      'Bolsa', 'Agência bolsa', 'Publicação', 'Link'], rows, 'Editais');
   },
 
   exportPDF() {
     const rows = this.sortedFiltered().map(e => [
       e.Numero + '/' + e.Ano, e.Titulo, e.Segmento, e.TipoEdital,
-      this.dateVal(e.VigenciaInicio), this.dateVal(e.VigenciaFim), e.Status
+      this.dateVal(e.DataPublicacao), e.Status
     ]);
-    exportPDF('Editais — SGA', ['Nº/Ano', 'Título', 'Segmento', 'Tipo', 'Vig. início', 'Vig. fim', 'Status'], rows);
+    exportPDF('Editais — SGA', ['Nº/Ano', 'Título', 'Segmento', 'Tipo', 'Publicação', 'Status'], rows);
   },
 
   // ── Formulário (novo / editar) — 3 abas ─────────────────────
@@ -426,8 +424,7 @@ const Editais = {
       </div>
       <div class="fg"><label>Link da publicação</label><input class="input" id="f-link" placeholder="https://…" value="${esc(f.link || '')}"></div>
       <div class="fg"><label>Status</label><select class="input" id="f-statusmanual">
-          <option value="" ${!f.statusManual ? 'selected' : ''}>Automático (pela vigência)</option>
-          <option ${f.statusManual === 'Vigente' ? 'selected' : ''}>Vigente</option>
+          <option ${f.statusManual !== 'Encerrado' ? 'selected' : ''}>Vigente</option>
           <option ${f.statusManual === 'Encerrado' ? 'selected' : ''}>Encerrado</option>
         </select></div>
       ${nav('', nextBtn('recurso'))}
@@ -455,10 +452,6 @@ const Editais = {
 
     const crono = `<div class="ftab-sec" ${hide('crono')}>
       <div class="fg"><label>Data da publicação</label><input type="date" class="input" id="f-datapub" value="${esc(this.dateVal(f.dataPublicacao))}"></div>
-      <div class="form-grid">
-        <div class="fg"><label>Vigência — início</label><input type="date" class="input" id="f-vigini" value="${esc(this.dateVal(f.vigenciaInicio))}"></div>
-        <div class="fg"><label>Vigência — fim</label><input type="date" class="input" id="f-vigfim" value="${esc(this.dateVal(f.vigenciaFim))}"></div>
-      </div>
       <div class="line-label"><span>Etapas</span><button type="button" class="btn btn-ghost btn-xs" onclick="Editais.addEtapa()">+ adicionar</button></div>
       <div id="crono-lines">${(f.cronograma || []).map((c, i) => this._etapaRow(c, i)).join('') || '<p class="line-empty">Nenhuma etapa.</p>'}</div>
       ${nav(backBtn('recurso'), saveBtn)}
@@ -482,7 +475,7 @@ const Editais = {
     f.fomento = val('f-fomento'); f.agenciaFomento = val('f-agfomento');
     f.custeio = val('f-custeio'); f.capital = val('f-capital');
     f.bolsa = val('f-bolsa'); f.agenciaBolsa = val('f-agbolsa');
-    f.dataPublicacao = val('f-datapub'); f.vigenciaInicio = val('f-vigini'); f.vigenciaFim = val('f-vigfim');
+    f.dataPublicacao = val('f-datapub');
     const segs = f.segmento === 'Conjunto' ? SEGMENTOS_BASE : (SEGMENTOS_BASE.indexOf(f.segmento) >= 0 ? [f.segmento] : []);
     const tf = {};
     segs.forEach(s => { const el = document.getElementById('f-tipofom-' + s); if (el) tf[s] = el.value.trim(); });
@@ -530,7 +523,7 @@ const Editais = {
         segmento: b.segmento || '', tipo: b.tipo || '', ch: b.ch || '',
         valor: parseMoney(b.valor), nBolsas: b.nBolsas || '', periodoMeses: b.periodoMeses || ''
       })),
-      dataPublicacao: f.dataPublicacao, vigenciaInicio: f.vigenciaInicio, vigenciaFim: f.vigenciaFim,
+      dataPublicacao: f.dataPublicacao, vigenciaInicio: '', vigenciaFim: '',
       cronograma: f.cronograma, statusManual: f.statusManual
     };
     const wb = document.getElementById('wiz-save');

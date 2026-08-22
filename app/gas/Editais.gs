@@ -49,13 +49,9 @@ function _editalRow(id, p, criadoEm, criadoPor) {
   ];
 }
 
-// Status calculado: manual (se definido) ou pela vigência.
+// Status manual: Encerrado se marcado, senão Vigente.
 function _computeStatus(e) {
-  if (e.StatusManual === 'Vigente' || e.StatusManual === 'Encerrado') return e.StatusManual;
-  const fim = _dateStr(e.VigenciaFim);
-  if (!fim) return 'Vigente';
-  const hoje = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd');
-  return hoje <= fim ? 'Vigente' : 'Encerrado';
+  return e.StatusManual === 'Encerrado' ? 'Encerrado' : 'Vigente';
 }
 
 function _parseJson(v, fallback) {
