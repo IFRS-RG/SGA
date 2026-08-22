@@ -35,12 +35,11 @@ const SEGMENTOS_ACESSO = ['Todos', 'Ensino', 'Pesquisa', 'Extensão', 'Indissoci
 
 // Listas de edital.
 const CATEGORIA_EDITAL = ['Interno', 'Externo'];
-const TIPO_EDITAL = ['Fomento', 'Auxílio', 'Apoio', 'Registro', 'Seleção', 'Premiação',
-  'Credenciamento', 'Chamamento Público', 'Avaliação', 'Mobilidade', 'Concessão',
-  'Institucionalização', 'Emergencial'];
-const REGIME_EDITAL = ['Chamada única', 'Chamada periódica', 'Chamada anual', 'Fluxo contínuo',
-  'Fluxo contínuo permanente', 'Fluxo contínuo com prazo', 'Chamada extraordinária',
-  'Chamada emergencial'];
+// Tipo (finalidade) e Regime (modalidade de submissão). O form aceita "Outro" (texto livre).
+const TIPO_EDITAL = ['Fomento', 'Auxílio', 'Apoio', 'Registro', 'Seleção',
+  'Chamamento Público', 'Credenciamento', 'Premiação', 'Concessão'];
+const REGIME_EDITAL = ['Chamada única', 'Chamada periódica', 'Fluxo contínuo',
+  'Fluxo contínuo permanente', 'Emergencial / Extraordinária'];
 
 // Tipos de fomento/auxílio por segmento (o form também aceita "Outro" via texto livre).
 const TIPO_FOMENTO = {

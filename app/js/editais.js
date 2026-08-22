@@ -345,12 +345,15 @@ const Editais = {
   _segKey(s) { return { 'Ensino': 'ens', 'Pesquisa': 'pes', 'Extensão': 'ext', 'Indissociável': 'ind' }[s] || 'x'; },
 
   _datalists() {
-    return SEGMENTOS_BASE.map(s => {
+    const segLists = SEGMENTOS_BASE.map(s => {
       const k = this._segKey(s);
       const fom = (TIPO_FOMENTO[s] || []).map(o => `<option value="${esc(o)}">`).join('');
       const bol = (TIPO_BOLSA[s] || []).map(o => `<option value="${esc(o)}">`).join('');
       return `<datalist id="dl-fom-${k}">${fom}</datalist><datalist id="dl-bol-${k}">${bol}</datalist>`;
     }).join('');
+    const te = TIPO_EDITAL.map(o => `<option value="${esc(o)}">`).join('');
+    const rg = REGIME_EDITAL.map(o => `<option value="${esc(o)}">`).join('');
+    return segLists + `<datalist id="dl-tipoedital">${te}</datalist><datalist id="dl-regime">${rg}</datalist>`;
   },
 
   _fomentoTipoFields() {
@@ -417,8 +420,8 @@ const Editais = {
         <div class="fg"><label>Categoria</label><select class="input" id="f-categoria">${opt(CATEGORIA_EDITAL, f.categoria)}</select></div>
       </div>
       <div class="form-grid">
-        <div class="fg"><label>Tipo de edital</label><select class="input" id="f-tipoedital"><option value="">—</option>${opt(TIPO_EDITAL, f.tipoEdital)}</select></div>
-        <div class="fg"><label>Regime</label><select class="input" id="f-regime"><option value="">—</option>${opt(REGIME_EDITAL, f.regime)}</select></div>
+        <div class="fg"><label>Tipo de edital</label><input class="input" id="f-tipoedital" list="dl-tipoedital" value="${esc(f.tipoEdital || '')}" placeholder="Fomento, Seleção… ou outro"></div>
+        <div class="fg"><label>Regime</label><input class="input" id="f-regime" list="dl-regime" value="${esc(f.regime || '')}" placeholder="Chamada única, Fluxo contínuo… ou outro"></div>
       </div>
       <div class="fg"><label>Link da publicação</label><input class="input" id="f-link" placeholder="https://…" value="${esc(f.link || '')}"></div>
       <div class="fg"><label>Status</label><select class="input" id="f-statusmanual">
