@@ -316,9 +316,20 @@ const Editais = {
       cronograma: [], statusManual: ''
     };
     this.formEditalId = id || null;
+    this._formMinH = 0;
     openModal(id ? 'Editar edital' : 'Novo edital', this.formBody(),
-      async () => { await this.save(id); }, { confirmLabel: id ? 'Salvar' : 'Criar' });
+      async () => { await this.save(); }, { confirmLabel: id ? 'Salvar' : 'Criar' });
     this.afterRender();
+    this._measureForm();
+  },
+
+  // Fixa a altura do corpo do form pela aba Dados (ativa ao abrir), p/ não variar entre abas.
+  _measureForm() {
+    const sec = document.querySelector('#ftab-body .ftab-sec');
+    if (!sec) return;
+    this._formMinH = sec.offsetHeight;
+    const b = document.getElementById('ftab-body');
+    if (b) b.style.minHeight = this._formMinH + 'px';
   },
 
   // Após (re)renderizar o corpo do form: se a aba ativa for Documentos, carrega os PDFs.
@@ -445,9 +456,10 @@ const Editais = {
     </div>`;
 
     const docs = `<div class="ftab-sec" ${hide('docs')}><div id="docs-tab-body"></div></div>`;
+    const minH = this._formMinH ? ` style="min-height:${this._formMinH}px"` : '';
 
     return `<div class="ftabs">${tab('dados', '📋 Dados')}${tab('recurso', '💰 Recurso')}${tab('crono', '📅 Cronograma')}${tab('docs', '📎 Documentos')}</div>
-      ${dados}${recurso}${crono}${docs}${this._datalists()}`;
+      <div id="ftab-body"${minH}>${dados}${recurso}${crono}${docs}</div>${this._datalists()}`;
   },
 
   switchTab(t) { this.harvest(); this.formTab = t; document.getElementById('modal-body').innerHTML = this.formBody(); this.afterRender(); },
@@ -494,7 +506,8 @@ const Editais = {
     if (el) el.value = fmtMoney(parseMoney(val('f-custeio')) + parseMoney(val('f-capital')));
   },
 
-  async save(id) {
+  async save() {
+    const id = this.formEditalId;
     this.harvest();
     const f = this.form;
     if (!f.numero || !f.titulo) { toast('Número e Título são obrigatórios.', 'error'); this.formTab = 'dados'; this.formReRenderKeep(); return; }
@@ -514,10 +527,21 @@ const Editais = {
     setBusy(true);
     try {
       const res = id ? await API.updateEdital(id, p) : await API.addEdital(p);
-      toast(id ? 'Edital atualizado.' : 'Edital criado.', 'success');
-      closeModal();
-      await this.reload();
-      if (!id && res && res.id) this.openDocs(res.id);
+      if (id) {
+        toast('Edital atualizado.', 'success');
+        closeModal();
+        await this.reload();
+      } else {
+        // Criado: sem fechar a janela — vira modo edição e vai pra aba Documentos.
+        toast('Edital criado. Anexe os documentos.', 'success');
+        this.formEditalId = res.id;
+        document.getElementById('modal-title').textContent = 'Editar edital';
+        const btn = document.getElementById('modal-confirm');
+        if (btn) { btn.textContent = 'Salvar'; btn.dataset.label = 'Salvar'; }
+        this.formTab = 'docs';
+        this.formReRenderKeep();
+        await this.reload();
+      }
     } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
   },
 
