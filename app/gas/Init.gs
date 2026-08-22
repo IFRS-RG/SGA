@@ -39,3 +39,12 @@ function initSheets() {
   Logger.log('initSheets: abas criadas/verificadas com sucesso.');
   return 'OK — abas prontas.';
 }
+
+// Diagnóstico: confirma se o serviço avançado "Drive" está ativo e autorizado.
+// Rode uma vez no editor. Esperado no log: "Drive OK — ...".
+function testeDrive() {
+  var res = Drive.Files.list({ q: 'trashed=false', maxResults: 1 });
+  var msg = 'Drive OK — serviço avançado ativo (itens de amostra: ' + ((res.items || []).length) + ').';
+  Logger.log(msg);
+  return msg;
+}
