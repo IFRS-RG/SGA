@@ -68,8 +68,8 @@ const COL = {
     ID: 0, Numero: 1, Ano: 2, Titulo: 3, Resumo: 4, Segmento: 5, Categoria: 6,
     TipoEdital: 7, Regime: 8, LinkPublicacao: 9, Fomento: 10, AgenciaFomento: 11,
     TipoFomentoJSON: 12, Custeio: 13, Capital: 14, Total: 15, Bolsa: 16,
-    AgenciaBolsa: 17, BolsasJSON: 18, DataPublicacao: 19, VigenciaInicio: 20,
-    VigenciaFim: 21, CronogramaJSON: 22, StatusManual: 23, CriadoEm: 24, CriadoPor: 25
+    AgenciaBolsa: 17, BolsasJSON: 18, DataPublicacao: 19, CronogramaJSON: 20,
+    StatusManual: 21, CriadoEm: 22, CriadoPor: 23
   },
   EditalDocumentos: {
     ID: 0, EditalID: 1, Tipo: 2, NomeArquivo: 3, DriveFileId: 4, DriveUrl: 5,
@@ -84,8 +84,8 @@ const HEADERS = {
   Editais: ['ID', 'Numero', 'Ano', 'Titulo', 'Resumo', 'Segmento', 'Categoria',
             'TipoEdital', 'Regime', 'LinkPublicacao', 'Fomento', 'AgenciaFomento',
             'TipoFomentoJSON', 'Custeio', 'Capital', 'Total', 'Bolsa', 'AgenciaBolsa',
-            'BolsasJSON', 'DataPublicacao', 'VigenciaInicio', 'VigenciaFim',
-            'CronogramaJSON', 'StatusManual', 'CriadoEm', 'CriadoPor'],
+            'BolsasJSON', 'DataPublicacao', 'CronogramaJSON', 'StatusManual',
+            'CriadoEm', 'CriadoPor'],
   EditalDocumentos: ['ID', 'EditalID', 'Tipo', 'NomeArquivo', 'DriveFileId',
                      'DriveUrl', 'DataUpload', 'EnviadoPor'],
   Perfis: ['Email', 'Nome', 'Perfil', 'Segmento', 'Status', 'AtualizadoEm', 'AtualizadoPor']

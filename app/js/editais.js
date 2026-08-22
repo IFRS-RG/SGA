@@ -304,14 +304,12 @@ const Editais = {
       fomento: e.Fomento, agenciaFomento: e.AgenciaFomento, tipoFomento: e.tipoFomento || {},
       custeio: e.Custeio, capital: e.Capital, bolsa: e.Bolsa, agenciaBolsa: e.AgenciaBolsa,
       bolsas: (e.bolsas || []).slice(), dataPublicacao: e.DataPublicacao,
-      vigenciaInicio: e.VigenciaInicio, vigenciaFim: e.VigenciaFim,
       cronograma: (e.cronograma || []).slice(), statusManual: e.StatusManual
     } : {
       numero: '', ano: new Date().getFullYear(), titulo: '', resumo: '', segmento: '',
       categoria: 'Interno', tipoEdital: '', regime: '', link: '', fomento: 'Não',
       agenciaFomento: '', tipoFomento: {}, custeio: '', capital: '', bolsa: 'Não',
-      agenciaBolsa: '', bolsas: [], dataPublicacao: '', vigenciaInicio: '', vigenciaFim: '',
-      cronograma: [], statusManual: ''
+      agenciaBolsa: '', bolsas: [], dataPublicacao: '', cronograma: [], statusManual: ''
     };
     this.formEditalId = id || null;
     this._formMinH = 0;
@@ -523,8 +521,7 @@ const Editais = {
         segmento: b.segmento || '', tipo: b.tipo || '', ch: b.ch || '',
         valor: parseMoney(b.valor), nBolsas: b.nBolsas || '', periodoMeses: b.periodoMeses || ''
       })),
-      dataPublicacao: f.dataPublicacao, vigenciaInicio: '', vigenciaFim: '',
-      cronograma: f.cronograma, statusManual: f.statusManual
+      dataPublicacao: f.dataPublicacao, cronograma: f.cronograma, statusManual: f.statusManual
     };
     const wb = document.getElementById('wiz-save');
     if (wb) { wb.disabled = true; wb.textContent = 'Salvando…'; }
