@@ -315,8 +315,24 @@ const Editais = {
       agenciaBolsa: '', bolsas: [], dataPublicacao: '', vigenciaInicio: '', vigenciaFim: '',
       cronograma: [], statusManual: ''
     };
+    this.formEditalId = id || null;
     openModal(id ? 'Editar edital' : 'Novo edital', this.formBody(),
       async () => { await this.save(id); }, { confirmLabel: id ? 'Salvar' : 'Criar' });
+    this.afterRender();
+  },
+
+  // Após (re)renderizar o corpo do form: se a aba ativa for Documentos, carrega os PDFs.
+  afterRender() {
+    if (this.formTab !== 'docs') return;
+    const box = document.getElementById('docs-tab-body');
+    if (!box) return;
+    if (!this.formEditalId) {
+      box.innerHTML = emptyState('Salve o edital primeiro para anexar documentos. ' +
+        'Ao criar, a janela de documentos abre automaticamente.');
+      return;
+    }
+    this._docsTarget = 'docs-tab-body';
+    this.renderDocs(this.formEditalId);
   },
 
   _segKey(s) { return { 'Ensino': 'ens', 'Pesquisa': 'pes', 'Extensão': 'ext', 'Indissociável': 'ind' }[s] || 'x'; },
@@ -428,12 +444,14 @@ const Editais = {
       <div id="crono-lines">${(f.cronograma || []).map((c, i) => this._etapaRow(c, i)).join('') || '<p class="line-empty">Nenhuma etapa.</p>'}</div>
     </div>`;
 
-    return `<div class="ftabs">${tab('dados', '📋 Dados')}${tab('recurso', '💰 Recurso')}${tab('crono', '📅 Cronograma')}</div>
-      ${dados}${recurso}${crono}${this._datalists()}`;
+    const docs = `<div class="ftab-sec" ${hide('docs')}><div id="docs-tab-body"></div></div>`;
+
+    return `<div class="ftabs">${tab('dados', '📋 Dados')}${tab('recurso', '💰 Recurso')}${tab('crono', '📅 Cronograma')}${tab('docs', '📎 Documentos')}</div>
+      ${dados}${recurso}${crono}${docs}${this._datalists()}`;
   },
 
-  switchTab(t) { this.harvest(); this.formTab = t; document.getElementById('modal-body').innerHTML = this.formBody(); },
-  formReRender() { this.harvest(); document.getElementById('modal-body').innerHTML = this.formBody(); },
+  switchTab(t) { this.harvest(); this.formTab = t; document.getElementById('modal-body').innerHTML = this.formBody(); this.afterRender(); },
+  formReRender() { this.harvest(); document.getElementById('modal-body').innerHTML = this.formBody(); this.afterRender(); },
 
   harvest() {
     const f = this.form;
@@ -462,7 +480,7 @@ const Editais = {
   removeBolsa(i) { this.harvest(); this.form.bolsas.splice(i, 1); this.formTab = 'recurso'; this.formReRenderKeep(); },
   addEtapa() { this.harvest(); this.form.cronograma.push({ etapa: '', inicio: '', fim: '' }); this.formTab = 'crono'; this.formReRenderKeep(); },
   removeEtapa(i) { this.harvest(); this.form.cronograma.splice(i, 1); this.formTab = 'crono'; this.formReRenderKeep(); },
-  formReRenderKeep() { document.getElementById('modal-body').innerHTML = this.formBody(); },
+  formReRenderKeep() { document.getElementById('modal-body').innerHTML = this.formBody(); this.afterRender(); },
 
   chPrefill(i) {
     const ch = (document.getElementById('bl-ch-' + i) || {}).value;
@@ -526,6 +544,7 @@ const Editais = {
   // ── Documentos PDF ──────────────────────────────────────────
   async openDocs(id) {
     const e = this.data.find(x => x.ID === id);
+    this._docsTarget = 'modal-body';
     openModal('Documentos — ' + (e ? e.Numero + '/' + e.Ano : ''),
       '<div class="loading-page"><div class="spinner"></div></div>', null,
       { hideFooter: true });
@@ -533,9 +552,11 @@ const Editais = {
   },
 
   async renderDocs(id) {
+    const target = this._docsTarget || 'modal-body';
+    const box = () => document.getElementById(target);
     let docs = [];
     try { docs = await API.getEditalDocs(id) || []; }
-    catch (e) { document.getElementById('modal-body').innerHTML = emptyState('Erro: ' + e.message); return; }
+    catch (e) { if (box()) box().innerHTML = emptyState('Erro: ' + e.message); return; }
 
     const w = this.canWrite();
     this._docs = docs;  // usado por renameDoc para achar o nome atual
@@ -566,7 +587,7 @@ const Editais = {
           </li>`).join('')}
       </ul>` : emptyState('Nenhum documento enviado ainda.');
 
-    document.getElementById('modal-body').innerHTML = uploader + list;
+    if (box()) box().innerHTML = uploader + list;
   },
 
   tipoClass(t) {
@@ -606,32 +627,27 @@ const Editais = {
   },
 
   async deleteDoc(docId, editalId) {
-    confirmDialog('Remover documento', 'Remover este PDF? O arquivo será enviado para a lixeira do Drive.',
-      async () => {
-        try {
-          await API.deleteEditalDoc(docId);
-          toast('Documento removido.', 'success');
-          await this.openDocs(editalId);
-          await this.reload();
-        } catch (e) { toast(e.message, 'error'); }
-      }, 'Remover');
+    // Diálogo nativo p/ não colidir com o modal (funciona no modal e na aba do form).
+    if (!window.confirm('Remover este PDF? O arquivo será enviado para a lixeira do Drive.')) return;
+    try {
+      await API.deleteEditalDoc(docId);
+      toast('Documento removido.', 'success');
+      await this.renderDocs(editalId);
+      await this.reload();
+    } catch (e) { toast(e.message, 'error'); }
   },
 
-  renameDoc(docId, editalId) {
+  async renameDoc(docId, editalId) {
     const d = (this._docs || []).find(x => String(x.ID) === String(docId));
     const atual = d ? String(d.NomeArquivo || '').replace(/\.pdf$/i, '') : '';
-    openModal('Renomear documento',
-      `<div class="fg"><label>Novo nome</label><input class="input" id="rn-nome" value="${esc(atual)}"></div>`,
-      async () => {
-        const novo = val('rn-nome');
-        if (!novo) { toast('Informe um nome.', 'error'); return; }
-        setBusy(true);
-        try {
-          await API.renameEditalDoc(docId, novo);
-          toast('Documento renomeado.', 'success');
-          await this.openDocs(editalId);
-        } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
-      }, { confirmLabel: 'Renomear' });
+    const novo = window.prompt('Novo nome do documento:', atual);
+    if (novo == null) return;
+    if (!novo.trim()) { toast('Informe um nome.', 'error'); return; }
+    try {
+      await API.renameEditalDoc(docId, novo);
+      toast('Documento renomeado.', 'success');
+      await this.renderDocs(editalId);
+    } catch (e) { toast(e.message, 'error'); }
   }
 };
 
