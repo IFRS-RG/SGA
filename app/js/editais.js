@@ -318,7 +318,7 @@ const Editais = {
     this.formEditalId = id || null;
     this._formMinH = 0;
     openModal(id ? 'Editar edital' : 'Novo edital', this.formBody(),
-      async () => { await this.save(); }, { confirmLabel: id ? 'Salvar' : 'Criar' });
+      null, { hideFooter: true });   // navegação/salvar ficam nos botões das abas
     this.afterRender();
     this._measureForm();
   },
@@ -402,6 +402,12 @@ const Editais = {
     const tab = (id, label) => `<button type="button" class="ftab ${this.formTab === id ? 'active' : ''}" onclick="Editais.switchTab('${id}')">${label}</button>`;
     const hide = (id) => this.formTab === id ? '' : 'style="display:none"';
     const opt = (list, sel) => list.map(o => `<option ${sel === o ? 'selected' : ''}>${esc(o)}</option>`).join('');
+    // Navegação estilo assistente.
+    const backBtn = (t) => `<button type="button" class="btn btn-ghost" onclick="Editais.switchTab('${t}')">← Voltar</button>`;
+    const nextBtn = (t) => `<button type="button" class="btn btn-primary" onclick="Editais.switchTab('${t}')">Avançar →</button>`;
+    const saveBtn = `<button type="button" id="wiz-save" class="btn btn-primary" onclick="Editais.save()">${this.formEditalId ? 'Salvar' : 'Criar edital'}</button>`;
+    const doneBtn = `<button type="button" class="btn btn-primary" onclick="closeModal()">Concluir</button>`;
+    const nav = (left, right) => `<div class="ftab-nav">${left || '<span></span>'}${right}</div>`;
 
     const dados = `<div class="ftab-sec" ${hide('dados')}>
       <div class="form-grid">
@@ -424,6 +430,7 @@ const Editais = {
           <option ${f.statusManual === 'Vigente' ? 'selected' : ''}>Vigente</option>
           <option ${f.statusManual === 'Encerrado' ? 'selected' : ''}>Encerrado</option>
         </select></div>
+      ${nav('', nextBtn('recurso'))}
     </div>`;
 
     const recurso = `<div class="ftab-sec" ${hide('recurso')}>
@@ -443,6 +450,7 @@ const Editais = {
           <div id="bolsa-lines">${(f.bolsas || []).map((b, i) => this._bolsaRow(b, i)).join('') || '<p class="line-empty">Nenhuma linha.</p>'}</div>
         </div>
       </div>
+      ${nav(backBtn('dados'), nextBtn('crono'))}
     </div>`;
 
     const crono = `<div class="ftab-sec" ${hide('crono')}>
@@ -453,9 +461,10 @@ const Editais = {
       </div>
       <div class="line-label"><span>Etapas</span><button type="button" class="btn btn-ghost btn-xs" onclick="Editais.addEtapa()">+ adicionar</button></div>
       <div id="crono-lines">${(f.cronograma || []).map((c, i) => this._etapaRow(c, i)).join('') || '<p class="line-empty">Nenhuma etapa.</p>'}</div>
+      ${nav(backBtn('recurso'), saveBtn)}
     </div>`;
 
-    const docs = `<div class="ftab-sec" ${hide('docs')}><div id="docs-tab-body"></div></div>`;
+    const docs = `<div class="ftab-sec" ${hide('docs')}><div id="docs-tab-body"></div>${nav(backBtn('crono'), doneBtn)}</div>`;
     const minH = this._formMinH ? ` style="min-height:${this._formMinH}px"` : '';
 
     return `<div class="ftabs">${tab('dados', '📋 Dados')}${tab('recurso', '💰 Recurso')}${tab('crono', '📅 Cronograma')}${tab('docs', '📎 Documentos')}</div>
@@ -510,7 +519,7 @@ const Editais = {
     const id = this.formEditalId;
     this.harvest();
     const f = this.form;
-    if (!f.numero || !f.titulo) { toast('Número e Título são obrigatórios.', 'error'); this.formTab = 'dados'; this.formReRenderKeep(); return; }
+    if (!f.numero || !f.titulo) { toast('Número e Título são obrigatórios (aba Dados).', 'error'); this.switchTab('dados'); return; }
     const p = {
       numero: f.numero, ano: f.ano, titulo: f.titulo, resumo: f.resumo, segmento: f.segmento,
       categoria: f.categoria, tipoEdital: f.tipoEdital, regime: f.regime, link: f.link,
@@ -524,7 +533,8 @@ const Editais = {
       dataPublicacao: f.dataPublicacao, vigenciaInicio: f.vigenciaInicio, vigenciaFim: f.vigenciaFim,
       cronograma: f.cronograma, statusManual: f.statusManual
     };
-    setBusy(true);
+    const wb = document.getElementById('wiz-save');
+    if (wb) { wb.disabled = true; wb.textContent = 'Salvando…'; }
     try {
       const res = id ? await API.updateEdital(id, p) : await API.addEdital(p);
       if (id) {
@@ -536,13 +546,14 @@ const Editais = {
         toast('Edital criado. Anexe os documentos.', 'success');
         this.formEditalId = res.id;
         document.getElementById('modal-title').textContent = 'Editar edital';
-        const btn = document.getElementById('modal-confirm');
-        if (btn) { btn.textContent = 'Salvar'; btn.dataset.label = 'Salvar'; }
         this.formTab = 'docs';
         this.formReRenderKeep();
         await this.reload();
       }
-    } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
+    } catch (e) {
+      toast(e.message, 'error');
+      if (wb) { wb.disabled = false; wb.textContent = id ? 'Salvar' : 'Criar edital'; }
+    }
   },
 
   async clone(id) {
