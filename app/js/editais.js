@@ -256,7 +256,7 @@ const Editais = {
         ${cell('Número', esc(e.Numero || '—'))}
         ${cell('Ano', esc(e.Ano || '—'))}
         ${cell('Segmento', esc(e.Segmento || '—'))}
-        ${cell('Categoria', esc(e.Categoria || '—'))}
+        ${cell('Origem', esc(e.Categoria || '—'))}
         ${cell('Tipo de edital', esc(e.TipoEdital || '—'))}
         ${cell('Regime', esc(e.Regime || '—'))}
         ${cell('Fomento/Auxílio', esc(e.Fomento || 'Não'))}
@@ -296,7 +296,7 @@ const Editais = {
       e.Fomento, e.AgenciaFomento, this._tfStr(e), e.Custeio, e.Capital, e.Total,
       e.Bolsa, e.AgenciaBolsa, this.dateVal(e.DataPublicacao), e.LinkPublicacao
     ]);
-    exportXLS(['Número', 'Ano', 'Título', 'Segmento', 'Categoria', 'Tipo de edital', 'Regime',
+    exportXLS(['Número', 'Ano', 'Título', 'Segmento', 'Origem', 'Tipo de edital', 'Regime',
       'Status', 'Fomento', 'Agência fomento', 'Tipo fomento', 'Custeio', 'Capital', 'Total',
       'Bolsa', 'Agência bolsa', 'Publicação', 'Link'], rows, 'Editais');
   },
@@ -444,7 +444,7 @@ const Editais = {
       <div class="fg"><label>Resumo</label><textarea class="input" id="f-resumo" rows="3">${esc(f.resumo || '')}</textarea></div>
       <div class="form-grid">
         <div class="fg"><label>*Segmento</label><select class="input" id="f-segmento" onchange="Editais.formReRender()"><option value="">—</option>${opt(SEGMENTOS, f.segmento)}</select></div>
-        <div class="fg"><label>Categoria</label><input class="input" id="f-categoria" list="dl-categoria" value="${esc(f.categoria || '')}" placeholder="IFRS-RG, PROEN… ou outro"></div>
+        <div class="fg"><label>Origem</label><input class="input" id="f-categoria" list="dl-categoria" value="${esc(f.categoria || '')}" placeholder="IFRS-RG, PROEN… ou outro"></div>
       </div>
       <div class="form-grid">
         <div class="fg"><label>Tipo de edital</label><input class="input" id="f-tipoedital" list="dl-tipoedital" value="${esc(f.tipoEdital || '')}" placeholder="Fomento, Seleção… ou outro"></div>
