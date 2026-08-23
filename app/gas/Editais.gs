@@ -112,10 +112,22 @@ function deleteEdital(id, email) {
   requirePerfil(email, EDITAL_WRITERS);
   const idx = findRowIndex('Editais', id);
   if (idx === -1) throw new Error('Edital não encontrado.');
-  const edital = sheetRows('Editais').find(e => String(e.ID) === String(id));
-  if (edital) _removeEditalPlacement(edital);
+  const editais = sheetRows('Editais');
+  const edital = editais.find(e => String(e.ID) === String(id));
+
+  // Bloqueia se houver sub-editais vinculados a este.
+  const filhos = editais.filter(e => _parseJson(e.EditaisPaiJSON, []).map(String).indexOf(String(id)) >= 0);
+  if (filhos.length) {
+    throw new Error('Este edital tem sub-edital(is) vinculado(s): ' + filhos.map(_editalLabel).join(', ') +
+      '. Desvincule ou exclua o(s) filho(s) primeiro.');
+  }
+
+  if (edital) {
+    _removeEditalPlacement(edital);   // remove atalhos nos pais (caso Conjunto)
+    try { _editalHomeFolder(edital, edital.Ano).setTrashed(true); } catch (e) {}   // pasta → lixeira
+  }
   getSheet('Editais').deleteRow(idx);
-  // Remove também os documentos vinculados (linhas da aba + arquivos do Drive).
+  // Fallback: manda os PDFs pra lixeira também (caso a pasta não tenha sido apagada) + limpa a aba.
   const docs = sheetRows('EditalDocumentos').filter(d => String(d.EditalID) === String(id));
   docs.forEach(d => { try { _deleteDocFile(d.DriveFileId); } catch (e) {} });
   _removeDocsRows(id);

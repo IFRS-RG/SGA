@@ -599,7 +599,7 @@ const Editais = {
   async remove(id) {
     const e = this.data.find(x => x.ID === id);
     confirmDialog('Excluir edital',
-      `Excluir "${e ? e.Titulo : id}"? Os documentos PDF vinculados também serão removidos. Esta ação não pode ser desfeita.`,
+      `Excluir "${e ? e.Titulo : id}"? O edital, seus documentos e a pasta dele no Drive serão removidos (a pasta vai para a lixeira). Se houver sub-editais vinculados, a exclusão é bloqueada. Esta ação não pode ser desfeita.`,
       async () => {
         try { await API.deleteEdital(id); toast('Edital excluído.', 'success'); await this.reload(); }
         catch (e) { toast(e.message, 'error'); }
