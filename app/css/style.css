@@ -150,9 +150,8 @@ a { color: var(--brand-light); }
 .mini-table td { padding: 5px 8px; border-top: 1px solid var(--border); }
 
 /* Formulário em abas */
-.ftabs { display: flex; gap: 6px; position: sticky; top: 0; z-index: 20; background: var(--surface);
-  margin: -20px -22px 16px; padding: 12px 22px 0; border-bottom: 1px solid var(--border);
-  box-shadow: 0 3px 6px rgba(16,24,40,.06); }
+.ftabs { display: flex; gap: 6px; margin: 0 0 12px; border-bottom: 1px solid var(--border); flex: 0 0 auto; }
+#ftab-body { overflow-y: auto; overflow-x: hidden; max-height: 62vh; padding-right: 4px; }
 .recurso-box { margin-bottom: 16px; }
 .ftab { background: none; border: 0; border-bottom: 2px solid transparent; padding: 9px 12px; cursor: pointer; font-size: 14px; color: var(--text-muted); font-family: inherit; }
 .ftab:hover { color: var(--brand); }

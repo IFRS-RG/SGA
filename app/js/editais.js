@@ -341,7 +341,7 @@ const Editais = {
     if (!sec) return;
     this._formMinH = sec.offsetHeight;
     const b = document.getElementById('ftab-body');
-    if (b) b.style.minHeight = this._formMinH + 'px';
+    if (b) b.style.height = this._formMinH + 'px';
   },
 
   // Após (re)renderizar o corpo do form: se a aba ativa for Documentos, carrega os PDFs.
@@ -503,7 +503,7 @@ const Editais = {
     </div>`;
 
     const docs = `<div class="ftab-sec" ${hide('docs')}><div id="docs-tab-body"></div>${nav(backBtn('crono'), doneBtn)}</div>`;
-    const minH = this._formMinH ? ` style="min-height:${this._formMinH}px"` : '';
+    const minH = this._formMinH ? ` style="height:${this._formMinH}px"` : '';
 
     return `<div class="ftabs">${tab('dados', '📋 Dados')}${tab('recurso', '💰 Recurso')}${tab('crono', '📅 Cronograma')}${tab('docs', '📎 Documentos')}</div>
       <div id="ftab-body"${minH}>${dados}${recurso}${crono}${docs}</div>${this._datalists()}`;
