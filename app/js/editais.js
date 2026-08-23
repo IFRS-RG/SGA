@@ -323,7 +323,7 @@ const Editais = {
       statusManual: e.StatusManual
     } : {
       numero: '', ano: new Date().getFullYear(), titulo: '', resumo: '', segmento: '',
-      categoria: 'Interno', tipoEdital: '', regime: '', link: '', fomento: 'Não',
+      categoria: '', tipoEdital: '', regime: '', link: '', fomento: 'Não',
       agenciaFomento: '', tipoFomento: {}, custeio: '', capital: '', bolsa: 'Não',
       agenciaBolsa: '', bolsas: [], dataPublicacao: '', cronograma: [], editaisPai: [], statusManual: ''
     };
@@ -369,7 +369,8 @@ const Editais = {
     }).join('');
     const te = TIPO_EDITAL.map(o => `<option value="${esc(o)}">`).join('');
     const rg = REGIME_EDITAL.map(o => `<option value="${esc(o)}">`).join('');
-    return segLists + `<datalist id="dl-tipoedital">${te}</datalist><datalist id="dl-regime">${rg}</datalist>`;
+    const ca = CATEGORIA_EDITAL.map(o => `<option value="${esc(o)}">`).join('');
+    return segLists + `<datalist id="dl-tipoedital">${te}</datalist><datalist id="dl-regime">${rg}</datalist><datalist id="dl-categoria">${ca}</datalist>`;
   },
 
   _fomentoTipoFields() {
@@ -443,7 +444,7 @@ const Editais = {
       <div class="fg"><label>Resumo</label><textarea class="input" id="f-resumo" rows="3">${esc(f.resumo || '')}</textarea></div>
       <div class="form-grid">
         <div class="fg"><label>*Segmento</label><select class="input" id="f-segmento" onchange="Editais.formReRender()"><option value="">—</option>${opt(SEGMENTOS, f.segmento)}</select></div>
-        <div class="fg"><label>Categoria</label><select class="input" id="f-categoria">${opt(CATEGORIA_EDITAL, f.categoria)}</select></div>
+        <div class="fg"><label>Categoria</label><input class="input" id="f-categoria" list="dl-categoria" value="${esc(f.categoria || '')}" placeholder="IFRS-RG, PROEN… ou outro"></div>
       </div>
       <div class="form-grid">
         <div class="fg"><label>Tipo de edital</label><input class="input" id="f-tipoedital" list="dl-tipoedital" value="${esc(f.tipoEdital || '')}" placeholder="Fomento, Seleção… ou outro"></div>

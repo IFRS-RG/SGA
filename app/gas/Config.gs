@@ -34,7 +34,7 @@ const SEGMENTOS_BASE = ['Ensino', 'Pesquisa', 'Extensão', 'Indissociável'];
 const SEGMENTOS_ACESSO = ['Todos', 'Ensino', 'Pesquisa', 'Extensão', 'Indissociável'];
 
 // Listas de edital.
-const CATEGORIA_EDITAL = ['Interno', 'Externo'];
+const CATEGORIA_EDITAL = ['IFRS-RG', 'PROEN', 'PROEX', 'PROPPI'];
 // Tipo (finalidade) e Regime (modalidade de submissão). O form aceita "Outro" (texto livre).
 const TIPO_EDITAL = ['Fomento', 'Auxílio', 'Apoio', 'Registro', 'Seleção',
   'Chamamento Público', 'Credenciamento', 'Premiação', 'Concessão'];

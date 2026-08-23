@@ -26,7 +26,7 @@ function _editalRow(id, p, criadoEm, criadoPor) {
     p.titulo || '',
     p.resumo || '',
     p.segmento || '',
-    p.categoria || 'Interno',
+    p.categoria || '',
     p.tipoEdital || '',
     p.regime || '',
     p.link || '',
