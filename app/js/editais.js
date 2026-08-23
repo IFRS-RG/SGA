@@ -76,6 +76,7 @@ const Editais = {
     const v = (e) => {
       switch (key) {
         case 'numAno':   return (Number(e.Ano) || 0) * 100000 + (Number(e.Numero) || 0);
+        case 'origem':   return String(e.Origem || '').toLowerCase();
         case 'titulo':   return String(e.Titulo || '').toLowerCase();
         case 'segmento': return String(e.Segmento || '').toLowerCase();
         case 'status':   return String(e.Status || '').toLowerCase();
@@ -122,6 +123,7 @@ const Editais = {
       <div class="table-wrap menus">
         <table class="data-table">
           <thead><tr>
+            ${this.th('origem', 'Origem')}
             ${this.th('numAno', 'Nº / Ano')}
             ${this.th('titulo', 'Título')}
             ${this.th('segmento', 'Segmento')}
@@ -172,6 +174,7 @@ const Editais = {
     const badge = this.statusBadge(e);
     const w = this.canWrite();
     return `<tr>
+      <td>${e.Origem ? esc(e.Origem) : '—'}</td>
       <td><strong>${esc(e.Numero || '—')}</strong><span class="cell-sub">/${esc(e.Ano || '')}</span></td>
       <td>${(e.editaisPai || []).length ? '<span class="link-chip" title="Edital vinculado (filho)">↳ vinculado</span> ' : ''}${esc(e.Titulo || '')}</td>
       <td>${esc(e.Segmento || '—')}</td>
