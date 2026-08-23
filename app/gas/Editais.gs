@@ -180,8 +180,9 @@ function getEditalFolderUrl(editalId) {
 function _editalLabel(e) {
   return ((e.Numero || '') + '-' + (e.Ano || '') + ' ' + (e.Titulo || '')).trim();
 }
-function _vinculadosFolder(edital) {
-  return _childFolder(_editalFolder(_editalLabel(edital), edital.Ano, edital.Segmento), 'Vinculados');
+// Pasta do pai onde o atalho do filho é colocado (direto na pasta do edital pai).
+function _linkTargetFolder(edital) {
+  return _editalFolder(_editalLabel(edital), edital.Ano, edital.Segmento);
 }
 function _findShortcuts(folderId, targetId) {
   try {
@@ -204,17 +205,17 @@ function _syncEditalShortcuts(childId, oldParentIds) {
     if (!newParents.length && !oldParentIds.length) return;
 
     const childFolderId = _editalFolder(_editalLabel(child), child.Ano, child.Segmento).getId();
-    const scName = '↳ ' + _editalLabel(child);
+    const scName = 'Vinculado ' + _editalLabel(child);
     const parentById = (pid) => editais.find(e => String(e.ID) === String(pid));
 
     newParents.forEach(pid => {
       try {
         const p = parentById(pid); if (!p) return;
-        const vinc = _vinculadosFolder(p);
-        if (!_findShortcuts(vinc.getId(), childFolderId).length) {
+        const dest = _linkTargetFolder(p);
+        if (!_findShortcuts(dest.getId(), childFolderId).length) {
           Drive.Files.insert({
             title: scName, mimeType: 'application/vnd.google-apps.shortcut',
-            parents: [{ id: vinc.getId() }], shortcutDetails: { targetId: childFolderId }
+            parents: [{ id: dest.getId() }], shortcutDetails: { targetId: childFolderId }
           });
         }
       } catch (e) {}
@@ -223,8 +224,8 @@ function _syncEditalShortcuts(childId, oldParentIds) {
     oldParentIds.filter(pid => newParents.indexOf(pid) < 0).forEach(pid => {
       try {
         const p = parentById(pid); if (!p) return;
-        const vinc = _vinculadosFolder(p);
-        _findShortcuts(vinc.getId(), childFolderId).forEach(sc => { try { Drive.Files.trash(sc.id); } catch (e) {} });
+        const dest = _linkTargetFolder(p);
+        _findShortcuts(dest.getId(), childFolderId).forEach(sc => { try { Drive.Files.trash(sc.id); } catch (e) {} });
       } catch (e) {}
     });
   } catch (e) { /* serviço Drive indisponível ou erro — não bloqueia o salvamento */ }
@@ -240,8 +241,8 @@ function _removeEditalShortcuts(edital) {
     parents.forEach(pid => {
       try {
         const p = editais.find(e => String(e.ID) === String(pid)); if (!p) return;
-        const vinc = _vinculadosFolder(p);
-        _findShortcuts(vinc.getId(), cid).forEach(sc => { try { Drive.Files.trash(sc.id); } catch (e) {} });
+        const dest = _linkTargetFolder(p);
+        _findShortcuts(dest.getId(), cid).forEach(sc => { try { Drive.Files.trash(sc.id); } catch (e) {} });
       } catch (e) {}
     });
   } catch (e) {}
