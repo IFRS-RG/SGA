@@ -212,8 +212,10 @@ function getEditalFolderUrl(editalId) {
 }
 
 // ── Colocação da pasta do edital conforme o vínculo (pai/filho) ──────────
+// Nome da pasta/rótulo do edital: "Edital {Categoria} {Nº}/{Ano} - {Título}".
 function _editalLabel(e) {
-  return ((e.Numero || '') + '-' + (e.Ano || '') + ' ' + (e.Titulo || '')).trim();
+  const cat = e.Categoria ? String(e.Categoria).trim() + ' ' : '';
+  return ('Edital ' + cat + (e.Numero || '') + '/' + (e.Ano || '') + ' - ' + (e.Titulo || '')).trim();
 }
 function _parentHomeFolder(p) {
   return _editalFolder(_editalLabel(p), p.Ano, p.Segmento);
