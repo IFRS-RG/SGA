@@ -43,10 +43,10 @@ const API = {
 
   // Editais
   getEditais:   ()            => gasCall('getEditais'),
-  addEdital:    (payload)     => gasCall('addEdital',   { payload }),
-  updateEdital: (id, payload) => gasCall('updateEdital', { id, payload }),
-  deleteEdital: (id)          => gasCall('deleteEdital', { id }),
-  cloneEdital:  (id)          => gasCall('cloneEdital',  { id }),
+  addEdital:    (payload, reqId) => gasCall('addEdital',   { payload, reqId }),
+  updateEdital: (id, payload)    => gasCall('updateEdital', { id, payload }),
+  deleteEdital: (id)             => gasCall('deleteEdital', { id }),
+  cloneEdital:  (id, reqId)      => gasCall('cloneEdital',  { id, reqId }),
 
   // Documentos de edital
   getEditalDocs:      (editalId) => gasCall('getEditalDocs',      { editalId }),

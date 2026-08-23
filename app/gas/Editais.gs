@@ -80,13 +80,25 @@ function _validateVinculo(p) {
   }
 }
 
+// Idempotência: se o mesmo reqId já foi processado há pouco, devolve o id anterior.
+function _idempotentId(reqId) {
+  if (!reqId) return null;
+  return CacheService.getScriptCache().get('req_' + reqId) || null;
+}
+function _idempotentStore(reqId, id) {
+  if (reqId) CacheService.getScriptCache().put('req_' + reqId, id, 120);   // 2 min
+}
+
 // ── Criar ─────────────────────────────────────────────────────
-function addEdital(p, email) {
+function addEdital(p, email, reqId) {
   requirePerfil(email, EDITAL_WRITERS);
   if (!p.numero || !p.titulo) throw new Error('Número e Título são obrigatórios.');
   _validateVinculo(p);
+  const dup = _idempotentId(reqId);
+  if (dup) return { ok: true, id: dup, duplicate: true };
   const id = genId();
   getSheet('Editais').appendRow(_editalRow(id, p, nowBR(), email));
+  _idempotentStore(reqId, id);
   _syncEditalPlacement(id, []);
   return { ok: true, id: id };
 }
@@ -137,8 +149,10 @@ function deleteEdital(id, email) {
 // ── Clonar / Copiar ───────────────────────────────────────────
 // Cria um novo edital com os mesmos campos (Título prefixado "[Cópia]").
 // Não copia os documentos PDF (o usuário reenvia se precisar).
-function cloneEdital(id, email) {
+function cloneEdital(id, email, reqId) {
   requirePerfil(email, EDITAL_WRITERS);
+  const dup = _idempotentId(reqId);
+  if (dup) return { ok: true, id: dup, duplicate: true };
   const orig = sheetRows('Editais').find(e => String(e.ID) === String(id));
   if (!orig) throw new Error('Edital não encontrado.');
   const p = {
@@ -156,6 +170,8 @@ function cloneEdital(id, email) {
   };
   const newId = genId();
   getSheet('Editais').appendRow(_editalRow(newId, p, nowBR(), email));
+  _idempotentStore(reqId, newId);
+  _syncEditalPlacement(newId, []);   // a cópia herda os vínculos → posiciona a pasta/atalhos
   return { ok: true, id: newId };
 }
 

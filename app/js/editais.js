@@ -21,6 +21,9 @@ const Editais = {
 
   canWrite() { return this.role === 'Admin' || this.role === 'Gestor'; },
 
+  // Token único por ação de criar/clonar (idempotência no backend).
+  _reqId() { return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); },
+
   async mount(container, role) {
     this.container = container;
     this.role = role;
@@ -572,7 +575,7 @@ const Editais = {
     const wb = document.getElementById('wiz-save');
     if (wb) { wb.disabled = true; wb.textContent = 'Salvando…'; }
     try {
-      const res = id ? await API.updateEdital(id, p) : await API.addEdital(p);
+      const res = id ? await API.updateEdital(id, p) : await API.addEdital(p, this._reqId());
       if (id) {
         toast('Edital atualizado.', 'success');
         closeModal();
@@ -598,7 +601,7 @@ const Editais = {
       `Criar uma cópia de "${e ? e.Titulo : ''}"? Os documentos PDF não são copiados.`,
       async () => {
         if (this._acting) return; this._acting = true;
-        try { await API.cloneEdital(id); toast('Edital clonado.', 'success'); await this.reload(); }
+        try { await API.cloneEdital(id, this._reqId()); toast('Edital clonado.', 'success'); await this.reload(); }
         catch (e) { toast(e.message, 'error'); } finally { this._acting = false; }
       }, 'Clonar');
   },

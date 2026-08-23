@@ -7,7 +7,13 @@ function doGet() {
   return respond({ ok: true, service: 'SGA API', time: isoNow() });
 }
 
+// Ações que ESCREVEM (serializadas via LockService).
+const WRITE_ACTIONS = ['addEdital', 'updateEdital', 'deleteEdital', 'cloneEdital',
+  'uploadEditalDoc', 'deleteEditalDoc', 'renameEditalDoc',
+  'addPerfil', 'updatePerfil', 'deletePerfil'];
+
 function doPost(e) {
+  let lock = null;
   try {
     const data = JSON.parse(e.postData.contents);
     const action = data.action;
@@ -20,6 +26,12 @@ function doPost(e) {
       userEmail = v.email;
     }
 
+    // Serializa as escritas para evitar corrupção por requisições concorrentes.
+    if (WRITE_ACTIONS.indexOf(action) >= 0) {
+      lock = LockService.getScriptLock();
+      if (!lock.tryLock(20000)) return respond({ error: 'Servidor ocupado, tente novamente.' });
+    }
+
     switch (action) {
       // ── Sessão ──
       case 'getRole':
@@ -29,13 +41,13 @@ function doPost(e) {
       case 'getEditais':
         return respond(getEditais());
       case 'addEdital':
-        return respond(addEdital(data.payload, userEmail));
+        return respond(addEdital(data.payload, userEmail, data.reqId));
       case 'updateEdital':
         return respond(updateEdital(data.id, data.payload, userEmail));
       case 'deleteEdital':
         return respond(deleteEdital(data.id, userEmail));
       case 'cloneEdital':
-        return respond(cloneEdital(data.id, userEmail));
+        return respond(cloneEdital(data.id, userEmail, data.reqId));
 
       // ── Documentos de edital ──
       case 'getEditalDocs':
@@ -64,5 +76,7 @@ function doPost(e) {
     }
   } catch (err) {
     return respond({ error: err.message || String(err) });
+  } finally {
+    if (lock) { try { lock.releaseLock(); } catch (e) {} }
   }
 }
