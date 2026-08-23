@@ -73,10 +73,18 @@ function getEditais() {
   });
 }
 
+// Segmento único só pode ter 1 pai; vários → precisa ser Conjunto.
+function _validateVinculo(p) {
+  if (p.segmento !== 'Conjunto' && (p.editaisPai || []).length > 1) {
+    throw new Error('Edital de segmento único pode ter apenas 1 edital pai. Para vincular a vários, use Segmento = Conjunto.');
+  }
+}
+
 // ── Criar ─────────────────────────────────────────────────────
 function addEdital(p, email) {
   requirePerfil(email, EDITAL_WRITERS);
   if (!p.numero || !p.titulo) throw new Error('Número e Título são obrigatórios.');
+  _validateVinculo(p);
   const id = genId();
   getSheet('Editais').appendRow(_editalRow(id, p, nowBR(), email));
   _syncEditalPlacement(id, []);
@@ -86,6 +94,7 @@ function addEdital(p, email) {
 // ── Atualizar ─────────────────────────────────────────────────
 function updateEdital(id, p, email) {
   requirePerfil(email, EDITAL_WRITERS);
+  _validateVinculo(p);
   const idx = findRowIndex('Editais', id);
   if (idx === -1) throw new Error('Edital não encontrado.');
   const sh  = getSheet('Editais');

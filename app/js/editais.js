@@ -420,11 +420,16 @@ const Editais = {
     const saveBtn = `<button type="button" id="wiz-save" class="btn btn-primary" onclick="Editais.save()">${this.formEditalId ? 'Salvar' : 'Criar edital'}</button>`;
     const doneBtn = `<button type="button" class="btn btn-primary" onclick="closeModal()">Concluir</button>`;
     const nav = (left, right) => `<div class="ftab-nav">${left || '<span></span>'}${right}</div>`;
-    const paiSel = (f.editaisPai || []).map(String);
+    let paiSel = (f.editaisPai || []).map(String);
+    const soUmPai = f.segmento !== 'Conjunto';
+    if (soUmPai && paiSel.length > 1) paiSel = paiSel.slice(0, 1);   // segmento único → 1 pai
     const outrosEditais = (this.data || []).filter(x => String(x.ID) !== String(this.formEditalId));
     const paiChecks = outrosEditais.length
-      ? outrosEditais.map(x => `<label class="chk-item"><input type="checkbox" class="pai-chk" value="${esc(x.ID)}" ${paiSel.indexOf(String(x.ID)) >= 0 ? 'checked' : ''}> ${esc(x.Numero)}/${esc(x.Ano)} — ${esc(x.Titulo)}</label>`).join('')
+      ? outrosEditais.map(x => `<label class="chk-item"><input type="checkbox" class="pai-chk" value="${esc(x.ID)}" ${paiSel.indexOf(String(x.ID)) >= 0 ? 'checked' : ''} onchange="Editais.onPaiCheck(this)"> ${esc(x.Numero)}/${esc(x.Ano)} — ${esc(x.Titulo)}</label>`).join('')
       : '<p class="line-empty">Nenhum outro edital cadastrado para vincular.</p>';
+    const paiHint = soUmPai
+      ? 'Segmento único: no máximo 1 edital principal. Para vincular a vários segmentos, use Segmento = Conjunto.'
+      : 'Segmento Conjunto: marque um edital principal por segmento (vários permitidos).';
 
     const dados = `<div class="ftab-sec" ${hide('dados')}>
       <div class="form-grid">
@@ -444,7 +449,7 @@ const Editais = {
       <div class="fg"><label>Link da publicação</label><input class="input" id="f-link" placeholder="https://…" value="${esc(f.link || '')}"></div>
       <div class="fg"><label>É um sub-edital? Marque o(s) edital(is) principal(is) a que ele pertence:</label>
         <div class="chk-list" id="pais-box">${paiChecks}</div>
-        <span class="field-hint">Deixe tudo desmarcado se este for um edital principal (não vinculado a outro).</span></div>
+        <span class="field-hint">Deixe tudo desmarcado se este for um edital principal. ${paiHint}</span></div>
       <div class="fg"><label>Status</label><select class="input" id="f-statusmanual">
           <option ${f.statusManual !== 'Encerrado' ? 'selected' : ''}>Vigente</option>
           <option ${f.statusManual === 'Encerrado' ? 'selected' : ''}>Encerrado</option>
@@ -531,6 +536,13 @@ const Editais = {
   updateTotal() {
     const el = document.getElementById('f-total');
     if (el) el.value = fmtMoney(parseMoney(val('f-custeio')) + parseMoney(val('f-capital')));
+  },
+
+  // Segmento único → só 1 pai: ao marcar um, desmarca os outros.
+  onPaiCheck(cb) {
+    if (val('f-segmento') !== 'Conjunto' && cb.checked) {
+      document.querySelectorAll('.pai-chk').forEach(c => { if (c !== cb) c.checked = false; });
+    }
   },
 
   async save() {
