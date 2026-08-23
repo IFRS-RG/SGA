@@ -128,6 +128,8 @@ const Editais = {
             ${this.th('titulo', 'Título')}
             ${this.th('segmento', 'Segmento')}
             ${this.th('status', 'Status')}
+            <th class="col-btn">Pasta</th>
+            <th class="col-btn">Página</th>
             <th class="col-actions">Ações</th>
           </tr></thead>
           <tbody>${rows.map(e => this.rowHtml(e)).join('')}</tbody>
@@ -179,14 +181,14 @@ const Editais = {
       <td>${(e.editaisPai || []).length ? '<span class="link-chip" title="Edital vinculado (filho)">↳ vinculado</span> ' : ''}${esc(e.Titulo || '')}</td>
       <td>${esc(e.Segmento || '—')}</td>
       <td>${badge}</td>
+      <td class="col-btn"><button class="btn btn-ghost btn-xs" title="Abrir pasta no Drive" onclick="Editais.openFolder('${e.ID}')">📁</button></td>
+      <td class="col-btn">${e.LinkPublicacao ? `<a class="btn btn-ghost btn-xs" href="${esc(e.LinkPublicacao)}" target="_blank" rel="noopener" title="Abrir página do edital">🔗</a>` : '<span class="cell-sub">—</span>'}</td>
       <td class="col-actions">
         <details class="row-menu">
           <summary class="btn btn-ghost btn-xs">Ações ▾</summary>
           <div class="row-menu-list">
             <button onclick="Editais.openDetails('${e.ID}')">🔎 Ver detalhes</button>
-            <button onclick="Editais.openFolder('${e.ID}')">📁 Pasta no Drive</button>
             <button onclick="Editais.openDocs('${e.ID}')">📎 Documentos</button>
-            ${e.LinkPublicacao ? `<a href="${esc(e.LinkPublicacao)}" target="_blank" rel="noopener">🔗 Link da publicação</a>` : ''}
             ${w ? `<button onclick="Editais.openForm('${e.ID}')">✏️ Editar</button>` : ''}
             ${w ? `<button onclick="Editais.clone('${e.ID}')">⧉ Clonar</button>` : ''}
             ${w ? `<button class="danger" onclick="Editais.remove('${e.ID}')">🗑 Excluir</button>` : ''}
@@ -454,7 +456,7 @@ const Editais = {
         <div class="fg"><label>*Número</label><input class="input" id="f-numero" value="${esc(f.numero || '')}"></div>
         <div class="fg"><label>*Ano</label><input class="input" id="f-ano" value="${esc(f.ano || '')}"></div>
       </div>
-      <div class="fg"><label>*Título</label><input class="input" id="f-titulo" value="${esc(f.titulo || '')}"></div>
+      <div class="fg"><label>*Título</label><input class="input" id="f-titulo" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" value="${esc(f.titulo || '')}"></div>
       <div class="fg"><label>Resumo</label><textarea class="input" id="f-resumo" rows="3">${esc(f.resumo || '')}</textarea></div>
       <div class="form-grid">
         <div class="fg"><label>*Segmento</label><select class="input" id="f-segmento" onchange="Editais.formReRender()"><option value="">—</option>${opt(SEGMENTOS, f.segmento)}</select></div>
@@ -478,15 +480,18 @@ const Editais = {
     const bolsaBlocks = segsR.length ? segsR.map(s => this._bolsaSegBlock(s)).join('') : semSeg;
 
     const recurso = `<div class="ftab-sec" ${hide('recurso')}>
-      <div class="fg"><label>Fomento / Auxílio</label><select class="input" id="f-fomento" onchange="Editais.formReRender()"><option ${f.fomento === 'Sim' ? 'selected' : ''}>Sim</option><option ${f.fomento !== 'Sim' ? 'selected' : ''}>Não</option></select></div>
-      <div ${f.fomento === 'Sim' ? '' : 'style="display:none"'}>${fomentoBlocks}</div>
-
-      <div class="fg" style="margin-top:14px"><label>Bolsa</label><select class="input" id="f-bolsa" onchange="Editais.formReRender()"><option ${f.bolsa === 'Sim' ? 'selected' : ''}>Sim</option><option ${f.bolsa !== 'Sim' ? 'selected' : ''}>Não</option></select></div>
-      <div ${f.bolsa === 'Sim' ? '' : 'style="display:none"'}>
-        ${bolsaBlocks}
-        <div class="line-label"><span>Bolsas ${conjuntoR ? '(informe o segmento em cada linha)' : ''}</span><button type="button" class="btn btn-ghost btn-xs" onclick="Editais.addBolsa()">+ adicionar</button></div>
-        <div id="bolsa-lines">${(f.bolsas || []).map((b, i) => this._bolsaRow(b, i)).join('') || '<p class="line-empty">Nenhuma linha.</p>'}</div>
-      </div>
+      <fieldset class="form-fieldset recurso-box"><legend>💰 Fomento / Auxílio</legend>
+        <div class="fg"><label>Este edital tem fomento/auxílio?</label><select class="input" id="f-fomento" onchange="Editais.formReRender()"><option ${f.fomento === 'Sim' ? 'selected' : ''}>Sim</option><option ${f.fomento !== 'Sim' ? 'selected' : ''}>Não</option></select></div>
+        <div ${f.fomento === 'Sim' ? '' : 'style="display:none"'}>${fomentoBlocks}</div>
+      </fieldset>
+      <fieldset class="form-fieldset recurso-box"><legend>🎓 Bolsa</legend>
+        <div class="fg"><label>Este edital tem bolsa?</label><select class="input" id="f-bolsa" onchange="Editais.formReRender()"><option ${f.bolsa === 'Sim' ? 'selected' : ''}>Sim</option><option ${f.bolsa !== 'Sim' ? 'selected' : ''}>Não</option></select></div>
+        <div ${f.bolsa === 'Sim' ? '' : 'style="display:none"'}>
+          ${bolsaBlocks}
+          <div class="line-label"><span>Bolsas ${conjuntoR ? '(informe o segmento em cada linha)' : ''}</span><button type="button" class="btn btn-ghost btn-xs" onclick="Editais.addBolsa()">+ adicionar</button></div>
+          <div id="bolsa-lines">${(f.bolsas || []).map((b, i) => this._bolsaRow(b, i)).join('') || '<p class="line-empty">Nenhuma linha.</p>'}</div>
+        </div>
+      </fieldset>
       ${nav(backBtn('dados'), nextBtn('crono'))}
     </div>`;
 
@@ -515,7 +520,7 @@ const Editais = {
 
   harvest() {
     const f = this.form;
-    f.numero = val('f-numero'); f.ano = val('f-ano'); f.titulo = val('f-titulo'); f.resumo = val('f-resumo');
+    f.numero = val('f-numero'); f.ano = val('f-ano'); f.titulo = val('f-titulo').toUpperCase(); f.resumo = val('f-resumo');
     f.segmento = val('f-segmento'); f.origem = val('f-origem');
     f.link = val('f-link'); f.statusManual = val('f-statusmanual');
     if (document.getElementById('pais-box')) {

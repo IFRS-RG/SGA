@@ -135,6 +135,7 @@ a { color: var(--brand-light); }
 .data-table tbody tr:hover { background: #fafbfd; }
 .cell-sub { color: var(--text-muted); font-size: 13px; }
 .col-actions { text-align: right; white-space: nowrap; }
+.col-btn { text-align: center; white-space: nowrap; }
 .col-actions .btn { margin-left: 4px; }
 
 /* Popup de detalhes do edital */
@@ -149,8 +150,10 @@ a { color: var(--brand-light); }
 .mini-table td { padding: 5px 8px; border-top: 1px solid var(--border); }
 
 /* Formulário em abas */
-.ftabs { display: flex; gap: 6px; border-bottom: 1px solid var(--border); margin: 0 0 16px;
-  position: sticky; top: 0; z-index: 5; background: var(--surface); padding-top: 4px; }
+.ftabs { display: flex; gap: 6px; position: sticky; top: 0; z-index: 20; background: var(--surface);
+  margin: -20px -22px 16px; padding: 12px 22px 0; border-bottom: 1px solid var(--border);
+  box-shadow: 0 3px 6px rgba(16,24,40,.06); }
+.recurso-box { margin-bottom: 16px; }
 .ftab { background: none; border: 0; border-bottom: 2px solid transparent; padding: 9px 12px; cursor: pointer; font-size: 14px; color: var(--text-muted); font-family: inherit; }
 .ftab:hover { color: var(--brand); }
 .ftab.active { color: var(--brand); border-bottom-color: var(--brand); font-weight: 600; }
