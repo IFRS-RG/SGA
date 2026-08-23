@@ -218,11 +218,11 @@ const Editais = {
     }
     if (e.Bolsa === 'Sim') {
       recurso += `<h4 class="detail-sec">🎓 Bolsa</h4>
-        <table class="mini-table"><thead><tr>${conj ? '<th>Segmento</th>' : ''}<th>Agência (bolsa)</th><th>Valor total</th></tr></thead>
-        <tbody>${segsD.map(s => { const r = rec[s] || {}; return `<tr>${conj ? `<td>${esc(s)}</td>` : ''}<td>${esc(r.agenciaBolsa || '—')}</td><td>${fmtMoney(r.valorTotalBolsa)}</td></tr>`; }).join('')}</tbody></table>`;
+        <table class="mini-table"><thead><tr>${conj ? '<th>Segmento</th>' : ''}<th>Agência (bolsa)</th><th>Tipo de bolsa</th><th>Valor total</th></tr></thead>
+        <tbody>${segsD.map(s => { const r = rec[s] || {}; return `<tr>${conj ? `<td>${esc(s)}</td>` : ''}<td>${esc(r.agenciaBolsa || '—')}</td><td>${esc(r.tipoBolsa || '—')}</td><td>${fmtMoney(r.valorTotalBolsa)}</td></tr>`; }).join('')}</tbody></table>`;
       if ((e.bolsas || []).length) {
-        recurso += `<table class="mini-table" style="margin-top:8px"><thead><tr>${conj ? '<th>Segmento</th>' : ''}<th>Tipo</th><th>CH</th><th>R$</th><th>Período</th></tr></thead>
-          <tbody>${e.bolsas.map(b => `<tr>${conj ? `<td>${esc(b.segmento || '—')}</td>` : ''}<td>${esc(b.tipo || '—')}</td><td>${esc(b.ch || '—')}</td><td>${fmtMoney(b.valor)}</td><td>${esc(b.periodoMeses ? b.periodoMeses + ' meses' : '—')}</td></tr>`).join('')}</tbody></table>`;
+        recurso += `<table class="mini-table" style="margin-top:8px"><thead><tr>${conj ? '<th>Segmento</th>' : ''}<th>CH</th><th>R$</th><th>Período</th></tr></thead>
+          <tbody>${e.bolsas.map(b => `<tr>${conj ? `<td>${esc(b.segmento || '—')}</td>` : ''}<td>${esc(b.ch || '—')}</td><td>${fmtMoney(b.valor)}</td><td>${esc(b.periodoMeses ? b.periodoMeses + ' meses' : '—')}</td></tr>`).join('')}</tbody></table>`;
       }
       recurso += `<div class="detail-grid" style="margin-top:8px">${cell('Valor total de bolsa', fmtMoney(e.ValorTotalBolsa))}</div>`;
     }
@@ -295,12 +295,12 @@ const Editais = {
       e.Numero, e.Ano, e.Titulo, e.Segmento, e.Origem, e.Status,
       e.Fomento, this._recStr(e, 'tipoFomento'), this._recStr(e, 'agenciaFomento'),
       e.Custeio, e.Capital, e.Total,
-      e.Bolsa, this._recStr(e, 'agenciaBolsa'), e.ValorTotalBolsa,
+      e.Bolsa, this._recStr(e, 'agenciaBolsa'), this._recStr(e, 'tipoBolsa'), e.ValorTotalBolsa,
       this.dateVal(e.DataPublicacao), e.LinkPublicacao
     ]);
     exportXLS(['Número', 'Ano', 'Título', 'Segmento', 'Origem', 'Status', 'Fomento',
       'Tipo fomento', 'Agência fomento', 'Custeio', 'Capital', 'Total',
-      'Bolsa', 'Agência bolsa', 'Valor total bolsa', 'Publicação', 'Link'], rows, 'Editais');
+      'Bolsa', 'Agência bolsa', 'Tipo bolsa', 'Valor total bolsa', 'Publicação', 'Link'], rows, 'Editais');
   },
 
   exportPDF() {
@@ -368,7 +368,7 @@ const Editais = {
       return `<datalist id="dl-fom-${k}">${fom}</datalist><datalist id="dl-bol-${k}">${bol}</datalist>`;
     }).join('');
     const ca = ORIGEM_EDITAL.map(o => `<option value="${esc(o)}">`).join('');
-    return segLists + `<datalist id="dl-origem">${ca}</datalist>`;
+    return segLists + `<datalist id="dl-origem">${ca}</datalist><datalist id="dl-agencia">${ca}</datalist>`;
   },
 
   // Segmentos que se aplicam ao recurso: Conjunto → os 4; senão o único escolhido.
@@ -383,7 +383,7 @@ const Editais = {
     const k = this._segKey(seg);
     const head = this.form.segmento === 'Conjunto' ? `<div class="seg-head">${esc(seg)}</div>` : '';
     return `${head}
-      <div class="fg"><label>Agência / Órgão financiador</label><input class="input" id="f-agfom-${seg}" value="${esc(r.agenciaFomento || '')}"></div>
+      <div class="fg"><label>Agência / Órgão financiador</label><input class="input" id="f-agfom-${seg}" list="dl-agencia" value="${esc(r.agenciaFomento || '')}" placeholder="IFRS-RG, PROEN… ou outro"></div>
       <div class="fg"><label>Tipo de fomento</label><input class="input" id="f-tipofom-${seg}" list="dl-fom-${k}" value="${esc(r.tipoFomento || '')}" placeholder="${esc((TIPO_FOMENTO[seg] || []).join(', '))} ou outro"></div>
       <div class="form-grid form-grid-3">
         <div class="fg"><label>Custeio (R$)</label><input class="input" id="f-custeio-${seg}" value="${esc(r.custeio || '')}" oninput="Editais.updateTotal('${seg}')"></div>
@@ -392,27 +392,26 @@ const Editais = {
       </div>`;
   },
 
-  // Bloco de BOLSA por segmento (agência bolsa + valor total de bolsa).
+  // Bloco de BOLSA por segmento (agência, tipo de bolsa e valor total de bolsa).
   _bolsaSegBlock(seg) {
     const r = (this.form.recurso || {})[seg] || {};
+    const k = this._segKey(seg);
     const head = this.form.segmento === 'Conjunto' ? `<div class="seg-head">${esc(seg)}</div>` : '';
     return `${head}
+      <div class="fg"><label>Agência / Órgão financiador (bolsa)</label><input class="input" id="f-agbol-${seg}" list="dl-agencia" value="${esc(r.agenciaBolsa || '')}" placeholder="IFRS-RG, PROEN… ou outro"></div>
       <div class="form-grid">
-        <div class="fg"><label>Agência / Órgão financiador (bolsa)</label><input class="input" id="f-agbol-${seg}" value="${esc(r.agenciaBolsa || '')}"></div>
+        <div class="fg"><label>Tipo de bolsa</label><input class="input" id="f-tipobol-${seg}" list="dl-bol-${k}" value="${esc(r.tipoBolsa || '')}" placeholder="${esc((TIPO_BOLSA[seg] || []).join(', '))} ou outro"></div>
         <div class="fg"><label>Valor total de bolsa (R$)</label><input class="input" id="f-vtbol-${seg}" value="${esc(r.valorTotalBolsa || '')}"></div>
       </div>`;
   },
 
   _bolsaRow(b, i) {
     const conjunto = this.form.segmento === 'Conjunto';
-    const lineSeg = conjunto ? (b.segmento || '') : this.form.segmento;
-    const k = this._segKey(lineSeg);
     const segCell = conjunto
-      ? `<select class="input line-seg" id="bl-seg-${i}" onchange="Editais.formReRender()"><option value="">segmento…</option>${SEGMENTOS_BASE.map(s => `<option ${b.segmento === s ? 'selected' : ''}>${s}</option>`).join('')}</select>`
+      ? `<select class="input line-seg" id="bl-seg-${i}"><option value="">segmento…</option>${SEGMENTOS_BASE.map(s => `<option ${b.segmento === s ? 'selected' : ''}>${s}</option>`).join('')}</select>`
       : `<input type="hidden" id="bl-seg-${i}" value="${esc(this.form.segmento || '')}">`;
     return `<div class="line-row bolsa-row">
       ${segCell}
-      <input class="input bl-tipo" id="bl-tipo-${i}" list="dl-bol-${k}" placeholder="Tipo" value="${esc(b.tipo || '')}">
       <input class="input bl-ch" type="number" id="bl-ch-${i}" placeholder="CH" value="${esc(b.ch || '')}" onchange="Editais.chPrefill(${i})">
       <input class="input bl-valor" id="bl-valor-${i}" placeholder="R$" value="${esc(b.valor || '')}">
       <input class="input bl-per" type="number" id="bl-per-${i}" placeholder="meses" value="${esc(b.periodoMeses || '')}">
@@ -534,21 +533,21 @@ const Editais = {
       rec[seg] = {
         agenciaFomento: val('f-agfom-' + seg), tipoFomento: val('f-tipofom-' + seg),
         custeio: val('f-custeio-' + seg), capital: val('f-capital-' + seg),
-        agenciaBolsa: val('f-agbol-' + seg), valorTotalBolsa: val('f-vtbol-' + seg)
+        agenciaBolsa: val('f-agbol-' + seg), tipoBolsa: val('f-tipobol-' + seg),
+        valorTotalBolsa: val('f-vtbol-' + seg)
       };
     });
     f.recurso = rec;
     f.bolsas = (f.bolsas || []).map((_, i) => ({
       segmento: (document.getElementById('bl-seg-' + i) || {}).value || '',
-      tipo: val('bl-tipo-' + i), ch: val('bl-ch-' + i), valor: val('bl-valor-' + i),
-      periodoMeses: val('bl-per-' + i)
+      ch: val('bl-ch-' + i), valor: val('bl-valor-' + i), periodoMeses: val('bl-per-' + i)
     }));
     f.cronograma = (f.cronograma || []).map((_, i) => ({
       etapa: val('cr-etapa-' + i), inicio: val('cr-ini-' + i), fim: val('cr-fim-' + i)
     }));
   },
 
-  addBolsa() { this.harvest(); this.form.bolsas.push({ segmento: this.form.segmento === 'Conjunto' ? '' : this.form.segmento, tipo: '', ch: '', valor: '', periodoMeses: '' }); this.formTab = 'recurso'; this.formReRenderKeep(); },
+  addBolsa() { this.harvest(); this.form.bolsas.push({ segmento: this.form.segmento === 'Conjunto' ? '' : this.form.segmento, ch: '', valor: '', periodoMeses: '' }); this.formTab = 'recurso'; this.formReRenderKeep(); },
   removeBolsa(i) { this.harvest(); this.form.bolsas.splice(i, 1); this.formTab = 'recurso'; this.formReRenderKeep(); },
   addEtapa() { this.harvest(); this.form.cronograma.push({ etapa: '', inicio: '', fim: '' }); this.formTab = 'crono'; this.formReRenderKeep(); },
   removeEtapa(i) { this.harvest(); this.form.cronograma.splice(i, 1); this.formTab = 'crono'; this.formReRenderKeep(); },
@@ -584,7 +583,8 @@ const Editais = {
       recurso[seg] = {
         agenciaFomento: r.agenciaFomento || '', tipoFomento: r.tipoFomento || '',
         custeio: parseMoney(r.custeio), capital: parseMoney(r.capital),
-        agenciaBolsa: r.agenciaBolsa || '', valorTotalBolsa: parseMoney(r.valorTotalBolsa)
+        agenciaBolsa: r.agenciaBolsa || '', tipoBolsa: r.tipoBolsa || '',
+        valorTotalBolsa: parseMoney(r.valorTotalBolsa)
       };
     });
     const p = {
@@ -592,7 +592,7 @@ const Editais = {
       origem: f.origem, link: f.link,
       fomento: f.fomento, bolsa: f.bolsa, recurso: recurso,
       bolsas: (f.bolsas || []).map(b => ({
-        segmento: b.segmento || '', tipo: b.tipo || '', ch: b.ch || '',
+        segmento: b.segmento || '', ch: b.ch || '',
         valor: parseMoney(b.valor), periodoMeses: b.periodoMeses || ''
       })),
       dataPublicacao: f.dataPublicacao, cronograma: f.cronograma,
