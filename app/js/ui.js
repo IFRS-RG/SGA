@@ -38,10 +38,14 @@ function progressDone() {
 
 // ── Modal ─────────────────────────────────────────────────────
 let _modalConfirm = null;
+let _modalBeforeClose = null;   // se definido, intercepta o × / clique fora
 
 function openModal(title, bodyHtml, onConfirm, opts = {}) {
   document.getElementById('modal-title').textContent = title;
-  document.getElementById('modal-body').innerHTML = bodyHtml;
+  const mb = document.getElementById('modal-body');
+  mb.className = 'modal-body';    // reseta layout (ex.: modal-body--form de outro modal)
+  mb.innerHTML = bodyHtml;
+  _modalBeforeClose = opts.onClose || null;
   const confirmBtn = document.getElementById('modal-confirm');
   const cancelBtn  = document.getElementById('modal-cancel');
   const footer     = document.getElementById('modal-footer');
@@ -64,19 +68,28 @@ function openModal(title, bodyHtml, onConfirm, opts = {}) {
 }
 
 function closeModal() {
+  _modalBeforeClose = null;
   document.getElementById('modal-overlay').hidden = true;
-  document.getElementById('modal-body').innerHTML = '';
+  const mb = document.getElementById('modal-body');
+  mb.innerHTML = '';
+  mb.className = 'modal-body';
   _modalConfirm = null;
 }
 
+// Tentativa de fechar (× / clique fora): se houver guard, ele decide.
+function requestCloseModal() {
+  if (_modalBeforeClose) { _modalBeforeClose(); return; }
+  closeModal();
+}
+
 function initModalEvents() {
-  document.getElementById('modal-close').onclick  = closeModal;
-  document.getElementById('modal-cancel').onclick = closeModal;
+  document.getElementById('modal-close').onclick  = requestCloseModal;
+  document.getElementById('modal-cancel').onclick = requestCloseModal;
   document.getElementById('modal-confirm').onclick = async () => {
     if (_modalConfirm) await _modalConfirm();
   };
   document.getElementById('modal-overlay').addEventListener('click', (e) => {
-    if (e.target.id === 'modal-overlay') closeModal();
+    if (e.target.id === 'modal-overlay') requestCloseModal();
   });
 }
 

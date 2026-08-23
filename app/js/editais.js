@@ -329,28 +329,19 @@ const Editais = {
       fomento: e.Fomento, bolsa: e.Bolsa, recurso: e.recurso || {},
       bolsas: (e.bolsas || []).slice(), dataPublicacao: e.DataPublicacao,
       cronograma: (e.cronograma || []).slice(), editaisPai: (e.editaisPai || []).map(String),
-      statusManual: e.StatusManual
+      anoPasta: e.AnoPasta || '', statusManual: e.StatusManual
     } : {
       numero: '', ano: new Date().getFullYear(), titulo: '', resumo: '', segmento: '',
       origem: '', link: '', fomento: 'Não', bolsa: 'Não', recurso: {},
-      bolsas: [], dataPublicacao: '', cronograma: [], editaisPai: [], statusManual: ''
+      bolsas: [], dataPublicacao: '', cronograma: [], editaisPai: [], anoPasta: '', statusManual: ''
     };
     this.formEditalId = id || null;
     this.formMaxStep = id ? 3 : 0;   // edição: tudo liberado; novo: só Dados
-    this._formMinH = 0;
     openModal(id ? 'Editar edital' : 'Novo edital', this.formBody(),
-      null, { hideFooter: true });   // navegação/salvar ficam nos botões das abas
+      null, { hideFooter: true, onClose: () => Editais.tryCloseForm() });
+    const mb = document.querySelector('.modal-body');
+    if (mb) mb.classList.add('modal-body--form');   // layout: abas fixas + rolagem no meio + rodapé fixo
     this.afterRender();
-    this._measureForm();
-  },
-
-  // Fixa a altura do corpo do form pela aba Dados (ativa ao abrir), p/ não variar entre abas.
-  _measureForm() {
-    const sec = document.querySelector('#ftab-body .ftab-sec');
-    if (!sec) return;
-    this._formMinH = sec.offsetHeight;
-    const b = document.getElementById('ftab-body');
-    if (b) b.style.height = this._formMinH + 'px';
   },
 
   // Após (re)renderizar o corpo do form: se a aba ativa for Documentos, carrega os PDFs.
@@ -447,12 +438,6 @@ const Editais = {
     };
     const hide = (id) => this.formTab === id ? '' : 'style="display:none"';
     const opt = (list, sel) => list.map(o => `<option ${sel === o ? 'selected' : ''}>${esc(o)}</option>`).join('');
-    // Navegação estilo assistente.
-    const backBtn = (t) => `<button type="button" class="btn btn-ghost" onclick="Editais.switchTab('${t}')">← Voltar</button>`;
-    const nextBtn = (t) => `<button type="button" class="btn btn-primary" onclick="Editais.advance('${t}')">Avançar →</button>`;
-    const saveBtn = `<button type="button" id="wiz-save" class="btn btn-primary" onclick="Editais.save()">${this.formEditalId ? 'Salvar' : 'Criar edital'}</button>`;
-    const doneBtn = `<button type="button" class="btn btn-primary" onclick="closeModal()">Concluir</button>`;
-    const nav = (left, right) => `<div class="ftab-nav">${left || '<span></span>'}${right}</div>`;
     let paiSel = (f.editaisPai || []).map(String);
     const soUmPai = f.segmento !== 'Conjunto';
     if (soUmPai && paiSel.length > 1) paiSel = paiSel.slice(0, 1);   // segmento único → 1 pai
@@ -475,6 +460,7 @@ const Editais = {
         <div class="fg"><label>*Segmento</label><select class="input" id="f-segmento" onchange="Editais.formReRender()"><option value="">—</option>${opt(SEGMENTOS, f.segmento)}</select></div>
         <div class="fg"><label>Origem</label><input class="input" id="f-origem" list="dl-origem" value="${esc(f.origem || '')}" placeholder="IFRS-RG, PROEN… ou outro"></div>
       </div>
+      <div class="fg"><label>Ano da pasta (no Drive)</label><input type="number" class="input" id="f-anopasta" value="${esc(f.anoPasta || f.ano || '')}" title="Ano da pasta onde o edital fica no Drive (padrão = Ano do edital)"></div>
       <div class="fg"><label>Link da publicação</label><input class="input" id="f-link" placeholder="https://…" value="${esc(f.link || '')}"></div>
       <div class="fg"><label>É um sub-edital? Marque o(s) edital(is) principal(is) a que ele pertence:</label>
         <div class="chk-list" id="pais-box">${paiChecks}</div>
@@ -483,7 +469,6 @@ const Editais = {
           <option ${f.statusManual !== 'Encerrado' ? 'selected' : ''}>Vigente</option>
           <option ${f.statusManual === 'Encerrado' ? 'selected' : ''}>Encerrado</option>
         </select></div>
-      ${nav('', nextBtn('recurso'))}
     </div>`;
 
     const segsR = this._segs();
@@ -505,21 +490,33 @@ const Editais = {
           <div id="bolsa-lines">${(f.bolsas || []).map((b, i) => this._bolsaRow(b, i)).join('') || '<p class="line-empty">Nenhuma linha.</p>'}</div>
         </div>
       </fieldset>
-      ${nav(backBtn('dados'), nextBtn('crono'))}
     </div>`;
 
     const crono = `<div class="ftab-sec" ${hide('crono')}>
       <div class="fg"><label>Data da publicação</label><input type="date" class="input" id="f-datapub" value="${esc(this.dateVal(f.dataPublicacao))}"></div>
       <div class="line-label"><span>Etapas</span><button type="button" class="btn btn-ghost btn-xs" onclick="Editais.addEtapa()">+ adicionar</button></div>
       <div id="crono-lines">${(f.cronograma || []).map((c, i) => this._etapaRow(c, i)).join('') || '<p class="line-empty">Nenhuma etapa.</p>'}</div>
-      ${nav(backBtn('recurso'), saveBtn)}
     </div>`;
 
-    const docs = `<div class="ftab-sec" ${hide('docs')}><div id="docs-tab-body"></div>${nav(backBtn('crono'), doneBtn)}</div>`;
-    const minH = this._formMinH ? ` style="height:${this._formMinH}px"` : '';
+    const docs = `<div class="ftab-sec" ${hide('docs')}><div id="docs-tab-body"></div></div>`;
 
     return `<div class="ftabs">${tab('dados', '📋 Dados')}${tab('recurso', '💰 Recurso')}${tab('crono', '📅 Cronograma')}${tab('docs', '📎 Documentos')}</div>
-      <div id="ftab-body"${minH}>${dados}${recurso}${crono}${docs}</div>${this._datalists()}`;
+      <div id="ftab-body">${dados}${recurso}${crono}${docs}</div>
+      <div class="form-footer">${this._formNav()}</div>${this._datalists()}`;
+  },
+
+  // Rodapé fixo do assistente (fora da rolagem): Voltar/Avançar/Salvar/Concluir por etapa.
+  _formNav() {
+    const back = (t) => `<button type="button" class="btn btn-ghost" onclick="Editais.switchTab('${t}')">← Voltar</button>`;
+    const next = (t) => `<button type="button" class="btn btn-primary" onclick="Editais.advance('${t}')">Avançar →</button>`;
+    const save = `<button type="button" id="wiz-save" class="btn btn-primary" onclick="Editais.save()">${this.formEditalId ? 'Salvar' : 'Criar edital'}</button>`;
+    const done = `<button type="button" class="btn btn-primary" onclick="Editais.tryCloseForm()">Concluir</button>`;
+    let left = '<span></span>', right = '';
+    if (this.formTab === 'dados') { right = next('recurso'); }
+    else if (this.formTab === 'recurso') { left = back('dados'); right = next('crono'); }
+    else if (this.formTab === 'crono') { left = back('recurso'); right = save; }
+    else if (this.formTab === 'docs') { left = back('crono'); right = done; }
+    return left + right;
   },
 
   switchTab(t) {
@@ -546,7 +543,7 @@ const Editais = {
   harvest() {
     const f = this.form;
     f.numero = val('f-numero'); f.ano = val('f-ano'); f.titulo = val('f-titulo').toUpperCase(); f.resumo = val('f-resumo');
-    f.segmento = val('f-segmento'); f.origem = val('f-origem');
+    f.segmento = val('f-segmento'); f.origem = val('f-origem'); f.anoPasta = val('f-anopasta');
     f.link = val('f-link'); f.statusManual = val('f-statusmanual');
     if (document.getElementById('pais-box')) {
       f.editaisPai = Array.from(document.querySelectorAll('.pai-chk:checked')).map(c => c.value);
@@ -598,11 +595,8 @@ const Editais = {
     }
   },
 
-  async save() {
-    const id = this.formEditalId;
-    this.harvest();
+  _buildPayload() {
     const f = this.form;
-    if (!f.numero || !f.titulo) { toast('Número e Título são obrigatórios (aba Dados).', 'error'); this.switchTab('dados'); return; }
     const recurso = {};
     Object.keys(f.recurso || {}).forEach(seg => {
       const r = f.recurso[seg] || {};
@@ -613,7 +607,7 @@ const Editais = {
         periodoMeses: r.periodoMeses || '', valorTotalBolsa: parseMoney(r.valorTotalBolsa)
       };
     });
-    const p = {
+    return {
       numero: f.numero, ano: f.ano, titulo: f.titulo, resumo: f.resumo, segmento: f.segmento,
       origem: f.origem, link: f.link,
       fomento: f.fomento, bolsa: f.bolsa, recurso: recurso,
@@ -621,8 +615,16 @@ const Editais = {
         segmento: b.segmento || '', ch: b.ch || '', valor: parseMoney(b.valor)
       })),
       dataPublicacao: f.dataPublicacao, cronograma: f.cronograma,
-      editaisPai: f.editaisPai || [], statusManual: f.statusManual
+      editaisPai: f.editaisPai || [], anoPasta: f.anoPasta || '', statusManual: f.statusManual
     };
+  },
+
+  async save() {
+    const id = this.formEditalId;
+    this.harvest();
+    const f = this.form;
+    if (!f.numero || !f.titulo) { toast('Número e Título são obrigatórios (aba Dados).', 'error'); this.switchTab('dados'); return; }
+    const p = this._buildPayload();
     const wb = document.getElementById('wiz-save');
     if (wb) { wb.disabled = true; wb.textContent = 'Salvando…'; }
     try {
@@ -632,7 +634,6 @@ const Editais = {
         closeModal();
         await this.reload();
       } else {
-        // Criado: sem fechar a janela — vira modo edição e vai pra aba Documentos.
         toast('Edital criado. Anexe os documentos.', 'success');
         this.formEditalId = res.id;
         this.formMaxStep = 3;   // agora é edição: tudo liberado
@@ -645,6 +646,42 @@ const Editais = {
       toast(e.message, 'error');
       if (wb) { wb.disabled = false; wb.textContent = id ? 'Salvar' : 'Criar edital'; }
     }
+  },
+
+  // Pergunta ao fechar (× / clicar fora / Concluir): salvar, sair sem salvar ou cancelar.
+  tryCloseForm() {
+    const ov = document.createElement('div');
+    ov.className = 'close-confirm-overlay';
+    ov.innerHTML = `<div class="close-confirm">
+        <h3>Fechar o edital?</h3>
+        <p>Deseja salvar as alterações antes de sair?</p>
+        <div class="cc-actions">
+          <button class="btn btn-ghost" data-act="cancel">Cancelar</button>
+          <button class="btn btn-danger" data-act="discard">Sair sem salvar</button>
+          <button class="btn btn-primary" data-act="save">Salvar e sair</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', (e) => {
+      const act = e.target.getAttribute('data-act');
+      if (e.target === ov || act === 'cancel') { ov.remove(); return; }
+      if (act === 'discard') { ov.remove(); closeModal(); return; }
+      if (act === 'save') { ov.remove(); this._saveAndExit(); return; }
+    });
+  },
+
+  async _saveAndExit() {
+    this.harvest();
+    const f = this.form;
+    if (!f.numero || !f.titulo) { toast('Preencha Número e Título para salvar.', 'error'); this.switchTab('dados'); return; }
+    const id = this.formEditalId;
+    const p = this._buildPayload();
+    try {
+      id ? await API.updateEdital(id, p) : await API.addEdital(p, this._reqId());
+      toast('Salvo.', 'success');
+      closeModal();
+      await this.reload();
+    } catch (e) { toast(e.message, 'error'); }
   },
 
   async clone(id) {

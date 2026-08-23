@@ -63,7 +63,7 @@ const COL = {
     LinkPublicacao: 7, Fomento: 8, Bolsa: 9, RecursoJSON: 10,
     Custeio: 11, Capital: 12, Total: 13, ValorTotalBolsa: 14, BolsasJSON: 15,
     DataPublicacao: 16, CronogramaJSON: 17, EditaisPaiJSON: 18, DriveFolderId: 19,
-    StatusManual: 20, CriadoEm: 21, CriadoPor: 22
+    AnoPasta: 20, StatusManual: 21, CriadoEm: 22, CriadoPor: 23
   },
   EditalDocumentos: {
     ID: 0, EditalID: 1, Tipo: 2, NomeArquivo: 3, DriveFileId: 4, DriveUrl: 5,
@@ -79,7 +79,7 @@ const HEADERS = {
             'LinkPublicacao', 'Fomento', 'Bolsa', 'RecursoJSON',
             'Custeio', 'Capital', 'Total', 'ValorTotalBolsa', 'BolsasJSON',
             'DataPublicacao', 'CronogramaJSON', 'EditaisPaiJSON', 'DriveFolderId',
-            'StatusManual', 'CriadoEm', 'CriadoPor'],
+            'AnoPasta', 'StatusManual', 'CriadoEm', 'CriadoPor'],
   EditalDocumentos: ['ID', 'EditalID', 'Tipo', 'NomeArquivo', 'DriveFileId',
                      'DriveUrl', 'DataUpload', 'EnviadoPor'],
   Perfis: ['Email', 'Nome', 'Perfil', 'Segmento', 'Status', 'AtualizadoEm', 'AtualizadoPor']

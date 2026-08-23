@@ -45,6 +45,7 @@ function _editalRow(id, p, criadoEm, criadoPor, driveFolderId) {
     JSON.stringify(p.cronograma || []),
     JSON.stringify(p.editaisPai || []),
     driveFolderId || '',
+    p.anoPasta || '',
     p.statusManual || '',
     criadoEm,
     criadoPor
@@ -167,7 +168,8 @@ function cloneEdital(id, email, reqId) {
     bolsas: _parseJson(orig.BolsasJSON, []),
     dataPublicacao: _dateStr(orig.DataPublicacao),
     cronograma: _parseJson(orig.CronogramaJSON, []),
-    editaisPai: _parseJson(orig.EditaisPaiJSON, []), statusManual: orig.StatusManual || ''
+    editaisPai: _parseJson(orig.EditaisPaiJSON, []),
+    anoPasta: orig.AnoPasta || '', statusManual: orig.StatusManual || ''
   };
   const newId = genId();
   getSheet('Editais').appendRow(_editalRow(newId, p, nowBR(), email));
@@ -237,7 +239,8 @@ function _editalParentFolder(edital) {
     if (p) return _ensureEditalFolder(p);
   }
   const seg = edital.Segmento === 'Conjunto' ? 'Conjunto' : (edital.Segmento || 'Sem segmento');
-  return _childFolder(_childFolder(_editaisRootFolder(), String(seg)), String(edital.Ano || 'Sem ano'));
+  const ano = String(edital.AnoPasta || edital.Ano || 'Sem ano').trim() || 'Sem ano';
+  return _childFolder(_childFolder(_editaisRootFolder(), String(seg)), ano);
 }
 
 function _storeEditalFolderId(editalId, folderId) {

@@ -151,9 +151,20 @@ a { color: var(--brand-light); }
 .mini-table td { padding: 5px 8px; border-top: 1px solid var(--border); }
 
 /* Formulário em abas */
+/* Form do edital: abas fixas no topo, conteúdo rola no meio, rodapé fixo embaixo. */
+.modal-body--form { display: flex; flex-direction: column; overflow: hidden; }
 .ftabs { display: flex; gap: 6px; margin: 0 0 12px; border-bottom: 1px solid var(--border); flex: 0 0 auto; }
-#ftab-body { overflow-y: auto; overflow-x: hidden; max-height: 62vh; padding-right: 4px; }
+#ftab-body { overflow-y: auto; overflow-x: hidden; padding-right: 4px; }
+.modal-body--form #ftab-body { flex: 1 1 auto; min-height: 120px; }
+.form-footer { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-top: 14px; margin-top: 10px; border-top: 1px solid var(--border); }
 .recurso-box { margin-bottom: 16px; }
+
+/* Diálogo "fechar edital?" */
+.close-confirm-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 80; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.close-confirm { background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-lg); max-width: 430px; width: 100%; padding: 24px; }
+.close-confirm h3 { margin: 0 0 8px; font-size: 17px; color: var(--brand-dark); }
+.close-confirm p { margin: 0 0 20px; color: var(--text-muted); }
+.cc-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
 .ftab { background: none; border: 0; border-bottom: 2px solid transparent; padding: 9px 12px; cursor: pointer; font-size: 14px; color: var(--text-muted); font-family: inherit; }
 .ftab:hover { color: var(--brand); }
 .ftab.active { color: var(--brand); border-bottom-color: var(--brand); font-weight: 600; }
