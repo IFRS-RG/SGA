@@ -79,6 +79,7 @@ const Editais = {
         case 'origem':   return String(e.Origem || '').toLowerCase();
         case 'titulo':   return String(e.Titulo || '').toLowerCase();
         case 'segmento': return String(e.Segmento || '').toLowerCase();
+        case 'publicacao': return String(e.DataPublicacao || '');
         case 'status':   return String(e.Status || '').toLowerCase();
         case 'docs':     return Number(e.docsCount) || 0;
         default:         return 0;
@@ -127,6 +128,7 @@ const Editais = {
             ${this.th('numAno', 'Nº / Ano')}
             ${this.th('titulo', 'Título')}
             ${this.th('segmento', 'Segmento')}
+            ${this.th('publicacao', 'Publicação')}
             ${this.th('status', 'Status')}
             <th class="col-btn">Pasta</th>
             <th class="col-btn">Página</th>
@@ -180,6 +182,7 @@ const Editais = {
       <td><strong>${esc(e.Numero || '—')}</strong><span class="cell-sub">/${esc(e.Ano || '')}</span></td>
       <td>${(e.editaisPai || []).length ? '<span class="link-chip" title="Edital vinculado (filho)">↳ vinculado</span> ' : ''}${esc(e.Titulo || '')}</td>
       <td>${esc(e.Segmento || '—')}</td>
+      <td>${e.DataPublicacao ? esc(this.dateVal(e.DataPublicacao)) : '—'}</td>
       <td>${badge}</td>
       <td class="col-btn"><button class="btn btn-ghost btn-xs" title="Abrir pasta no Drive" onclick="Editais.openFolder('${e.ID}')">📁</button></td>
       <td class="col-btn">${e.LinkPublicacao ? `<a class="btn btn-ghost btn-xs" href="${esc(e.LinkPublicacao)}" target="_blank" rel="noopener" title="Abrir página do edital">🔗</a>` : '<span class="cell-sub">—</span>'}</td>
@@ -330,6 +333,7 @@ const Editais = {
       bolsas: [], dataPublicacao: '', cronograma: [], editaisPai: [], statusManual: ''
     };
     this.formEditalId = id || null;
+    this.formMaxStep = id ? 3 : 0;   // edição: tudo liberado; novo: só Dados
     this._formMinH = 0;
     openModal(id ? 'Editar edital' : 'Novo edital', this.formBody(),
       null, { hideFooter: true });   // navegação/salvar ficam nos botões das abas
@@ -432,12 +436,17 @@ const Editais = {
 
   formBody() {
     const f = this.form;
-    const tab = (id, label) => `<button type="button" class="ftab ${this.formTab === id ? 'active' : ''}" onclick="Editais.switchTab('${id}')">${label}</button>`;
+    const stepOrder = ['dados', 'recurso', 'crono', 'docs'];
+    const maxStep = this.formMaxStep || 0;
+    const tab = (id, label) => {
+      const locked = stepOrder.indexOf(id) > maxStep;
+      return `<button type="button" class="ftab ${this.formTab === id ? 'active' : ''}${locked ? ' locked' : ''}" ${locked ? 'disabled title="Avance pelas etapas anteriores para liberar"' : `onclick="Editais.switchTab('${id}')"`}>${label}${locked ? ' 🔒' : ''}</button>`;
+    };
     const hide = (id) => this.formTab === id ? '' : 'style="display:none"';
     const opt = (list, sel) => list.map(o => `<option ${sel === o ? 'selected' : ''}>${esc(o)}</option>`).join('');
     // Navegação estilo assistente.
     const backBtn = (t) => `<button type="button" class="btn btn-ghost" onclick="Editais.switchTab('${t}')">← Voltar</button>`;
-    const nextBtn = (t) => `<button type="button" class="btn btn-primary" onclick="Editais.switchTab('${t}')">Avançar →</button>`;
+    const nextBtn = (t) => `<button type="button" class="btn btn-primary" onclick="Editais.advance('${t}')">Avançar →</button>`;
     const saveBtn = `<button type="button" id="wiz-save" class="btn btn-primary" onclick="Editais.save()">${this.formEditalId ? 'Salvar' : 'Criar edital'}</button>`;
     const doneBtn = `<button type="button" class="btn btn-primary" onclick="closeModal()">Concluir</button>`;
     const nav = (left, right) => `<div class="ftab-nav">${left || '<span></span>'}${right}</div>`;
@@ -511,11 +520,23 @@ const Editais = {
   },
 
   switchTab(t) {
+    if (['dados', 'recurso', 'crono', 'docs'].indexOf(t) > (this.formMaxStep || 0)) return;  // etapa travada
     this.harvest(); this.formTab = t;
     document.getElementById('modal-body').innerHTML = this.formBody();
     this.afterRender();
     const mb = document.querySelector('.modal-body');
     if (mb) mb.scrollTop = 0;   // sempre começa no topo da aba
+  },
+
+  // Avançar para a próxima etapa: valida a atual e libera a próxima.
+  advance(target) {
+    this.harvest();
+    if (this.formTab === 'dados' && (!this.form.numero || !this.form.titulo)) {
+      toast('Preencha Número e Título para avançar.', 'error'); return;
+    }
+    const ti = ['dados', 'recurso', 'crono', 'docs'].indexOf(target);
+    if (ti > (this.formMaxStep || 0)) this.formMaxStep = ti;
+    this.switchTab(target);
   },
   formReRender() { this.harvest(); document.getElementById('modal-body').innerHTML = this.formBody(); this.afterRender(); },
 
@@ -611,6 +632,7 @@ const Editais = {
         // Criado: sem fechar a janela — vira modo edição e vai pra aba Documentos.
         toast('Edital criado. Anexe os documentos.', 'success');
         this.formEditalId = res.id;
+        this.formMaxStep = 3;   // agora é edição: tudo liberado
         document.getElementById('modal-title').textContent = 'Editar edital';
         this.formTab = 'docs';
         this.formReRenderKeep();
@@ -669,12 +691,14 @@ const Editais = {
       <div class="upload-box">
         <div class="fg"><label>Nome do documento</label>
           <input class="input" id="doc-nome" placeholder="ex.: Edital 12-2026 — Chamada de bolsistas"></div>
-        <div class="form-grid form-grid-3">
+        <div class="form-grid">
           <div class="fg"><label>Tipo</label><select class="input" id="doc-tipo">${optionsHtml(TIPOS_DOC)}</select></div>
           <div class="fg"><label>Ano da pasta</label>
             <input type="number" class="input" id="doc-ano" value="${esc(anoDefault)}" title="Pasta do Drive onde o PDF será guardado"></div>
-          <div class="fg"><label>Arquivo PDF</label><input type="file" accept="application/pdf,.pdf" class="input" id="doc-file" onchange="Editais.onDocFile()"></div>
         </div>
+        <div class="fg"><label>Arquivo PDF</label>
+          <input type="file" accept="application/pdf,.pdf" class="input" id="doc-file" onchange="Editais.onDocFile()">
+          <span class="field-hint" id="doc-file-name"></span></div>
         <button class="btn btn-primary" id="doc-upload-btn" onclick="Editais.uploadDoc('${id}')">Enviar PDF</button>
       </div>` : '';
 
@@ -700,7 +724,10 @@ const Editais = {
   onDocFile() {
     const f = document.getElementById('doc-file');
     const n = document.getElementById('doc-nome');
-    if (f && n && !n.value && f.files[0]) n.value = f.files[0].name.replace(/\.pdf$/i, '');
+    const fn = document.getElementById('doc-file-name');
+    const file = f && f.files[0];
+    if (file && n && !n.value) n.value = file.name.replace(/\.pdf$/i, '');
+    if (fn) fn.textContent = file ? 'Arquivo escolhido: ' + file.name : '';
   },
 
   async uploadDoc(editalId) {
