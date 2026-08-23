@@ -167,10 +167,7 @@ a { color: var(--brand-light); }
 .link-chip { display: inline-block; font-size: 11px; font-weight: 600; color: var(--brand); background: #e6edf7; border-radius: 20px; padding: 1px 8px; vertical-align: middle; }
 .line-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
 .line-row .input { flex: 1; min-width: 0; }
-.bolsa-row .bl-ch, .bolsa-row .bl-num { flex: 0 0 62px; }
-.bolsa-row .bl-per { flex: 0 0 78px; }
-.bolsa-row .bl-valor { flex: 0 0 96px; }
-.bolsa-row .line-seg { flex: 0 0 120px; }
+.bolsa-row .line-seg { flex: 0 0 130px; }
 .crono-row input[type=date] { flex: 0 0 150px; }
 
 .badge-danger-soft { background: #fdecea; color: var(--danger); }
