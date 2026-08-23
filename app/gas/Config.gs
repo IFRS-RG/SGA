@@ -33,13 +33,8 @@ const SEGMENTOS_BASE = ['Ensino', 'Pesquisa', 'Extensão', 'Indissociável'];
 // Segmentos usados no PERFIL de acesso ('Todos' = geral).
 const SEGMENTOS_ACESSO = ['Todos', 'Ensino', 'Pesquisa', 'Extensão', 'Indissociável'];
 
-// Listas de edital.
+// Origem do edital (o form aceita "Outro" via texto livre).
 const ORIGEM_EDITAL = ['IFRS-RG', 'PROEN', 'PROEX', 'PROPPI'];
-// Tipo (finalidade) e Regime (modalidade de submissão). O form aceita "Outro" (texto livre).
-const TIPO_EDITAL = ['Fomento', 'Auxílio', 'Apoio', 'Registro', 'Seleção',
-  'Chamamento Público', 'Credenciamento', 'Premiação', 'Concessão'];
-const REGIME_EDITAL = ['Chamada única', 'Chamada periódica', 'Fluxo contínuo',
-  'Fluxo contínuo permanente', 'Emergencial / Extraordinária'];
 
 // Tipos de fomento/auxílio por segmento (o form também aceita "Outro" via texto livre).
 const TIPO_FOMENTO = {
@@ -65,10 +60,10 @@ const TIPOS_DOC = ['Edital', 'Retificação', 'Anexo', 'Demais publicações'];
 const COL = {
   Editais: {
     ID: 0, Numero: 1, Ano: 2, Titulo: 3, Resumo: 4, Segmento: 5, Origem: 6,
-    TipoEdital: 7, Regime: 8, LinkPublicacao: 9, Fomento: 10, AgenciaFomento: 11,
-    TipoFomentoJSON: 12, Custeio: 13, Capital: 14, Total: 15, Bolsa: 16,
-    AgenciaBolsa: 17, BolsasJSON: 18, DataPublicacao: 19, CronogramaJSON: 20,
-    EditaisPaiJSON: 21, StatusManual: 22, CriadoEm: 23, CriadoPor: 24
+    LinkPublicacao: 7, Fomento: 8, AgenciaFomento: 9, TipoFomentoJSON: 10,
+    Custeio: 11, Capital: 12, Total: 13, Bolsa: 14, AgenciaBolsa: 15,
+    BolsasJSON: 16, DataPublicacao: 17, CronogramaJSON: 18, EditaisPaiJSON: 19,
+    StatusManual: 20, CriadoEm: 21, CriadoPor: 22
   },
   EditalDocumentos: {
     ID: 0, EditalID: 1, Tipo: 2, NomeArquivo: 3, DriveFileId: 4, DriveUrl: 5,
@@ -81,10 +76,10 @@ const COL = {
 
 const HEADERS = {
   Editais: ['ID', 'Numero', 'Ano', 'Titulo', 'Resumo', 'Segmento', 'Origem',
-            'TipoEdital', 'Regime', 'LinkPublicacao', 'Fomento', 'AgenciaFomento',
-            'TipoFomentoJSON', 'Custeio', 'Capital', 'Total', 'Bolsa', 'AgenciaBolsa',
-            'BolsasJSON', 'DataPublicacao', 'CronogramaJSON', 'EditaisPaiJSON',
-            'StatusManual', 'CriadoEm', 'CriadoPor'],
+            'LinkPublicacao', 'Fomento', 'AgenciaFomento', 'TipoFomentoJSON',
+            'Custeio', 'Capital', 'Total', 'Bolsa', 'AgenciaBolsa', 'BolsasJSON',
+            'DataPublicacao', 'CronogramaJSON', 'EditaisPaiJSON', 'StatusManual',
+            'CriadoEm', 'CriadoPor'],
   EditalDocumentos: ['ID', 'EditalID', 'Tipo', 'NomeArquivo', 'DriveFileId',
                      'DriveUrl', 'DataUpload', 'EnviadoPor'],
   Perfis: ['Email', 'Nome', 'Perfil', 'Segmento', 'Status', 'AtualizadoEm', 'AtualizadoPor']

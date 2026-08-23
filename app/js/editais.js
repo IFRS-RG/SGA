@@ -257,8 +257,6 @@ const Editais = {
         ${cell('Ano', esc(e.Ano || '—'))}
         ${cell('Segmento', esc(e.Segmento || '—'))}
         ${cell('Origem', esc(e.Origem || '—'))}
-        ${cell('Tipo de edital', esc(e.TipoEdital || '—'))}
-        ${cell('Regime', esc(e.Regime || '—'))}
         ${cell('Fomento/Auxílio', esc(e.Fomento || 'Não'))}
         ${cell('Documentos', (e.docsCount || 0) + ' PDF(s)')}
         ${cell('Link da publicação', link)}
@@ -292,21 +290,21 @@ const Editais = {
 
   exportXLS() {
     const rows = this.sortedFiltered().map(e => [
-      e.Numero, e.Ano, e.Titulo, e.Segmento, e.Origem, e.TipoEdital, e.Regime, e.Status,
+      e.Numero, e.Ano, e.Titulo, e.Segmento, e.Origem, e.Status,
       e.Fomento, e.AgenciaFomento, this._tfStr(e), e.Custeio, e.Capital, e.Total,
       e.Bolsa, e.AgenciaBolsa, this.dateVal(e.DataPublicacao), e.LinkPublicacao
     ]);
-    exportXLS(['Número', 'Ano', 'Título', 'Segmento', 'Origem', 'Tipo de edital', 'Regime',
-      'Status', 'Fomento', 'Agência fomento', 'Tipo fomento', 'Custeio', 'Capital', 'Total',
+    exportXLS(['Número', 'Ano', 'Título', 'Segmento', 'Origem', 'Status', 'Fomento',
+      'Agência fomento', 'Tipo fomento', 'Custeio', 'Capital', 'Total',
       'Bolsa', 'Agência bolsa', 'Publicação', 'Link'], rows, 'Editais');
   },
 
   exportPDF() {
     const rows = this.sortedFiltered().map(e => [
-      e.Numero + '/' + e.Ano, e.Titulo, e.Segmento, e.TipoEdital,
+      e.Numero + '/' + e.Ano, e.Titulo, e.Segmento,
       this.dateVal(e.DataPublicacao), e.Status
     ]);
-    exportPDF('Editais — SGA', ['Nº/Ano', 'Título', 'Segmento', 'Tipo', 'Publicação', 'Status'], rows);
+    exportPDF('Editais — SGA', ['Nº/Ano', 'Título', 'Segmento', 'Publicação', 'Status'], rows);
   },
 
   // ── Formulário (novo / editar) — 3 abas ─────────────────────
@@ -315,7 +313,7 @@ const Editais = {
     this.formTab = 'dados';
     this.form = e ? {
       numero: e.Numero, ano: e.Ano, titulo: e.Titulo, resumo: e.Resumo, segmento: e.Segmento,
-      origem: e.Origem, tipoEdital: e.TipoEdital, regime: e.Regime, link: e.LinkPublicacao,
+      origem: e.Origem, link: e.LinkPublicacao,
       fomento: e.Fomento, agenciaFomento: e.AgenciaFomento, tipoFomento: e.tipoFomento || {},
       custeio: e.Custeio, capital: e.Capital, bolsa: e.Bolsa, agenciaBolsa: e.AgenciaBolsa,
       bolsas: (e.bolsas || []).slice(), dataPublicacao: e.DataPublicacao,
@@ -323,7 +321,7 @@ const Editais = {
       statusManual: e.StatusManual
     } : {
       numero: '', ano: new Date().getFullYear(), titulo: '', resumo: '', segmento: '',
-      origem: '', tipoEdital: '', regime: '', link: '', fomento: 'Não',
+      origem: '', link: '', fomento: 'Não',
       agenciaFomento: '', tipoFomento: {}, custeio: '', capital: '', bolsa: 'Não',
       agenciaBolsa: '', bolsas: [], dataPublicacao: '', cronograma: [], editaisPai: [], statusManual: ''
     };
@@ -367,10 +365,8 @@ const Editais = {
       const bol = (TIPO_BOLSA[s] || []).map(o => `<option value="${esc(o)}">`).join('');
       return `<datalist id="dl-fom-${k}">${fom}</datalist><datalist id="dl-bol-${k}">${bol}</datalist>`;
     }).join('');
-    const te = TIPO_EDITAL.map(o => `<option value="${esc(o)}">`).join('');
-    const rg = REGIME_EDITAL.map(o => `<option value="${esc(o)}">`).join('');
     const ca = ORIGEM_EDITAL.map(o => `<option value="${esc(o)}">`).join('');
-    return segLists + `<datalist id="dl-tipoedital">${te}</datalist><datalist id="dl-regime">${rg}</datalist><datalist id="dl-origem">${ca}</datalist>`;
+    return segLists + `<datalist id="dl-origem">${ca}</datalist>`;
   },
 
   _fomentoTipoFields() {
@@ -446,10 +442,6 @@ const Editais = {
         <div class="fg"><label>*Segmento</label><select class="input" id="f-segmento" onchange="Editais.formReRender()"><option value="">—</option>${opt(SEGMENTOS, f.segmento)}</select></div>
         <div class="fg"><label>Origem</label><input class="input" id="f-origem" list="dl-origem" value="${esc(f.origem || '')}" placeholder="IFRS-RG, PROEN… ou outro"></div>
       </div>
-      <div class="form-grid">
-        <div class="fg"><label>Tipo de edital</label><input class="input" id="f-tipoedital" list="dl-tipoedital" value="${esc(f.tipoEdital || '')}" placeholder="Fomento, Seleção… ou outro"></div>
-        <div class="fg"><label>Regime</label><input class="input" id="f-regime" list="dl-regime" value="${esc(f.regime || '')}" placeholder="Chamada única, Fluxo contínuo… ou outro"></div>
-      </div>
       <div class="fg"><label>Link da publicação</label><input class="input" id="f-link" placeholder="https://…" value="${esc(f.link || '')}"></div>
       <div class="fg"><label>É um sub-edital? Marque o(s) edital(is) principal(is) a que ele pertence:</label>
         <div class="chk-list" id="pais-box">${paiChecks}</div>
@@ -507,8 +499,8 @@ const Editais = {
   harvest() {
     const f = this.form;
     f.numero = val('f-numero'); f.ano = val('f-ano'); f.titulo = val('f-titulo'); f.resumo = val('f-resumo');
-    f.segmento = val('f-segmento'); f.origem = val('f-origem'); f.tipoEdital = val('f-tipoedital');
-    f.regime = val('f-regime'); f.link = val('f-link'); f.statusManual = val('f-statusmanual');
+    f.segmento = val('f-segmento'); f.origem = val('f-origem');
+    f.link = val('f-link'); f.statusManual = val('f-statusmanual');
     if (document.getElementById('pais-box')) {
       f.editaisPai = Array.from(document.querySelectorAll('.pai-chk:checked')).map(c => c.value);
     }
@@ -562,7 +554,7 @@ const Editais = {
     if (!f.numero || !f.titulo) { toast('Número e Título são obrigatórios (aba Dados).', 'error'); this.switchTab('dados'); return; }
     const p = {
       numero: f.numero, ano: f.ano, titulo: f.titulo, resumo: f.resumo, segmento: f.segmento,
-      origem: f.origem, tipoEdital: f.tipoEdital, regime: f.regime, link: f.link,
+      origem: f.origem, link: f.link,
       fomento: f.fomento, agenciaFomento: f.agenciaFomento, tipoFomento: f.tipoFomento,
       custeio: parseMoney(f.custeio), capital: parseMoney(f.capital),
       bolsa: f.bolsa, agenciaBolsa: f.agenciaBolsa,

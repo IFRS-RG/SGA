@@ -27,8 +27,6 @@ function _editalRow(id, p, criadoEm, criadoPor) {
     p.resumo || '',
     p.segmento || '',
     p.origem || '',
-    p.tipoEdital || '',
-    p.regime || '',
     p.link || '',
     p.fomento || 'Não',
     p.agenciaFomento || '',
@@ -158,7 +156,7 @@ function cloneEdital(id, email, reqId) {
   const p = {
     numero: orig.Numero, ano: orig.Ano, titulo: '[Cópia] ' + orig.Titulo,
     resumo: orig.Resumo, segmento: orig.Segmento, origem: orig.Origem,
-    tipoEdital: orig.TipoEdital, regime: orig.Regime, link: orig.LinkPublicacao,
+    link: orig.LinkPublicacao,
     fomento: orig.Fomento, agenciaFomento: orig.AgenciaFomento,
     tipoFomento: _parseJson(orig.TipoFomentoJSON, {}),
     custeio: orig.Custeio, capital: orig.Capital,
@@ -212,10 +210,11 @@ function getEditalFolderUrl(editalId) {
 }
 
 // ── Colocação da pasta do edital conforme o vínculo (pai/filho) ──────────
-// Nome da pasta/rótulo do edital: "Edital {Origem} {Nº}/{Ano} - {Título}".
+// Nome da pasta/rótulo do edital: "Edital {Segmento} {Origem} {Nº}/{Ano} - {Título}".
 function _editalLabel(e) {
-  const cat = e.Origem ? String(e.Origem).trim() + ' ' : '';
-  return ('Edital ' + cat + (e.Numero || '') + '/' + (e.Ano || '') + ' - ' + (e.Titulo || '')).trim();
+  const seg = e.Segmento ? String(e.Segmento).trim() + ' ' : '';
+  const org = e.Origem ? String(e.Origem).trim() + ' ' : '';
+  return ('Edital ' + seg + org + (e.Numero || '') + '/' + (e.Ano || '') + ' - ' + (e.Titulo || '')).trim();
 }
 function _parentHomeFolder(p) {
   return _editalFolder(_editalLabel(p), p.Ano, p.Segmento);

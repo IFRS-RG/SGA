@@ -22,10 +22,6 @@ const PERFIS           = ['Admin', 'Gestor', 'Visualizador'];
 const SEGMENTOS_ACESSO = ['Todos', 'Ensino', 'Pesquisa', 'Extensão', 'Indissociável'];
 
 const ORIGEM_EDITAL = ['IFRS-RG', 'PROEN', 'PROEX', 'PROPPI'];
-const TIPO_EDITAL = ['Fomento', 'Auxílio', 'Apoio', 'Registro', 'Seleção',
-  'Chamamento Público', 'Credenciamento', 'Premiação', 'Concessão'];
-const REGIME_EDITAL = ['Chamada única', 'Chamada periódica', 'Fluxo contínuo',
-  'Fluxo contínuo permanente', 'Emergencial / Extraordinária'];
 const TIPO_FOMENTO = {
   'Ensino': ['PAIEN'], 'Pesquisa': ['AIPCTI'], 'Extensão': ['PAIEX'], 'Indissociável': ['PAIIND']
 };
