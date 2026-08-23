@@ -17,8 +17,13 @@ function _dateStr(v) {
 
 // Monta a linha (ordem = HEADERS.Editais) a partir do payload do formulário.
 function _editalRow(id, p, criadoEm, criadoPor) {
-  const custeio = _num(p.custeio);
-  const capital = _num(p.capital);
+  // recurso = { [segmento]: {agenciaFomento, tipoFomento, custeio, capital, agenciaBolsa, valorTotalBolsa} }
+  const recurso = p.recurso || {};
+  let cust = 0, cap = 0, vtb = 0;
+  Object.keys(recurso).forEach(s => {
+    const r = recurso[s] || {};
+    cust += _num(r.custeio); cap += _num(r.capital); vtb += _num(r.valorTotalBolsa);
+  });
   return [
     id,
     p.numero || '',
@@ -29,13 +34,12 @@ function _editalRow(id, p, criadoEm, criadoPor) {
     p.origem || '',
     p.link || '',
     p.fomento || 'Não',
-    p.agenciaFomento || '',
-    JSON.stringify(p.tipoFomento || {}),
-    custeio,
-    capital,
-    custeio + capital,
     p.bolsa || 'Não',
-    p.agenciaBolsa || '',
+    JSON.stringify(recurso),
+    cust,                 // Custeio (soma)
+    cap,                  // Capital (soma)
+    cust + cap,           // Total (soma)
+    vtb,                  // ValorTotalBolsa (soma)
     JSON.stringify(p.bolsas || []),
     p.dataPublicacao || '',
     JSON.stringify(p.cronograma || []),
@@ -61,7 +65,7 @@ function getEditais() {
   const docs    = sheetRows('EditalDocumentos');
   return editais.map(e => {
     e.docsCount    = docs.filter(d => String(d.EditalID) === String(e.ID)).length;
-    e.tipoFomento  = _parseJson(e.TipoFomentoJSON, {});
+    e.recurso      = _parseJson(e.RecursoJSON, {});
     e.bolsas       = _parseJson(e.BolsasJSON, []);
     e.cronograma   = _parseJson(e.CronogramaJSON, []);
     e.editaisPai   = _parseJson(e.EditaisPaiJSON, []);
@@ -157,10 +161,8 @@ function cloneEdital(id, email, reqId) {
     numero: orig.Numero, ano: orig.Ano, titulo: '[Cópia] ' + orig.Titulo,
     resumo: orig.Resumo, segmento: orig.Segmento, origem: orig.Origem,
     link: orig.LinkPublicacao,
-    fomento: orig.Fomento, agenciaFomento: orig.AgenciaFomento,
-    tipoFomento: _parseJson(orig.TipoFomentoJSON, {}),
-    custeio: orig.Custeio, capital: orig.Capital,
-    bolsa: orig.Bolsa, agenciaBolsa: orig.AgenciaBolsa,
+    fomento: orig.Fomento, bolsa: orig.Bolsa,
+    recurso: _parseJson(orig.RecursoJSON, {}),
     bolsas: _parseJson(orig.BolsasJSON, []),
     dataPublicacao: _dateStr(orig.DataPublicacao),
     cronograma: _parseJson(orig.CronogramaJSON, []),

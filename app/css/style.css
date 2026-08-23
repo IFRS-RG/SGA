@@ -156,6 +156,7 @@ a { color: var(--brand-light); }
 .ftab.active { color: var(--brand); border-bottom-color: var(--brand); font-weight: 600; }
 .line-label { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 600; margin: 10px 0 6px; }
 .line-empty { color: var(--text-muted); font-size: 13px; margin: 4px 0; }
+.seg-head { font-size: 12px; font-weight: 700; color: var(--brand); text-transform: uppercase; letter-spacing: .4px; margin: 12px 0 6px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
 .ftab-nav { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--border); }
 .field-hint { display: block; font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 .chk-list { max-height: 150px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; background: #fff; }
