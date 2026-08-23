@@ -256,7 +256,7 @@ const Editais = {
         ${cell('Número', esc(e.Numero || '—'))}
         ${cell('Ano', esc(e.Ano || '—'))}
         ${cell('Segmento', esc(e.Segmento || '—'))}
-        ${cell('Origem', esc(e.Categoria || '—'))}
+        ${cell('Origem', esc(e.Origem || '—'))}
         ${cell('Tipo de edital', esc(e.TipoEdital || '—'))}
         ${cell('Regime', esc(e.Regime || '—'))}
         ${cell('Fomento/Auxílio', esc(e.Fomento || 'Não'))}
@@ -292,7 +292,7 @@ const Editais = {
 
   exportXLS() {
     const rows = this.sortedFiltered().map(e => [
-      e.Numero, e.Ano, e.Titulo, e.Segmento, e.Categoria, e.TipoEdital, e.Regime, e.Status,
+      e.Numero, e.Ano, e.Titulo, e.Segmento, e.Origem, e.TipoEdital, e.Regime, e.Status,
       e.Fomento, e.AgenciaFomento, this._tfStr(e), e.Custeio, e.Capital, e.Total,
       e.Bolsa, e.AgenciaBolsa, this.dateVal(e.DataPublicacao), e.LinkPublicacao
     ]);
@@ -315,7 +315,7 @@ const Editais = {
     this.formTab = 'dados';
     this.form = e ? {
       numero: e.Numero, ano: e.Ano, titulo: e.Titulo, resumo: e.Resumo, segmento: e.Segmento,
-      categoria: e.Categoria, tipoEdital: e.TipoEdital, regime: e.Regime, link: e.LinkPublicacao,
+      origem: e.Origem, tipoEdital: e.TipoEdital, regime: e.Regime, link: e.LinkPublicacao,
       fomento: e.Fomento, agenciaFomento: e.AgenciaFomento, tipoFomento: e.tipoFomento || {},
       custeio: e.Custeio, capital: e.Capital, bolsa: e.Bolsa, agenciaBolsa: e.AgenciaBolsa,
       bolsas: (e.bolsas || []).slice(), dataPublicacao: e.DataPublicacao,
@@ -323,7 +323,7 @@ const Editais = {
       statusManual: e.StatusManual
     } : {
       numero: '', ano: new Date().getFullYear(), titulo: '', resumo: '', segmento: '',
-      categoria: '', tipoEdital: '', regime: '', link: '', fomento: 'Não',
+      origem: '', tipoEdital: '', regime: '', link: '', fomento: 'Não',
       agenciaFomento: '', tipoFomento: {}, custeio: '', capital: '', bolsa: 'Não',
       agenciaBolsa: '', bolsas: [], dataPublicacao: '', cronograma: [], editaisPai: [], statusManual: ''
     };
@@ -369,8 +369,8 @@ const Editais = {
     }).join('');
     const te = TIPO_EDITAL.map(o => `<option value="${esc(o)}">`).join('');
     const rg = REGIME_EDITAL.map(o => `<option value="${esc(o)}">`).join('');
-    const ca = CATEGORIA_EDITAL.map(o => `<option value="${esc(o)}">`).join('');
-    return segLists + `<datalist id="dl-tipoedital">${te}</datalist><datalist id="dl-regime">${rg}</datalist><datalist id="dl-categoria">${ca}</datalist>`;
+    const ca = ORIGEM_EDITAL.map(o => `<option value="${esc(o)}">`).join('');
+    return segLists + `<datalist id="dl-tipoedital">${te}</datalist><datalist id="dl-regime">${rg}</datalist><datalist id="dl-origem">${ca}</datalist>`;
   },
 
   _fomentoTipoFields() {
@@ -444,7 +444,7 @@ const Editais = {
       <div class="fg"><label>Resumo</label><textarea class="input" id="f-resumo" rows="3">${esc(f.resumo || '')}</textarea></div>
       <div class="form-grid">
         <div class="fg"><label>*Segmento</label><select class="input" id="f-segmento" onchange="Editais.formReRender()"><option value="">—</option>${opt(SEGMENTOS, f.segmento)}</select></div>
-        <div class="fg"><label>Origem</label><input class="input" id="f-categoria" list="dl-categoria" value="${esc(f.categoria || '')}" placeholder="IFRS-RG, PROEN… ou outro"></div>
+        <div class="fg"><label>Origem</label><input class="input" id="f-origem" list="dl-origem" value="${esc(f.origem || '')}" placeholder="IFRS-RG, PROEN… ou outro"></div>
       </div>
       <div class="form-grid">
         <div class="fg"><label>Tipo de edital</label><input class="input" id="f-tipoedital" list="dl-tipoedital" value="${esc(f.tipoEdital || '')}" placeholder="Fomento, Seleção… ou outro"></div>
@@ -507,7 +507,7 @@ const Editais = {
   harvest() {
     const f = this.form;
     f.numero = val('f-numero'); f.ano = val('f-ano'); f.titulo = val('f-titulo'); f.resumo = val('f-resumo');
-    f.segmento = val('f-segmento'); f.categoria = val('f-categoria'); f.tipoEdital = val('f-tipoedital');
+    f.segmento = val('f-segmento'); f.origem = val('f-origem'); f.tipoEdital = val('f-tipoedital');
     f.regime = val('f-regime'); f.link = val('f-link'); f.statusManual = val('f-statusmanual');
     if (document.getElementById('pais-box')) {
       f.editaisPai = Array.from(document.querySelectorAll('.pai-chk:checked')).map(c => c.value);
@@ -562,7 +562,7 @@ const Editais = {
     if (!f.numero || !f.titulo) { toast('Número e Título são obrigatórios (aba Dados).', 'error'); this.switchTab('dados'); return; }
     const p = {
       numero: f.numero, ano: f.ano, titulo: f.titulo, resumo: f.resumo, segmento: f.segmento,
-      categoria: f.categoria, tipoEdital: f.tipoEdital, regime: f.regime, link: f.link,
+      origem: f.origem, tipoEdital: f.tipoEdital, regime: f.regime, link: f.link,
       fomento: f.fomento, agenciaFomento: f.agenciaFomento, tipoFomento: f.tipoFomento,
       custeio: parseMoney(f.custeio), capital: parseMoney(f.capital),
       bolsa: f.bolsa, agenciaBolsa: f.agenciaBolsa,

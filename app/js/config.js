@@ -21,7 +21,7 @@ const TIPOS_DOC        = ['Edital', 'Retificação', 'Anexo', 'Demais publicaç�
 const PERFIS           = ['Admin', 'Gestor', 'Visualizador'];
 const SEGMENTOS_ACESSO = ['Todos', 'Ensino', 'Pesquisa', 'Extensão', 'Indissociável'];
 
-const CATEGORIA_EDITAL = ['IFRS-RG', 'PROEN', 'PROEX', 'PROPPI'];
+const ORIGEM_EDITAL = ['IFRS-RG', 'PROEN', 'PROEX', 'PROPPI'];
 const TIPO_EDITAL = ['Fomento', 'Auxílio', 'Apoio', 'Registro', 'Seleção',
   'Chamamento Público', 'Credenciamento', 'Premiação', 'Concessão'];
 const REGIME_EDITAL = ['Chamada única', 'Chamada periódica', 'Fluxo contínuo',

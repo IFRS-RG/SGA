@@ -34,7 +34,7 @@ const SEGMENTOS_BASE = ['Ensino', 'Pesquisa', 'Extensão', 'Indissociável'];
 const SEGMENTOS_ACESSO = ['Todos', 'Ensino', 'Pesquisa', 'Extensão', 'Indissociável'];
 
 // Listas de edital.
-const CATEGORIA_EDITAL = ['IFRS-RG', 'PROEN', 'PROEX', 'PROPPI'];
+const ORIGEM_EDITAL = ['IFRS-RG', 'PROEN', 'PROEX', 'PROPPI'];
 // Tipo (finalidade) e Regime (modalidade de submissão). O form aceita "Outro" (texto livre).
 const TIPO_EDITAL = ['Fomento', 'Auxílio', 'Apoio', 'Registro', 'Seleção',
   'Chamamento Público', 'Credenciamento', 'Premiação', 'Concessão'];
@@ -64,7 +64,7 @@ const TIPOS_DOC = ['Edital', 'Retificação', 'Anexo', 'Demais publicações'];
 // ── Índices de coluna (0-based) ──────────────────────────────
 const COL = {
   Editais: {
-    ID: 0, Numero: 1, Ano: 2, Titulo: 3, Resumo: 4, Segmento: 5, Categoria: 6,
+    ID: 0, Numero: 1, Ano: 2, Titulo: 3, Resumo: 4, Segmento: 5, Origem: 6,
     TipoEdital: 7, Regime: 8, LinkPublicacao: 9, Fomento: 10, AgenciaFomento: 11,
     TipoFomentoJSON: 12, Custeio: 13, Capital: 14, Total: 15, Bolsa: 16,
     AgenciaBolsa: 17, BolsasJSON: 18, DataPublicacao: 19, CronogramaJSON: 20,
@@ -80,7 +80,7 @@ const COL = {
 };
 
 const HEADERS = {
-  Editais: ['ID', 'Numero', 'Ano', 'Titulo', 'Resumo', 'Segmento', 'Categoria',
+  Editais: ['ID', 'Numero', 'Ano', 'Titulo', 'Resumo', 'Segmento', 'Origem',
             'TipoEdital', 'Regime', 'LinkPublicacao', 'Fomento', 'AgenciaFomento',
             'TipoFomentoJSON', 'Custeio', 'Capital', 'Total', 'Bolsa', 'AgenciaBolsa',
             'BolsasJSON', 'DataPublicacao', 'CronogramaJSON', 'EditaisPaiJSON',
