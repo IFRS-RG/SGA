@@ -491,7 +491,13 @@ const Editais = {
       <div id="ftab-body"${minH}>${dados}${recurso}${crono}${docs}</div>${this._datalists()}`;
   },
 
-  switchTab(t) { this.harvest(); this.formTab = t; document.getElementById('modal-body').innerHTML = this.formBody(); this.afterRender(); },
+  switchTab(t) {
+    this.harvest(); this.formTab = t;
+    document.getElementById('modal-body').innerHTML = this.formBody();
+    this.afterRender();
+    const mb = document.querySelector('.modal-body');
+    if (mb) mb.scrollTop = 0;   // sempre começa no topo da aba
+  },
   formReRender() { this.harvest(); document.getElementById('modal-body').innerHTML = this.formBody(); this.afterRender(); },
 
   harvest() {
@@ -591,8 +597,9 @@ const Editais = {
     confirmDialog('Clonar edital',
       `Criar uma cópia de "${e ? e.Titulo : ''}"? Os documentos PDF não são copiados.`,
       async () => {
+        if (this._acting) return; this._acting = true;
         try { await API.cloneEdital(id); toast('Edital clonado.', 'success'); await this.reload(); }
-        catch (e) { toast(e.message, 'error'); }
+        catch (e) { toast(e.message, 'error'); } finally { this._acting = false; }
       }, 'Clonar');
   },
 
@@ -601,8 +608,9 @@ const Editais = {
     confirmDialog('Excluir edital',
       `Excluir "${e ? e.Titulo : id}"? O edital, seus documentos e a pasta dele no Drive serão removidos (a pasta vai para a lixeira). Se houver sub-editais vinculados, a exclusão é bloqueada. Esta ação não pode ser desfeita.`,
       async () => {
+        if (this._acting) return; this._acting = true;
         try { await API.deleteEdital(id); toast('Edital excluído.', 'success'); await this.reload(); }
-        catch (e) { toast(e.message, 'error'); }
+        catch (e) { toast(e.message, 'error'); } finally { this._acting = false; }
       }, 'Excluir');
   },
 
@@ -635,7 +643,7 @@ const Editais = {
           <div class="fg"><label>Tipo</label><select class="input" id="doc-tipo">${optionsHtml(TIPOS_DOC)}</select></div>
           <div class="fg"><label>Ano da pasta</label>
             <input type="number" class="input" id="doc-ano" value="${esc(anoDefault)}" title="Pasta do Drive onde o PDF será guardado"></div>
-          <div class="fg"><label>Arquivo PDF</label><input type="file" accept="application/pdf" class="input" id="doc-file" onchange="Editais.onDocFile()"></div>
+          <div class="fg"><label>Arquivo PDF</label><input type="file" accept="application/pdf,.pdf" class="input" id="doc-file" onchange="Editais.onDocFile()"></div>
         </div>
         <button class="btn btn-primary" id="doc-upload-btn" onclick="Editais.uploadDoc('${id}')">Enviar PDF</button>
       </div>` : '';
@@ -672,6 +680,7 @@ const Editais = {
     const ano  = val('doc-ano');
     const file = fileEl.files[0];
     if (!file) { toast('Selecione um arquivo PDF.', 'error'); return; }
+    if (!/\.pdf$/i.test(file.name)) { toast('O arquivo precisa ter extensão .pdf.', 'error'); return; }
     if (file.type && file.type !== 'application/pdf') { toast('O arquivo precisa ser um PDF.', 'error'); return; }
     if (!ano) { toast('Informe o ano da pasta.', 'error'); return; }
 

@@ -4,33 +4,38 @@
 async function gasCall(action, extra = {}) {
   const token = getIdToken();
   const body  = JSON.stringify({ action, token, ...extra });
+  if (typeof progressStart === 'function') progressStart();
 
   let resp;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 30000);
   try {
-    resp = await fetch(SGA_CONFIG.GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS no GAS
-      body,
-      signal: ctrl.signal
-    });
-  } catch (e) {
-    throw new Error(e.name === 'AbortError'
-      ? 'O servidor demorou demais para responder (timeout).'
-      : 'Falha de conexão com o servidor.');
-  } finally {
-    clearTimeout(timer);
-  }
+    try {
+      resp = await fetch(SGA_CONFIG.GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS no GAS
+        body,
+        signal: ctrl.signal
+      });
+    } catch (e) {
+      throw new Error(e.name === 'AbortError'
+        ? 'O servidor demorou demais para responder (timeout).'
+        : 'Falha de conexão com o servidor.');
+    } finally {
+      clearTimeout(timer);
+    }
 
-  if (!resp.ok) throw new Error('HTTP ' + resp.status);
-  const data = await resp.json();
-  if (data && data.error) {
-    // Sessão expirada → volta pro login.
-    if (/sess[aã]o inv[aá]lida|expirada/i.test(data.error)) { logout(); }
-    throw new Error(data.error);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (data && data.error) {
+      // Sessão expirada → volta pro login.
+      if (/sess[aã]o inv[aá]lida|expirada/i.test(data.error)) { logout(); }
+      throw new Error(data.error);
+    }
+    return data;
+  } finally {
+    if (typeof progressDone === 'function') progressDone();
   }
-  return data;
 }
 
 const API = {

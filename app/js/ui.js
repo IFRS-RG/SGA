@@ -13,10 +13,27 @@ function toast(msg, type = 'info') {
   const wrap = document.getElementById('toast-wrap');
   const el = document.createElement('div');
   el.className = 'toast toast-' + type;
-  el.textContent = msg;
+  const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
+  el.innerHTML = '<span class="toast-ico">' + icon + '</span><span>' + esc(msg) + '</span>';
   wrap.appendChild(el);
   setTimeout(() => el.classList.add('show'), 10);
-  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 3600);
+  const dur = type === 'error' ? 5200 : 3600;
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, dur);
+}
+
+// ── Barra de progresso no topo (aparece durante chamadas ao servidor) ──
+let _progCount = 0, _progEl = null;
+function _ensureProg() {
+  if (_progEl) return;
+  _progEl = document.createElement('div');
+  _progEl.className = 'top-progress';
+  _progEl.innerHTML = '<div class="top-progress-bar"></div>';
+  document.body.appendChild(_progEl);
+}
+function progressStart() { _ensureProg(); _progCount++; _progEl.classList.add('active'); }
+function progressDone() {
+  _progCount = Math.max(0, _progCount - 1);
+  if (_progCount === 0 && _progEl) _progEl.classList.remove('active');
 }
 
 // ── Modal ─────────────────────────────────────────────────────
