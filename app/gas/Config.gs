@@ -62,8 +62,8 @@ const COL = {
     ID: 0, Numero: 1, Ano: 2, Titulo: 3, Resumo: 4, Segmento: 5, Origem: 6,
     LinkPublicacao: 7, Fomento: 8, Bolsa: 9, RecursoJSON: 10,
     Custeio: 11, Capital: 12, Total: 13, ValorTotalBolsa: 14, BolsasJSON: 15,
-    DataPublicacao: 16, CronogramaJSON: 17, EditaisPaiJSON: 18, StatusManual: 19,
-    CriadoEm: 20, CriadoPor: 21
+    DataPublicacao: 16, CronogramaJSON: 17, EditaisPaiJSON: 18, DriveFolderId: 19,
+    StatusManual: 20, CriadoEm: 21, CriadoPor: 22
   },
   EditalDocumentos: {
     ID: 0, EditalID: 1, Tipo: 2, NomeArquivo: 3, DriveFileId: 4, DriveUrl: 5,
@@ -78,8 +78,8 @@ const HEADERS = {
   Editais: ['ID', 'Numero', 'Ano', 'Titulo', 'Resumo', 'Segmento', 'Origem',
             'LinkPublicacao', 'Fomento', 'Bolsa', 'RecursoJSON',
             'Custeio', 'Capital', 'Total', 'ValorTotalBolsa', 'BolsasJSON',
-            'DataPublicacao', 'CronogramaJSON', 'EditaisPaiJSON', 'StatusManual',
-            'CriadoEm', 'CriadoPor'],
+            'DataPublicacao', 'CronogramaJSON', 'EditaisPaiJSON', 'DriveFolderId',
+            'StatusManual', 'CriadoEm', 'CriadoPor'],
   EditalDocumentos: ['ID', 'EditalID', 'Tipo', 'NomeArquivo', 'DriveFileId',
                      'DriveUrl', 'DataUpload', 'EnviadoPor'],
   Perfis: ['Email', 'Nome', 'Perfil', 'Segmento', 'Status', 'AtualizadoEm', 'AtualizadoPor']

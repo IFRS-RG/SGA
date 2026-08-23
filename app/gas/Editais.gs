@@ -16,7 +16,7 @@ function _dateStr(v) {
 }
 
 // Monta a linha (ordem = HEADERS.Editais) a partir do payload do formulário.
-function _editalRow(id, p, criadoEm, criadoPor) {
+function _editalRow(id, p, criadoEm, criadoPor, driveFolderId) {
   // recurso = { [segmento]: {agenciaFomento, tipoFomento, custeio, capital, agenciaBolsa, valorTotalBolsa} }
   const recurso = p.recurso || {};
   let cust = 0, cap = 0, vtb = 0;
@@ -44,6 +44,7 @@ function _editalRow(id, p, criadoEm, criadoPor) {
     p.dataPublicacao || '',
     JSON.stringify(p.cronograma || []),
     JSON.stringify(p.editaisPai || []),
+    driveFolderId || '',
     p.statusManual || '',
     criadoEm,
     criadoPor
@@ -114,8 +115,8 @@ function updateEdital(id, p, email) {
   const sh  = getSheet('Editais');
   const old = sh.getRange(idx, 1, 1, HEADERS.Editais.length).getValues()[0];
   const oldParents = _parseJson(old[COL.Editais.EditaisPaiJSON], []);
-  // Preserva CriadoEm/CriadoPor originais.
-  const row = _editalRow(id, p, old[COL.Editais.CriadoEm], old[COL.Editais.CriadoPor]);
+  // Preserva CriadoEm/CriadoPor e o ID da pasta do Drive (não recria a pasta ao editar).
+  const row = _editalRow(id, p, old[COL.Editais.CriadoEm], old[COL.Editais.CriadoPor], old[COL.Editais.DriveFolderId]);
   sh.getRange(idx, 1, 1, row.length).setValues([row]);
   _syncEditalPlacement(id, oldParents);
   return { ok: true };
@@ -138,7 +139,7 @@ function deleteEdital(id, email) {
 
   if (edital) {
     _removeEditalPlacement(edital);   // remove atalhos nos pais (caso Conjunto)
-    try { _editalHomeFolder(edital, edital.Ano).setTrashed(true); } catch (e) {}   // pasta → lixeira
+    if (edital.DriveFolderId) { try { DriveApp.getFolderById(edital.DriveFolderId).setTrashed(true); } catch (e) {} }  // pasta → lixeira
   }
   getSheet('Editais').deleteRow(idx);
   // Fallback: manda os PDFs pra lixeira também (caso a pasta não tenha sido apagada) + limpa a aba.
@@ -208,7 +209,7 @@ function getEditalDocs(editalId) {
 function getEditalFolderUrl(editalId) {
   const edital = sheetRows('Editais').find(e => String(e.ID) === String(editalId));
   if (!edital) throw new Error('Edital não encontrado.');
-  return { url: _editalHomeFolder(edital, edital.Ano).getUrl() };
+  return { url: _ensureEditalFolder(edital).getUrl() };
 }
 
 // ── Colocação da pasta do edital conforme o vínculo (pai/filho) ──────────
@@ -218,25 +219,55 @@ function _editalLabel(e) {
   const org = e.Origem ? String(e.Origem).trim() + ' ' : '';
   return ('Edital ' + seg + org + (e.Numero || '') + '/' + (e.Ano || '') + ' - ' + (e.Titulo || '')).trim();
 }
-function _parentHomeFolder(p) {
-  return _editalFolder(_editalLabel(p), p.Ano, p.Segmento);
+// Nome desejado da pasta ("Vinculado " quando é filho não-conjunto).
+function _editalFolderName(edital) {
+  const parents = _parseJson(edital.EditaisPaiJSON, []).map(String);
+  const linked = parents.length && edital.Segmento !== 'Conjunto';
+  return (linked ? 'Vinculado ' : '') + _editalLabel(edital);
 }
 
-// Pasta REAL onde o edital mora, conforme o vínculo:
-//   sem vínculo            → {segmento}/{ano}/{label}   (ano pode ser override do upload)
-//   vinculado NÃO-conjunto → {pai}/Vinculado {label}    (1 pai)
-//   vinculado CONJUNTO     → Conjunto/{ano do edital}/{label}
-function _editalHomeFolder(edital, ano) {
+// Pasta PAI onde a pasta do edital deve ficar (conforme vínculo/segmento/ano).
+//   filho não-conjunto → dentro da pasta do pai
+//   conjunto           → raiz/Conjunto/{ano}
+//   sem vínculo        → raiz/{segmento}/{ano}
+function _editalParentFolder(edital) {
   const parents = _parseJson(edital.EditaisPaiJSON, []).map(String);
-  if (parents.length) {
-    if (edital.Segmento !== 'Conjunto') {
-      const p = sheetRows('Editais').find(e => String(e.ID) === parents[0]);
-      if (p) return _childFolder(_parentHomeFolder(p), 'Vinculado ' + _editalLabel(edital));
-    } else {
-      return _editalFolder(_editalLabel(edital), edital.Ano, 'Conjunto');
-    }
+  if (parents.length && edital.Segmento !== 'Conjunto') {
+    const p = sheetRows('Editais').find(e => String(e.ID) === parents[0]);
+    if (p) return _ensureEditalFolder(p);
   }
-  return _editalFolder(_editalLabel(edital), ano || edital.Ano, edital.Segmento);
+  const seg = edital.Segmento === 'Conjunto' ? 'Conjunto' : (edital.Segmento || 'Sem segmento');
+  return _childFolder(_childFolder(_editaisRootFolder(), String(seg)), String(edital.Ano || 'Sem ano'));
+}
+
+function _storeEditalFolderId(editalId, folderId) {
+  try {
+    const idx = findRowIndex('Editais', editalId);
+    if (idx !== -1) getSheet('Editais').getRange(idx, COL.Editais.DriveFolderId + 1).setValue(folderId);
+  } catch (e) {}
+}
+
+// Garante a pasta REAL do edital, rastreada por DriveFolderId.
+// Se já existe, RENOMEIA/MOVE a mesma pasta (não cria outra ao editar). Senão, cria e guarda o id.
+function _ensureEditalFolder(edital) {
+  const desiredName = _editalFolderName(edital);
+  const parent = _editalParentFolder(edital);
+  if (edital.DriveFolderId) {
+    try {
+      const f = DriveApp.getFolderById(edital.DriveFolderId);
+      if (!f.isTrashed()) {
+        if (f.getName() !== desiredName) f.setName(desiredName);
+        const it = f.getParents();
+        const curP = it.hasNext() ? it.next() : null;
+        if (!curP || curP.getId() !== parent.getId()) f.moveTo(parent);
+        return f;
+      }
+    } catch (e) {}
+  }
+  const nf = _childFolder(parent, desiredName);
+  _storeEditalFolderId(edital.ID, nf.getId());
+  edital.DriveFolderId = nf.getId();
+  return nf;
 }
 
 function _findShortcuts(folderId, targetId) {
@@ -249,56 +280,31 @@ function _findShortcuts(folderId, targetId) {
   } catch (e) { return []; }
 }
 
-// Reorganiza a pasta do edital filho conforme o vínculo.
-//   Caso A (não-conjunto): move a pasta REAL para dentro do pai (ou de volta se desvincular).
-//   Caso B (conjunto):     mantém a pasta em Conjunto e cria/remove ATALHOS nos pais.
+// Reorganiza a pasta do edital conforme o vínculo (pasta rastreada por DriveFolderId).
+//   Não-conjunto: só reposiciona a pasta existente (renomeia/move); nada se ainda não há pasta.
+//   Conjunto:     garante a pasta em Conjunto e cria/remove ATALHOS nos pais.
 function _syncEditalPlacement(childId, oldParentIds) {
   try {
     const editais = sheetRows('Editais');
     const child = editais.find(e => String(e.ID) === String(childId));
     if (!child) return;
-    const label = _editalLabel(child);
     const newParents = _parseJson(child.EditaisPaiJSON, []).map(String);
     oldParentIds = (oldParentIds || []).map(String);
     const byId = (pid) => editais.find(e => String(e.ID) === String(pid));
 
-    // ── Caso A: filho de segmento único (1 pai) → pasta real dentro do pai ──
+    // Não-conjunto: reposiciona a pasta existente (rename/move). Sem pasta ainda → nada (criada no upload).
     if (child.Segmento !== 'Conjunto') {
-      if (!newParents.length && !oldParentIds.length) return;
-      const linkName = 'Vinculado ' + label;
-
-      // Acha a pasta atual (dentro do pai antigo, ou solta em {seg}/{ano}).
-      let current = null;
-      const oldP = oldParentIds.length ? byId(oldParentIds[0]) : null;
-      if (oldP) { const it = _parentHomeFolder(oldP).getFoldersByName(linkName); if (it.hasNext()) current = it.next(); }
-      if (!current) {
-        const anoF = _childFolder(_childFolder(_editaisRootFolder(), String(child.Segmento || 'Sem segmento')), String(child.Ano || 'Sem ano'));
-        const it2 = anoF.getFoldersByName(label); if (it2.hasNext()) current = it2.next();
-      }
-
-      const newP = newParents.length ? byId(newParents[0]) : null;
-      if (newP) {
-        const dest = _parentHomeFolder(newP);
-        if (current) { try { if (current.getName() !== linkName) current.setName(linkName); current.moveTo(dest); } catch (e) {} }
-        else { _childFolder(dest, linkName); }
-      } else if (current) {
-        // Desvinculado → devolve para {segmento}/{ano}/{label} (sem prefixo).
-        try {
-          const anoF = _childFolder(_childFolder(_editaisRootFolder(), String(child.Segmento || 'Sem segmento')), String(child.Ano || 'Sem ano'));
-          if (current.getName() !== label) current.setName(label);
-          current.moveTo(anoF);
-        } catch (e) {}
-      }
+      if (child.DriveFolderId) { try { _ensureEditalFolder(child); } catch (e) {} }
       return;
     }
 
-    // ── Caso B: Conjunto → pasta real em Conjunto + atalho em cada pai ──
-    const childHomeId = _editalFolder(label, child.Ano, 'Conjunto').getId();
-    const scName = 'Vinculado ' + label;
+    // Conjunto: pasta real em Conjunto + atalho em cada pai.
+    const childHomeId = _ensureEditalFolder(child).getId();
+    const scName = 'Vinculado ' + _editalLabel(child);
     newParents.forEach(pid => {
       try {
         const p = byId(pid); if (!p) return;
-        const dest = _parentHomeFolder(p);
+        const dest = _ensureEditalFolder(p);
         if (!_findShortcuts(dest.getId(), childHomeId).length) {
           Drive.Files.insert({ title: scName, mimeType: 'application/vnd.google-apps.shortcut', parents: [{ id: dest.getId() }], shortcutDetails: { targetId: childHomeId } });
         }
@@ -307,26 +313,24 @@ function _syncEditalPlacement(childId, oldParentIds) {
     oldParentIds.filter(pid => newParents.indexOf(pid) < 0).forEach(pid => {
       try {
         const p = byId(pid); if (!p) return;
-        const dest = _parentHomeFolder(p);
-        _findShortcuts(dest.getId(), childHomeId).forEach(sc => { try { Drive.Files.trash(sc.id); } catch (e) {} });
+        if (!p.DriveFolderId) return;
+        _findShortcuts(p.DriveFolderId, childHomeId).forEach(sc => { try { Drive.Files.trash(sc.id); } catch (e) {} });
       } catch (e) {}
     });
   } catch (e) { /* Drive indisponível ou erro — não bloqueia o salvamento */ }
 }
 
-// Ao excluir: remove os atalhos do caso B (a pasta real do caso A some junto com o pai só se estiver dentro dele).
+// Ao excluir: remove os atalhos do caso Conjunto nos pais.
 function _removeEditalPlacement(edital) {
   try {
-    if (edital.Segmento !== 'Conjunto') return;
+    if (edital.Segmento !== 'Conjunto' || !edital.DriveFolderId) return;
     const parents = _parseJson(edital.EditaisPaiJSON, []).map(String);
     if (!parents.length) return;
     const editais = sheetRows('Editais');
-    const cid = _editalFolder(_editalLabel(edital), edital.Ano, 'Conjunto').getId();
     parents.forEach(pid => {
       try {
-        const p = editais.find(e => String(e.ID) === String(pid)); if (!p) return;
-        const dest = _parentHomeFolder(p);
-        _findShortcuts(dest.getId(), cid).forEach(sc => { try { Drive.Files.trash(sc.id); } catch (e) {} });
+        const p = editais.find(e => String(e.ID) === String(pid)); if (!p || !p.DriveFolderId) return;
+        _findShortcuts(p.DriveFolderId, edital.DriveFolderId).forEach(sc => { try { Drive.Files.trash(sc.id); } catch (e) {} });
       } catch (e) {}
     });
   } catch (e) {}
@@ -355,11 +359,8 @@ function uploadEditalDoc(payload, email) {
   let fileName = String(payload.nome || payload.fileName || 'documento').trim() || 'documento';
   if (!/\.pdf$/i.test(fileName)) fileName += '.pdf';
 
-  // Ano da pasta: escolhido no upload (pode diferir do ano do edital); default = ano do edital.
-  const anoPasta = String(payload.ano || edital.Ano || '').trim() || 'Sem ano';
-  const label  = (edital.Numero || '') + '-' + (edital.Ano || '') + ' ' + (edital.Titulo || '');
-  // Pasta REAL conforme o vínculo (dentro do pai, em Conjunto, ou {segmento}/{ano}).
-  const editalFolder = _editalHomeFolder(edital, anoPasta);
+  // Pasta REAL do edital (rastreada por DriveFolderId; renomeia/move sozinha ao editar).
+  const editalFolder = _ensureEditalFolder(edital);
   _childFolder(editalFolder, 'Ações');                              // reservada p/ o módulo de Ações
   const folder = _childFolder(editalFolder, 'Documentos Edital');   // onde os PDFs ficam
   const blob   = Utilities.newBlob(bytes, 'application/pdf', fileName);
