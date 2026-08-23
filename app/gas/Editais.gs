@@ -79,7 +79,7 @@ function addEdital(p, email) {
   if (!p.numero || !p.titulo) throw new Error('Número e Título são obrigatórios.');
   const id = genId();
   getSheet('Editais').appendRow(_editalRow(id, p, nowBR(), email));
-  _syncEditalShortcuts(id, []);
+  _syncEditalPlacement(id, []);
   return { ok: true, id: id };
 }
 
@@ -94,7 +94,7 @@ function updateEdital(id, p, email) {
   // Preserva CriadoEm/CriadoPor originais.
   const row = _editalRow(id, p, old[COL.Editais.CriadoEm], old[COL.Editais.CriadoPor]);
   sh.getRange(idx, 1, 1, row.length).setValues([row]);
-  _syncEditalShortcuts(id, oldParents);
+  _syncEditalPlacement(id, oldParents);
   return { ok: true };
 }
 
@@ -104,7 +104,7 @@ function deleteEdital(id, email) {
   const idx = findRowIndex('Editais', id);
   if (idx === -1) throw new Error('Edital não encontrado.');
   const edital = sheetRows('Editais').find(e => String(e.ID) === String(id));
-  if (edital) _removeEditalShortcuts(edital);
+  if (edital) _removeEditalPlacement(edital);
   getSheet('Editais').deleteRow(idx);
   // Remove também os documentos vinculados (linhas da aba + arquivos do Drive).
   const docs = sheetRows('EditalDocumentos').filter(d => String(d.EditalID) === String(id));
@@ -167,23 +167,38 @@ function getEditalDocs(editalId) {
   return sheetRows('EditalDocumentos').filter(d => String(d.EditalID) === String(editalId));
 }
 
-// Garante a pasta do edital ({segmento}/{ano do edital}/{label}) e retorna a URL.
+// Garante a pasta REAL do edital (conforme o vínculo) e retorna a URL.
 function getEditalFolderUrl(editalId) {
   const edital = sheetRows('Editais').find(e => String(e.ID) === String(editalId));
   if (!edital) throw new Error('Edital não encontrado.');
-  const label  = (edital.Numero || '') + '-' + (edital.Ano || '') + ' ' + (edital.Titulo || '');
-  const folder = _editalFolder(label.trim(), edital.Ano, edital.Segmento);
-  return { url: folder.getUrl() };
+  return { url: _editalHomeFolder(edital, edital.Ano).getUrl() };
 }
 
-// ── Vínculos no Drive: atalho do filho dentro de {pai}/Vinculados ─────────
+// ── Colocação da pasta do edital conforme o vínculo (pai/filho) ──────────
 function _editalLabel(e) {
   return ((e.Numero || '') + '-' + (e.Ano || '') + ' ' + (e.Titulo || '')).trim();
 }
-// Pasta do pai onde o atalho do filho é colocado (direto na pasta do edital pai).
-function _linkTargetFolder(edital) {
-  return _editalFolder(_editalLabel(edital), edital.Ano, edital.Segmento);
+function _parentHomeFolder(p) {
+  return _editalFolder(_editalLabel(p), p.Ano, p.Segmento);
 }
+
+// Pasta REAL onde o edital mora, conforme o vínculo:
+//   sem vínculo            → {segmento}/{ano}/{label}   (ano pode ser override do upload)
+//   vinculado NÃO-conjunto → {pai}/Vinculado {label}    (1 pai)
+//   vinculado CONJUNTO     → Conjunto/{ano do edital}/{label}
+function _editalHomeFolder(edital, ano) {
+  const parents = _parseJson(edital.EditaisPaiJSON, []).map(String);
+  if (parents.length) {
+    if (edital.Segmento !== 'Conjunto') {
+      const p = sheetRows('Editais').find(e => String(e.ID) === parents[0]);
+      if (p) return _childFolder(_parentHomeFolder(p), 'Vinculado ' + _editalLabel(edital));
+    } else {
+      return _editalFolder(_editalLabel(edital), edital.Ano, 'Conjunto');
+    }
+  }
+  return _editalFolder(_editalLabel(edital), ano || edital.Ano, edital.Segmento);
+}
+
 function _findShortcuts(folderId, targetId) {
   try {
     const res = Drive.Files.list({
@@ -194,54 +209,83 @@ function _findShortcuts(folderId, targetId) {
   } catch (e) { return []; }
 }
 
-// Sincroniza os atalhos do edital filho nos seus pais (cria nos atuais, remove dos antigos).
-function _syncEditalShortcuts(childId, oldParentIds) {
+// Reorganiza a pasta do edital filho conforme o vínculo.
+//   Caso A (não-conjunto): move a pasta REAL para dentro do pai (ou de volta se desvincular).
+//   Caso B (conjunto):     mantém a pasta em Conjunto e cria/remove ATALHOS nos pais.
+function _syncEditalPlacement(childId, oldParentIds) {
   try {
     const editais = sheetRows('Editais');
     const child = editais.find(e => String(e.ID) === String(childId));
     if (!child) return;
+    const label = _editalLabel(child);
     const newParents = _parseJson(child.EditaisPaiJSON, []).map(String);
     oldParentIds = (oldParentIds || []).map(String);
-    if (!newParents.length && !oldParentIds.length) return;
+    const byId = (pid) => editais.find(e => String(e.ID) === String(pid));
 
-    const childFolderId = _editalFolder(_editalLabel(child), child.Ano, child.Segmento).getId();
-    const scName = 'Vinculado ' + _editalLabel(child);
-    const parentById = (pid) => editais.find(e => String(e.ID) === String(pid));
+    // ── Caso A: filho de segmento único (1 pai) → pasta real dentro do pai ──
+    if (child.Segmento !== 'Conjunto') {
+      if (!newParents.length && !oldParentIds.length) return;
+      const linkName = 'Vinculado ' + label;
 
+      // Acha a pasta atual (dentro do pai antigo, ou solta em {seg}/{ano}).
+      let current = null;
+      const oldP = oldParentIds.length ? byId(oldParentIds[0]) : null;
+      if (oldP) { const it = _parentHomeFolder(oldP).getFoldersByName(linkName); if (it.hasNext()) current = it.next(); }
+      if (!current) {
+        const anoF = _childFolder(_childFolder(_editaisRootFolder(), String(child.Segmento || 'Sem segmento')), String(child.Ano || 'Sem ano'));
+        const it2 = anoF.getFoldersByName(label); if (it2.hasNext()) current = it2.next();
+      }
+
+      const newP = newParents.length ? byId(newParents[0]) : null;
+      if (newP) {
+        const dest = _parentHomeFolder(newP);
+        if (current) { try { if (current.getName() !== linkName) current.setName(linkName); current.moveTo(dest); } catch (e) {} }
+        else { _childFolder(dest, linkName); }
+      } else if (current) {
+        // Desvinculado → devolve para {segmento}/{ano}/{label} (sem prefixo).
+        try {
+          const anoF = _childFolder(_childFolder(_editaisRootFolder(), String(child.Segmento || 'Sem segmento')), String(child.Ano || 'Sem ano'));
+          if (current.getName() !== label) current.setName(label);
+          current.moveTo(anoF);
+        } catch (e) {}
+      }
+      return;
+    }
+
+    // ── Caso B: Conjunto → pasta real em Conjunto + atalho em cada pai ──
+    const childHomeId = _editalFolder(label, child.Ano, 'Conjunto').getId();
+    const scName = 'Vinculado ' + label;
     newParents.forEach(pid => {
       try {
-        const p = parentById(pid); if (!p) return;
-        const dest = _linkTargetFolder(p);
-        if (!_findShortcuts(dest.getId(), childFolderId).length) {
-          Drive.Files.insert({
-            title: scName, mimeType: 'application/vnd.google-apps.shortcut',
-            parents: [{ id: dest.getId() }], shortcutDetails: { targetId: childFolderId }
-          });
+        const p = byId(pid); if (!p) return;
+        const dest = _parentHomeFolder(p);
+        if (!_findShortcuts(dest.getId(), childHomeId).length) {
+          Drive.Files.insert({ title: scName, mimeType: 'application/vnd.google-apps.shortcut', parents: [{ id: dest.getId() }], shortcutDetails: { targetId: childHomeId } });
         }
       } catch (e) {}
     });
-
     oldParentIds.filter(pid => newParents.indexOf(pid) < 0).forEach(pid => {
       try {
-        const p = parentById(pid); if (!p) return;
-        const dest = _linkTargetFolder(p);
-        _findShortcuts(dest.getId(), childFolderId).forEach(sc => { try { Drive.Files.trash(sc.id); } catch (e) {} });
+        const p = byId(pid); if (!p) return;
+        const dest = _parentHomeFolder(p);
+        _findShortcuts(dest.getId(), childHomeId).forEach(sc => { try { Drive.Files.trash(sc.id); } catch (e) {} });
       } catch (e) {}
     });
-  } catch (e) { /* serviço Drive indisponível ou erro — não bloqueia o salvamento */ }
+  } catch (e) { /* Drive indisponível ou erro — não bloqueia o salvamento */ }
 }
 
-// Remove todos os atalhos deste filho (usado ao excluir o edital).
-function _removeEditalShortcuts(edital) {
+// Ao excluir: remove os atalhos do caso B (a pasta real do caso A some junto com o pai só se estiver dentro dele).
+function _removeEditalPlacement(edital) {
   try {
+    if (edital.Segmento !== 'Conjunto') return;
     const parents = _parseJson(edital.EditaisPaiJSON, []).map(String);
     if (!parents.length) return;
     const editais = sheetRows('Editais');
-    const cid = _editalFolder(_editalLabel(edital), edital.Ano, edital.Segmento).getId();
+    const cid = _editalFolder(_editalLabel(edital), edital.Ano, 'Conjunto').getId();
     parents.forEach(pid => {
       try {
         const p = editais.find(e => String(e.ID) === String(pid)); if (!p) return;
-        const dest = _linkTargetFolder(p);
+        const dest = _parentHomeFolder(p);
         _findShortcuts(dest.getId(), cid).forEach(sc => { try { Drive.Files.trash(sc.id); } catch (e) {} });
       } catch (e) {}
     });
@@ -274,8 +318,8 @@ function uploadEditalDoc(payload, email) {
   // Ano da pasta: escolhido no upload (pode diferir do ano do edital); default = ano do edital.
   const anoPasta = String(payload.ano || edital.Ano || '').trim() || 'Sem ano';
   const label  = (edital.Numero || '') + '-' + (edital.Ano || '') + ' ' + (edital.Titulo || '');
-  // Estrutura: {segmento}/{ano}/{edital}/Documentos Edital/*.pdf (+ pasta "Ações" ao lado).
-  const editalFolder = _editalFolder(label.trim(), anoPasta, edital.Segmento);
+  // Pasta REAL conforme o vínculo (dentro do pai, em Conjunto, ou {segmento}/{ano}).
+  const editalFolder = _editalHomeFolder(edital, anoPasta);
   _childFolder(editalFolder, 'Ações');                              // reservada p/ o módulo de Ações
   const folder = _childFolder(editalFolder, 'Documentos Edital');   // onde os PDFs ficam
   const blob   = Utilities.newBlob(bytes, 'application/pdf', fileName);
@@ -287,7 +331,7 @@ function uploadEditalDoc(payload, email) {
     id, payload.editalId, payload.tipo, fileName,
     file.getId(), file.getUrl(), nowBR(), email
   ]);
-  _syncEditalShortcuts(payload.editalId, []);   // garante atalhos nos pais (se vinculado)
+  _syncEditalPlacement(payload.editalId, []);   // garante atalhos nos pais (se vinculado)
   return { ok: true, id: id, url: file.getUrl() };
 }
 
