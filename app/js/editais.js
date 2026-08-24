@@ -256,6 +256,7 @@ const Editais = {
       </div>` : '';
 
     const body = `
+      <div class="detail-toolbar"><button class="btn btn-ghost btn-xs" onclick="Editais.printDetails('${e.ID}')">🖨 Imprimir</button></div>
       <h3 class="detail-title">${esc(e.Titulo || '')} ${this.statusBadge(e)}</h3>
       ${e.Resumo ? `<p class="detail-resumo">${esc(e.Resumo)}</p>` : ''}
       <div class="detail-grid">
@@ -272,6 +273,121 @@ const Editais = {
       ${recurso}
       ${crono}`;
     openModal('Edital ' + (e.Numero || '') + '/' + (e.Ano || ''), body, null, { hideFooter: true });
+  },
+
+  // Imprimir (folha completa, salvar como PDF) — busca os documentos e abre a janela de impressão.
+  printDetails(id) {
+    const e = this.data.find(x => String(x.ID) === String(id));
+    if (!e) return;
+    const win = window.open('', '_blank');   // abre no gesto do clique (evita bloqueio de popup)
+    if (win) win.document.write('<p style="font-family:Arial;padding:24px;color:#475569">Preparando impressão…</p>');
+    API.getEditalDocs(id).catch(() => []).then(docs => {
+      if (!win) { toast('Permita pop-ups para imprimir.', 'error'); return; }
+      win.document.open();
+      win.document.write(this._printHtml(e, docs || []));
+      win.document.close();
+      win.focus();
+      setTimeout(() => { try { win.print(); } catch (err) {} }, 350);
+    });
+  },
+
+  // Monta a folha de impressão com TODOS os campos do edital.
+  _printHtml(e, docs) {
+    const rec = e.recurso || {};
+    const segsD = Object.keys(rec);
+    const conj = e.Segmento === 'Conjunto';
+    const num = (x) => Number(x) || 0;
+    const dv = (v) => esc(this.dateVal(v) || '—');
+    const row = (k, v) => `<tr><th>${esc(k)}</th><td>${(v == null || v === '') ? '—' : v}</td></tr>`;
+    const lbl = (x) => `${esc(x.Numero)}/${esc(x.Ano)} — ${esc(x.Titulo)}`;
+    const pais = (e.editaisPai || []).map(String)
+      .map(pid => { const p = this.data.find(x => String(x.ID) === pid); return p ? lbl(p) : pid; });
+    const filhos = (this.data || []).filter(x => (x.editaisPai || []).map(String).indexOf(String(e.ID)) >= 0);
+
+    let recursoHtml = '';
+    if (e.Fomento === 'Sim') {
+      recursoHtml += `<h2>Fomento / Auxílio</h2>
+        <table class="grid"><thead><tr>${conj ? '<th>Segmento</th>' : ''}<th>Agência</th><th>Tipo</th><th>Custeio</th><th>Capital</th><th>Total</th></tr></thead><tbody>
+        ${segsD.map(s => { const r = rec[s] || {}; return `<tr>${conj ? `<td>${esc(s)}</td>` : ''}<td>${esc(r.agenciaFomento || '—')}</td><td>${esc(r.tipoFomento || '—')}</td><td>${fmtMoney(r.custeio)}</td><td>${fmtMoney(r.capital)}</td><td>${fmtMoney(num(r.custeio) + num(r.capital))}</td></tr>`; }).join('')}
+        </tbody><tfoot><tr>${conj ? '<td></td>' : ''}<td colspan="2">Totais</td><td>${fmtMoney(e.Custeio)}</td><td>${fmtMoney(e.Capital)}</td><td>${fmtMoney(e.Total)}</td></tr></tfoot></table>`;
+    }
+    if (e.Bolsa === 'Sim') {
+      recursoHtml += `<h2>Bolsa</h2>
+        <table class="grid"><thead><tr>${conj ? '<th>Segmento</th>' : ''}<th>Agência (bolsa)</th><th>Tipo de bolsa</th><th>Período</th><th>Valor total</th></tr></thead><tbody>
+        ${segsD.map(s => { const r = rec[s] || {}; return `<tr>${conj ? `<td>${esc(s)}</td>` : ''}<td>${esc(r.agenciaBolsa || '—')}</td><td>${esc(r.tipoBolsa || '—')}</td><td>${esc(r.periodoMeses ? r.periodoMeses + ' meses' : '—')}</td><td>${fmtMoney(r.valorTotalBolsa)}</td></tr>`; }).join('')}
+        </tbody></table>`;
+      if ((e.bolsas || []).length) {
+        recursoHtml += `<table class="grid"><thead><tr>${conj ? '<th>Segmento</th>' : ''}<th>CH (h/sem)</th><th>R$ (por bolsa)</th></tr></thead><tbody>
+          ${e.bolsas.map(b => `<tr>${conj ? `<td>${esc(b.segmento || '—')}</td>` : ''}<td>${esc(b.ch || '—')}</td><td>${fmtMoney(b.valor)}</td></tr>`).join('')}
+          </tbody></table>`;
+      }
+      recursoHtml += `<p class="tot">Valor total de bolsa: <strong>${fmtMoney(e.ValorTotalBolsa)}</strong></p>`;
+    }
+
+    let cronoHtml = `<h2>Cronograma</h2><table class="grid"><tbody>${row('Data da publicação', dv(e.DataPublicacao))}</tbody></table>`;
+    if ((e.cronograma || []).length) {
+      cronoHtml += `<table class="grid"><thead><tr><th>Etapa</th><th>Início</th><th>Fim</th></tr></thead><tbody>
+        ${e.cronograma.map(c => `<tr><td>${esc(c.etapa || '—')}</td><td>${dv(c.inicio)}</td><td>${dv(c.fim)}</td></tr>`).join('')}
+        </tbody></table>`;
+    }
+
+    const docsHtml = `<h2>Documentos (${docs.length})</h2>` + (docs.length
+      ? `<table class="grid"><thead><tr><th>Tipo</th><th>Nome do arquivo</th><th>Enviado em</th></tr></thead><tbody>
+          ${docs.map(d => `<tr><td>${esc(d.Tipo || '—')}</td><td>${esc(d.NomeArquivo || '—')}</td><td>${esc(d.DataUpload || '—')}</td></tr>`).join('')}
+         </tbody></table>`
+      : '<p class="muted">Nenhum documento anexado.</p>');
+
+    const vincHtml = (pais.length || filhos.length)
+      ? `<h2>Vínculos</h2><table class="grid"><tbody>
+          ${row('Editais pai', pais.length ? pais.join('<br>') : '—')}
+          ${row('Editais vinculados (filhos)', filhos.length ? filhos.map(lbl).join('<br>') : '—')}
+        </tbody></table>` : '';
+
+    const dados = `<table class="grid"><tbody>
+      ${row('Número', esc(e.Numero))}
+      ${row('Ano', esc(e.Ano))}
+      ${row('Segmento', esc(e.Segmento))}
+      ${row('Origem', esc(e.Origem))}
+      ${row('Status', esc(e.Status || 'Vigente'))}
+      ${row('Fomento/Auxílio', esc(e.Fomento || 'Não'))}
+      ${row('Bolsa', esc(e.Bolsa || 'Não'))}
+      ${row('Ano da pasta (Drive)', esc(e.AnoPasta || e.Ano))}
+      ${row('Link da publicação', e.LinkPublicacao ? esc(e.LinkPublicacao) : '—')}
+    </tbody></table>`;
+
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Edital ${esc(e.Numero)}/${esc(e.Ano)}</title>
+      <style>
+        *{box-sizing:border-box}
+        body{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#1f2937;margin:0;padding:28px 32px;}
+        header{border-bottom:3px solid #1e3a5f;padding-bottom:10px;margin-bottom:6px;}
+        header h1{margin:0 0 2px;font-size:18px;color:#1e3a5f;}
+        header .sub{color:#475569;font-size:12px;}
+        header .status{display:inline-block;margin-top:6px;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:bold;}
+        .st-ok{background:#dcfce7;color:#166534;} .st-off{background:#fee2e2;color:#991b1b;}
+        h2{font-size:13px;color:#1e3a5f;margin:18px 0 6px;border-bottom:1px solid #e5e7eb;padding-bottom:3px;}
+        .resumo{margin:8px 0 0;color:#374151;font-style:italic;}
+        table.grid{width:100%;border-collapse:collapse;margin:4px 0;}
+        table.grid th,table.grid td{border:1px solid #d1d5db;padding:5px 8px;text-align:left;vertical-align:top;}
+        table.grid th{background:#f1f5f9;width:210px;font-weight:600;}
+        table.grid thead th{background:#1e3a5f;color:#fff;width:auto;}
+        table.grid tfoot td{background:#f8fafc;font-weight:bold;}
+        .tot{margin:6px 0;} .muted{color:#94a3b8;}
+        footer{margin-top:24px;border-top:1px solid #e5e7eb;padding-top:8px;color:#94a3b8;font-size:10px;}
+        @media print{body{padding:0;} h2,tr{page-break-inside:avoid;} table{page-break-inside:auto;}}
+      </style></head><body>
+      <header>
+        <h1>${esc(e.Titulo || '')}</h1>
+        <div class="sub">Edital nº ${esc(e.Numero || '—')}/${esc(e.Ano || '')} · ${esc(e.Segmento || '—')}${e.Origem ? ' · ' + esc(e.Origem) : ''}</div>
+        <span class="status ${e.Status === 'Encerrado' ? 'st-off' : 'st-ok'}">${esc(e.Status || 'Vigente')}</span>
+      </header>
+      ${e.Resumo ? `<p class="resumo">${esc(e.Resumo)}</p>` : ''}
+      <h2>Dados gerais</h2>${dados}
+      ${vincHtml}
+      ${recursoHtml || '<h2>Recurso</h2><p class="muted">Sem fomento e sem bolsa.</p>'}
+      ${cronoHtml}
+      ${docsHtml}
+      <footer>Gerado em ${new Date().toLocaleString('pt-BR')} · SGA — Sistema de Gestão de Ações · IFRS Campus Rio Grande</footer>
+      </body></html>`;
   },
 
   onSearch(v) {

@@ -273,14 +273,55 @@ function _ensureEditalFolder(edital) {
   return nf;
 }
 
-function _findShortcuts(folderId, targetId) {
+// Todos os atalhos (shortcuts) dentro de uma pasta.
+function _listShortcuts(folderId) {
   try {
     const res = Drive.Files.list({
       q: "'" + folderId + "' in parents and mimeType='application/vnd.google-apps.shortcut' and trashed=false",
       maxResults: 200
     });
-    return (res.items || []).filter(f => f.shortcutDetails && f.shortcutDetails.targetId === targetId);
+    return res.items || [];
   } catch (e) { return []; }
+}
+
+function _findShortcuts(folderId, targetId) {
+  return _listShortcuts(folderId).filter(f => f.shortcutDetails && f.shortcutDetails.targetId === targetId);
+}
+
+// Garante EXATAMENTE um atalho (scName → targetId) dentro de destId, removendo duplicados/obsoletos.
+// Considera "nosso" o atalho com o mesmo nome OU que aponte para o alvo atual; mantém 1 correto e apaga o resto.
+function _ensureSingleShortcut(destId, scName, targetId) {
+  const ours = _listShortcuts(destId).filter(f =>
+    f.title === scName || (f.shortcutDetails && f.shortcutDetails.targetId === targetId));
+  let kept = null;
+  ours.forEach(sc => {
+    const okTarget = sc.shortcutDetails && sc.shortcutDetails.targetId === targetId;
+    if (okTarget && !kept) {
+      kept = sc;
+      if (sc.title !== scName) { try { Drive.Files.patch({ title: scName }, sc.id); } catch (e) {} }
+    } else {
+      try { Drive.Files.trash(sc.id); } catch (e) {}   // duplicado ou aponta pra alvo antigo
+    }
+  });
+  if (!kept) {
+    Drive.Files.insert({ title: scName, mimeType: 'application/vnd.google-apps.shortcut',
+      parents: [{ id: destId }], shortcutDetails: { targetId: targetId } });
+  }
+}
+
+// Manutenção: reprocessa os atalhos de todos os editais Conjunto, apagando duplicados.
+// Rode UMA vez pelo editor do Apps Script após o deploy para limpar atalhos antigos repetidos.
+function fixEditalShortcuts() {
+  const editais = sheetRows('Editais');
+  let n = 0;
+  editais.forEach(e => {
+    if (e.Segmento !== 'Conjunto') return;
+    const parents = _parseJson(e.EditaisPaiJSON, []).map(String);
+    if (!parents.length) return;
+    _syncEditalPlacement(e.ID, parents);   // dedup embutido em _ensureSingleShortcut
+    n++;
+  });
+  return 'Reprocessados ' + n + ' edital(is) Conjunto.';
 }
 
 // Reorganiza a pasta do edital conforme o vínculo (pasta rastreada por DriveFolderId).
@@ -308,9 +349,7 @@ function _syncEditalPlacement(childId, oldParentIds) {
       try {
         const p = byId(pid); if (!p) return;
         const dest = _ensureEditalFolder(p);
-        if (!_findShortcuts(dest.getId(), childHomeId).length) {
-          Drive.Files.insert({ title: scName, mimeType: 'application/vnd.google-apps.shortcut', parents: [{ id: dest.getId() }], shortcutDetails: { targetId: childHomeId } });
-        }
+        _ensureSingleShortcut(dest.getId(), scName, childHomeId);   // 1 atalho só (apaga duplicados)
       } catch (e) {}
     });
     oldParentIds.filter(pid => newParents.indexOf(pid) < 0).forEach(pid => {
