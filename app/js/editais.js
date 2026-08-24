@@ -296,27 +296,37 @@ const Editais = {
     return Object.keys(r).map(s => (r[s] || {})[field] ? `${s}:${(r[s])[field]}` : '').filter(Boolean).join(' | ');
   },
 
+  // Editais pai (vínculos), como "1/2026 | 2/2026".
+  _paisStr(e) {
+    return (e.editaisPai || []).map(pid => {
+      const p = this.data.find(x => String(x.ID) === String(pid));
+      return p ? (p.Numero + '/' + p.Ano) : pid;
+    }).join(' | ');
+  },
+
   exportXLS() {
     const rows = this.sortedFiltered().map(e => [
-      e.Numero, e.Ano, e.Titulo, e.Segmento, e.Origem, e.Status,
+      e.ID, e.Numero, e.Ano, e.Titulo, e.Resumo, e.Segmento, e.Origem, e.Status,
+      this.dateVal(e.DataPublicacao),
       e.Fomento, this._recStr(e, 'tipoFomento'), this._recStr(e, 'agenciaFomento'),
-      e.Custeio, e.Capital, e.Total,
-      e.Bolsa, this._recStr(e, 'agenciaBolsa'), this._recStr(e, 'tipoBolsa'),
-      this._recStr(e, 'periodoMeses'), e.ValorTotalBolsa,
-      this.dateVal(e.DataPublicacao), e.LinkPublicacao
+      fmtMoney(e.Custeio), fmtMoney(e.Capital), fmtMoney(e.Total),
+      e.Bolsa, this._recStr(e, 'tipoBolsa'), this._recStr(e, 'agenciaBolsa'),
+      this._recStr(e, 'periodoMeses'), fmtMoney(e.ValorTotalBolsa),
+      this._paisStr(e), (e.AnoPasta || e.Ano), (e.docsCount || 0), e.LinkPublicacao
     ]);
-    exportXLS(['Número', 'Ano', 'Título', 'Segmento', 'Origem', 'Status', 'Fomento',
-      'Tipo fomento', 'Agência fomento', 'Custeio', 'Capital', 'Total',
-      'Bolsa', 'Agência bolsa', 'Tipo bolsa', 'Período bolsa', 'Valor total bolsa',
-      'Publicação', 'Link'], rows, 'Editais');
+    exportXLS(['ID', 'Número', 'Ano', 'Título', 'Resumo', 'Segmento', 'Origem', 'Status',
+      'Publicação', 'Fomento', 'Tipo fomento', 'Agência fomento', 'Custeio', 'Capital', 'Total',
+      'Bolsa', 'Tipo bolsa', 'Agência bolsa', 'Período bolsa', 'Valor total bolsa',
+      'Vínculo (pais)', 'Ano da pasta', 'Docs', 'Link'], rows, 'Editais');
   },
 
   exportPDF() {
     const rows = this.sortedFiltered().map(e => [
-      e.Numero + '/' + e.Ano, e.Titulo, e.Segmento,
-      this.dateVal(e.DataPublicacao), e.Status
+      e.Numero + '/' + e.Ano, e.Origem, e.Titulo, e.Segmento,
+      this.dateVal(e.DataPublicacao), e.Fomento, e.Bolsa, e.Status
     ]);
-    exportPDF('Editais — SGA', ['Nº/Ano', 'Título', 'Segmento', 'Publicação', 'Status'], rows);
+    exportPDF('Editais — SGA', ['Nº/Ano', 'Origem', 'Título', 'Segmento', 'Publicação',
+      'Fomento', 'Bolsa', 'Status'], rows);
   },
 
   // ── Formulário (novo / editar) — 3 abas ─────────────────────
