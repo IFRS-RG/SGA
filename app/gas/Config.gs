@@ -23,7 +23,8 @@ const SUPER_ADMIN    = 'projetos@riogrande.ifrs.edu.br';
 //   Admin       → acesso geral (todos os segmentos)
 //   Gestor      → diretoria/setor: gerencia editais/ações de UM segmento
 //   Visualizador→ somente leitura
-const PERFIS = ['Admin', 'Gestor', 'Visualizador'];
+//   Financeiro  → acesso geral aos dados financeiros (CPF/banco/PIX) dos participantes
+const PERFIS = ['Admin', 'Gestor', 'Visualizador', 'Financeiro'];
 
 // Segmentos das AÇÕES/EDITAIS. "Conjunto" engloba os 4 segmentos.
 const SEGMENTOS = ['Ensino', 'Pesquisa', 'Extensão', 'Indissociável', 'Conjunto'];
@@ -56,6 +57,15 @@ const CH_VALOR = { '4': 175, '8': 350, '12': 525, '16': 700 };
 // Tipos de documento no upload de PDF do edital.
 const TIPOS_DOC = ['Edital', 'Retificação', 'Anexo', 'Demais publicações'];
 
+// Vínculos possíveis de um servidor (pode ter mais de um: ex. Docente + TAE).
+const VINCULOS_SERVIDOR = [
+  'Docente Efetivo', 'Docente Substituto', 'Docente Temporário', 'Docente Visitante',
+  'Docente Cedido', 'TAE Efetivo', 'TAE Cedido'
+];
+
+// Status de um participante.
+const STATUS_PARTICIPANTE = ['Ativo', 'Inativo'];
+
 // ── Índices de coluna (0-based) ──────────────────────────────
 const COL = {
   Editais: {
@@ -71,7 +81,18 @@ const COL = {
   },
   Perfis: {
     Email: 0, Nome: 1, Perfil: 2, Segmento: 3, Status: 4, AtualizadoEm: 5, AtualizadoPor: 6
-  }
+  },
+  // Identidade/contato do servidor (dados financeiros ficam em ServidoresFinanceiro — F3).
+  Servidores: {
+    ID: 0, Nome: 1, NomeSocial: 2, UsarNomeSocialDocs: 3, SIAPE: 4, VinculoJSON: 5,
+    Email: 6, Telefone: 7, WhatsApp: 8, Status: 9, CriadoEm: 10, CriadoPor: 11
+  },
+  // Identidade/contato do aluno (CPF/financeiro ficam em AlunosFinanceiro — F3).
+  Alunos: {
+    ID: 0, Nome: 1, NomeSocial: 2, UsarNomeSocialDocs: 3, Matricula: 4, CursoID: 5,
+    DataNascimento: 6, Email: 7, Telefone: 8, WhatsApp: 9, Status: 10, CriadoEm: 11, CriadoPor: 12
+  },
+  Cursos: { ID: 0, Nome: 1, Modalidade: 2, Status: 3 }
 };
 
 const HEADERS = {
@@ -82,7 +103,12 @@ const HEADERS = {
             'AnoPasta', 'StatusManual', 'CriadoEm', 'CriadoPor'],
   EditalDocumentos: ['ID', 'EditalID', 'Tipo', 'NomeArquivo', 'DriveFileId',
                      'DriveUrl', 'DataUpload', 'EnviadoPor'],
-  Perfis: ['Email', 'Nome', 'Perfil', 'Segmento', 'Status', 'AtualizadoEm', 'AtualizadoPor']
+  Perfis: ['Email', 'Nome', 'Perfil', 'Segmento', 'Status', 'AtualizadoEm', 'AtualizadoPor'],
+  Servidores: ['ID', 'Nome', 'NomeSocial', 'UsarNomeSocialDocs', 'SIAPE', 'VinculoJSON',
+               'Email', 'Telefone', 'WhatsApp', 'Status', 'CriadoEm', 'CriadoPor'],
+  Alunos: ['ID', 'Nome', 'NomeSocial', 'UsarNomeSocialDocs', 'Matricula', 'CursoID',
+           'DataNascimento', 'Email', 'Telefone', 'WhatsApp', 'Status', 'CriadoEm', 'CriadoPor'],
+  Cursos: ['ID', 'Nome', 'Modalidade', 'Status']
 };
 
 // ── Helpers genéricos ────────────────────────────────────────
@@ -96,11 +122,20 @@ function respond(payload) {
   return out;
 }
 
+// Erro "exibível": a mensagem pode ser mostrada ao usuário (validação, permissão,
+// etc.). Erros NÃO criados por aqui são tratados como internos pelo Router, que
+// devolve uma mensagem genérica e registra o detalhe no log (sem vazar ao cliente).
+function userError(msg) {
+  const e = new Error(msg);
+  e.userFacing = true;
+  return e;
+}
+
 function ss() { return SpreadsheetApp.openById(SPREADSHEET_ID); }
 
 function getSheet(name) {
   const sh = ss().getSheetByName(name);
-  if (!sh) throw new Error('Aba "' + name + '" não existe. Rode initSheets().');
+  if (!sh) throw userError('Aba "' + name + '" não existe. Rode initSheets().');
   return sh;
 }
 

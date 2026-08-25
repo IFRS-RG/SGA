@@ -55,6 +55,26 @@ const API = {
   deleteEditalDoc: (docId)       => gasCall('deleteEditalDoc', { docId }),
   renameEditalDoc: (docId, nome) => gasCall('renameEditalDoc', { docId, nome }),
 
+  // Participantes — Servidores
+  getServidores:  ()                => gasCall('getServidores'),
+  getServidor:    (id)              => gasCall('getServidor', { id }),
+  addServidor:    (payload, reqId)  => gasCall('addServidor', { payload, reqId }),
+  updateServidor: (id, payload)     => gasCall('updateServidor', { id, payload }),
+  deleteServidor: (id)              => gasCall('deleteServidor', { id }),
+
+  // Participantes — Alunos
+  getAlunos:  ()                => gasCall('getAlunos'),
+  getAluno:   (id)              => gasCall('getAluno', { id }),
+  addAluno:   (payload, reqId)  => gasCall('addAluno', { payload, reqId }),
+  updateAluno:(id, payload)     => gasCall('updateAluno', { id, payload }),
+  deleteAluno:(id)              => gasCall('deleteAluno', { id }),
+
+  // Cursos
+  getCursos:   ()               => gasCall('getCursos'),
+  addCurso:    (payload)        => gasCall('addCurso', { payload }),
+  updateCurso: (id, payload)    => gasCall('updateCurso', { id, payload }),
+  deleteCurso: (id)             => gasCall('deleteCurso', { id }),
+
   // Admin — perfis de acesso
   getPerfis:    ()               => gasCall('getPerfis'),
   addPerfil:    (payload)        => gasCall('addPerfil',    { payload }),

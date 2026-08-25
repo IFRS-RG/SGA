@@ -91,6 +91,21 @@ function initModalEvents() {
   document.getElementById('modal-overlay').addEventListener('click', (e) => {
     if (e.target.id === 'modal-overlay') requestCloseModal();
   });
+
+  // Acessibilidade: Esc fecha (respeitando o guard) e Tab fica preso no modal.
+  document.addEventListener('keydown', (e) => {
+    const overlay = document.getElementById('modal-overlay');
+    if (!overlay || overlay.hidden) return;
+    if (e.key === 'Escape') { e.preventDefault(); requestCloseModal(); return; }
+    if (e.key !== 'Tab') return;
+    const foco = Array.from(overlay.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )).filter(el => el.offsetParent !== null);   // só os visíveis
+    if (!foco.length) return;
+    const primeiro = foco[0], ultimo = foco[foco.length - 1];
+    if (e.shiftKey && document.activeElement === primeiro) { e.preventDefault(); ultimo.focus(); }
+    else if (!e.shiftKey && document.activeElement === ultimo) { e.preventDefault(); primeiro.focus(); }
+  });
 }
 
 function setBusy(on) {

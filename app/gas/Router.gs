@@ -10,7 +10,10 @@ function doGet() {
 // Ações que ESCREVEM (serializadas via LockService).
 const WRITE_ACTIONS = ['addEdital', 'updateEdital', 'deleteEdital', 'cloneEdital',
   'uploadEditalDoc', 'deleteEditalDoc', 'renameEditalDoc',
-  'addPerfil', 'updatePerfil', 'deletePerfil'];
+  'addPerfil', 'updatePerfil', 'deletePerfil',
+  'addServidor', 'updateServidor', 'deleteServidor',
+  'addAluno', 'updateAluno', 'deleteAluno',
+  'addCurso', 'updateCurso', 'deleteCurso'];
 
 function doPost(e) {
   let lock = null;
@@ -39,7 +42,7 @@ function doPost(e) {
 
       // ── Editais ──
       case 'getEditais':
-        return respond(getEditais());
+        return respond(getEditais(userEmail));
       case 'addEdital':
         return respond(addEdital(data.payload, userEmail, data.reqId));
       case 'updateEdital':
@@ -51,15 +54,47 @@ function doPost(e) {
 
       // ── Documentos de edital ──
       case 'getEditalDocs':
-        return respond(getEditalDocs(data.editalId));
+        return respond(getEditalDocs(data.editalId, userEmail));
       case 'getEditalFolderUrl':
-        return respond(getEditalFolderUrl(data.editalId));
+        return respond(getEditalFolderUrl(data.editalId, userEmail));
       case 'uploadEditalDoc':
         return respond(uploadEditalDoc(data.payload, userEmail));
       case 'deleteEditalDoc':
         return respond(deleteEditalDoc(data.docId, userEmail));
       case 'renameEditalDoc':
         return respond(renameEditalDoc(data.docId, data.nome, userEmail));
+
+      // ── Participantes (Servidores / Alunos) ──
+      case 'getServidores':
+        return respond(getServidores(userEmail));
+      case 'getServidor':
+        return respond(getServidor(data.id, userEmail));
+      case 'addServidor':
+        return respond(addServidor(data.payload, userEmail, data.reqId));
+      case 'updateServidor':
+        return respond(updateServidor(data.id, data.payload, userEmail));
+      case 'deleteServidor':
+        return respond(deleteServidor(data.id, userEmail));
+      case 'getAlunos':
+        return respond(getAlunos(userEmail));
+      case 'getAluno':
+        return respond(getAluno(data.id, userEmail));
+      case 'addAluno':
+        return respond(addAluno(data.payload, userEmail, data.reqId));
+      case 'updateAluno':
+        return respond(updateAluno(data.id, data.payload, userEmail));
+      case 'deleteAluno':
+        return respond(deleteAluno(data.id, userEmail));
+
+      // ── Cursos (cadastro no Admin; usado no form de Aluno) ──
+      case 'getCursos':
+        return respond(getCursos(userEmail));
+      case 'addCurso':
+        return respond(addCurso(data.payload, userEmail));
+      case 'updateCurso':
+        return respond(updateCurso(data.id, data.payload, userEmail));
+      case 'deleteCurso':
+        return respond(deleteCurso(data.id, userEmail));
 
       // ── Admin: perfis de acesso ──
       case 'getPerfis':
@@ -75,7 +110,12 @@ function doPost(e) {
         return respond({ error: 'Ação desconhecida: ' + action });
     }
   } catch (err) {
-    return respond({ error: err.message || String(err) });
+    // Erros marcados como "exibíveis" (validação/permissão) vão para o usuário.
+    if (err && err.userFacing) return respond({ error: err.message });
+    // Erros inesperados: registra o detalhe no log (Stackdriver) e devolve
+    // uma mensagem genérica, sem vazar internals ao cliente.
+    console.error(err && err.stack ? err.stack : String(err));
+    return respond({ error: 'Ocorreu um erro ao processar sua solicitação. Tente novamente.' });
   } finally {
     if (lock) { try { lock.releaseLock(); } catch (e) {} }
   }

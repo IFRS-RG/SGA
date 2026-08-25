@@ -16,6 +16,7 @@ const Admin = {
   async reload() {
     try {
       this.data = await API.getPerfis();
+      try { this.cursos = await API.getCursos() || []; } catch (e) { this.cursos = []; }
       this.render();
     } catch (e) {
       this.container.innerHTML = emptyState('Erro ao carregar perfis: ' + (e && e.message ? e.message : e));
@@ -62,7 +63,72 @@ const Admin = {
             <tbody>${rows}</tbody>
           </table>
         </div>` : emptyState('Nenhum perfil cadastrado além do super admin.')}
+      </section>
+      ${this.cursosSection()}`;
+  },
+
+  // ── Cursos (usados no cadastro de Aluno) ─────────────────────
+  cursosSection() {
+    const cursos = this.cursos || [];
+    const rows = cursos.map(c => `
+      <tr>
+        <td><strong>${esc(c.Nome)}</strong></td>
+        <td>${esc(c.Modalidade || '—')}</td>
+        <td>${c.Status === 'Inativo' ? '<span class="badge badge-muted">Inativo</span>' : '<span class="badge badge-ok">Ativo</span>'}</td>
+        <td class="col-actions">
+          <button class="btn btn-ghost btn-xs" onclick="Admin.openCurso('${esc(c.ID)}')">Editar</button>
+          <button class="btn btn-danger btn-xs" onclick="Admin.removeCurso('${esc(c.ID)}')">Remover</button>
+        </td>
+      </tr>`).join('');
+
+    return `
+      <section class="admin-section" style="margin-top:28px">
+        <div class="section-head">
+          <div>
+            <h2>Cursos</h2>
+            <p class="section-sub">Cursos disponíveis no cadastro de alunos.</p>
+          </div>
+          <button class="btn btn-primary" onclick="Admin.openCurso()">+ Adicionar curso</button>
+        </div>
+        ${cursos.length ? `
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Nome</th><th>Modalidade</th><th>Status</th><th class="col-actions">Ações</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>` : emptyState('Nenhum curso cadastrado ainda.')}
       </section>`;
+  },
+
+  openCurso(id) {
+    const c = id ? (this.cursos || []).find(x => String(x.ID) === String(id)) : null;
+    const body = `
+      <div class="fg"><label>Nome do curso *</label>
+        <input class="input" id="c-nome" value="${esc(c ? c.Nome : '')}"></div>
+      <div class="fg"><label>Modalidade</label>
+        <input class="input" id="c-modalidade" value="${esc(c ? c.Modalidade : '')}" placeholder="Ex.: Técnico Integrado, Superior…"></div>
+      ${c ? `<div class="fg"><label>Status</label><select class="input" id="c-status">${optionsHtml(['Ativo', 'Inativo'], c.Status || 'Ativo')}</select></div>` : ''}`;
+    openModal(c ? 'Editar curso' : 'Adicionar curso', body,
+      async () => { await this.saveCurso(c ? c.ID : null); }, { confirmLabel: c ? 'Salvar' : 'Adicionar' });
+  },
+
+  async saveCurso(id) {
+    const payload = { nome: val('c-nome'), modalidade: val('c-modalidade') };
+    if (!payload.nome) { toast('Nome do curso é obrigatório.', 'error'); return; }
+    setBusy(true);
+    try {
+      if (id) { payload.status = val('c-status'); await API.updateCurso(id, payload); toast('Curso atualizado.', 'success'); }
+      else { await API.addCurso(payload); toast('Curso adicionado.', 'success'); }
+      closeModal();
+      await this.reload();
+    } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
+  },
+
+  removeCurso(id) {
+    confirmDialog('Remover curso', 'Remover este curso?', async () => {
+      try { await API.deleteCurso(id); toast('Curso removido.', 'success'); await this.reload(); }
+      catch (e) { toast(e.message, 'error'); }
+    }, 'Remover');
   },
 
   perfilLabel(p) { return p === 'Gestor' ? 'Gestor de Segmento' : p; },
@@ -94,9 +160,11 @@ const Admin = {
     const segEl = document.getElementById('p-segmento');
     const hint = document.getElementById('p-seg-hint');
     if (!segEl) return;
-    if (perfil === 'Admin') {
+    if (perfil === 'Admin' || perfil === 'Financeiro') {
       segEl.value = 'Todos'; segEl.disabled = true;
-      if (hint) hint.textContent = 'Administrador tem acesso a todos os segmentos.';
+      if (hint) hint.textContent = perfil === 'Financeiro'
+        ? 'Financeiro tem acesso aos dados financeiros de todos os segmentos.'
+        : 'Administrador tem acesso a todos os segmentos.';
     } else {
       segEl.disabled = false;
       if (perfil === 'Gestor' && segEl.value === 'Todos') {

@@ -18,7 +18,7 @@ const SGA_CONFIG = {
 const SEGMENTOS        = ['Ensino', 'Pesquisa', 'Extensão', 'Indissociável', 'Conjunto'];
 const SEGMENTOS_BASE   = ['Ensino', 'Pesquisa', 'Extensão', 'Indissociável'];
 const TIPOS_DOC        = ['Edital', 'Retificação', 'Anexo', 'Demais publicações'];
-const PERFIS           = ['Admin', 'Gestor', 'Visualizador'];
+const PERFIS           = ['Admin', 'Gestor', 'Visualizador', 'Financeiro'];
 const SEGMENTOS_ACESSO = ['Todos', 'Ensino', 'Pesquisa', 'Extensão', 'Indissociável'];
 
 const ORIGEM_EDITAL = ['IFRS-RG', 'PROEN', 'PROEX', 'PROPPI'];
@@ -31,3 +31,10 @@ const TIPO_BOLSA = {
   'Extensão': ['PIBEX'], 'Indissociável': ['PIBIND']
 };
 const CH_VALOR = { '4': 175, '8': 350, '12': 525, '16': 700 };
+
+// Participantes.
+const VINCULOS_SERVIDOR = [
+  'Docente Efetivo', 'Docente Substituto', 'Docente Temporário', 'Docente Visitante',
+  'Docente Cedido', 'TAE Efetivo', 'TAE Cedido'
+];
+const STATUS_PARTICIPANTE = ['Ativo', 'Inativo'];

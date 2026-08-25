@@ -9,6 +9,7 @@ const App = {
   // Definição do menu. `roles` = perfis que enxergam o item.
   menu: [
     { id: 'editais',      label: 'Editais',      icon: '📄', roles: ['Admin', 'Gestor', 'Visualizador'], module: 'Editais' },
+    { id: 'participantes',label: 'Participantes', icon: '👥', roles: ['Admin', 'Gestor', 'Visualizador', 'Financeiro'], module: 'Participantes' },
     { id: 'acoes',        label: 'Ações',        icon: '🎯', roles: ['Admin', 'Gestor', 'Visualizador'], soon: true },
     { id: 'certificados', label: 'Certificados', icon: '📜', roles: ['Admin', 'Gestor', 'Visualizador'], soon: true },
     { id: 'processos',    label: 'Processos',    icon: '🗂️', roles: ['Admin', 'Gestor', 'Visualizador'], soon: true },
@@ -37,7 +38,11 @@ const App = {
     }
 
     this.renderSidebar();
-    this.navigate('editais');
+    // Vai para o primeiro item que este perfil pode abrir (Editais p/ operadores;
+    // Participantes p/ quem só tem o papel Financeiro, por exemplo).
+    const first = this.menu.find(m => m.roles.includes(this.role) && !m.soon);
+    if (first) this.navigate(first.id);
+    else this.renderNoAccess();
   },
 
   renderSidebar() {

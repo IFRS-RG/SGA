@@ -4,6 +4,8 @@
 // ============================================================
 
 const EDITAL_WRITERS = ['Admin', 'Gestor'];
+// Leitura: qualquer perfil cadastrado (inclui Visualizador). Bloqueia anônimo/sem-acesso.
+const EDITAL_READERS = ['Admin', 'Gestor', 'Visualizador'];
 
 function _num(v) {
   if (v === '' || v == null) return 0;
@@ -62,7 +64,8 @@ function _parseJson(v, fallback) {
 }
 
 // ── Listar ────────────────────────────────────────────────────
-function getEditais() {
+function getEditais(email) {
+  requirePerfil(email, EDITAL_READERS);
   const editais = sheetRows('Editais');
   const docs    = sheetRows('EditalDocumentos');
   return editais.map(e => {
@@ -80,7 +83,7 @@ function getEditais() {
 // Segmento único só pode ter 1 pai; vários → precisa ser Conjunto.
 function _validateVinculo(p) {
   if (p.segmento !== 'Conjunto' && (p.editaisPai || []).length > 1) {
-    throw new Error('Edital de segmento único pode ter apenas 1 edital pai. Para vincular a vários, use Segmento = Conjunto.');
+    throw userError('Edital de segmento único pode ter apenas 1 edital pai. Para vincular a vários, use Segmento = Conjunto.');
   }
 }
 
@@ -96,7 +99,7 @@ function _idempotentStore(reqId, id) {
 // ── Criar ─────────────────────────────────────────────────────
 function addEdital(p, email, reqId) {
   requirePerfil(email, EDITAL_WRITERS);
-  if (!p.numero || !p.titulo) throw new Error('Número e Título são obrigatórios.');
+  if (!p.numero || !p.titulo) throw userError('Número e Título são obrigatórios.');
   _validateVinculo(p);
   const dup = _idempotentId(reqId);
   if (dup) return { ok: true, id: dup, duplicate: true };
@@ -112,7 +115,7 @@ function updateEdital(id, p, email) {
   requirePerfil(email, EDITAL_WRITERS);
   _validateVinculo(p);
   const idx = findRowIndex('Editais', id);
-  if (idx === -1) throw new Error('Edital não encontrado.');
+  if (idx === -1) throw userError('Edital não encontrado.');
   const sh  = getSheet('Editais');
   const old = sh.getRange(idx, 1, 1, HEADERS.Editais.length).getValues()[0];
   const oldParents = _parseJson(old[COL.Editais.EditaisPaiJSON], []);
@@ -127,14 +130,14 @@ function updateEdital(id, p, email) {
 function deleteEdital(id, email) {
   requirePerfil(email, EDITAL_WRITERS);
   const idx = findRowIndex('Editais', id);
-  if (idx === -1) throw new Error('Edital não encontrado.');
+  if (idx === -1) throw userError('Edital não encontrado.');
   const editais = sheetRows('Editais');
   const edital = editais.find(e => String(e.ID) === String(id));
 
   // Bloqueia se houver sub-editais vinculados a este.
   const filhos = editais.filter(e => _parseJson(e.EditaisPaiJSON, []).map(String).indexOf(String(id)) >= 0);
   if (filhos.length) {
-    throw new Error('Este edital tem sub-edital(is) vinculado(s): ' + filhos.map(_editalLabel).join(', ') +
+    throw userError('Este edital tem sub-edital(is) vinculado(s): ' + filhos.map(_editalLabel).join(', ') +
       '. Desvincule ou exclua o(s) filho(s) primeiro.');
   }
 
@@ -158,7 +161,7 @@ function cloneEdital(id, email, reqId) {
   const dup = _idempotentId(reqId);
   if (dup) return { ok: true, id: dup, duplicate: true };
   const orig = sheetRows('Editais').find(e => String(e.ID) === String(id));
-  if (!orig) throw new Error('Edital não encontrado.');
+  if (!orig) throw userError('Edital não encontrado.');
   const p = {
     numero: orig.Numero, ano: orig.Ano, titulo: '[Cópia] ' + orig.Titulo,
     resumo: orig.Resumo, segmento: orig.Segmento, origem: orig.Origem,
@@ -203,14 +206,16 @@ function _editalFolder(editalLabel, ano, segmento) {
   return _childFolder(anoFolder, editalLabel);
 }
 
-function getEditalDocs(editalId) {
+function getEditalDocs(editalId, email) {
+  requirePerfil(email, EDITAL_READERS);
   return sheetRows('EditalDocumentos').filter(d => String(d.EditalID) === String(editalId));
 }
 
 // Garante a pasta REAL do edital (conforme o vínculo) e retorna a URL.
-function getEditalFolderUrl(editalId) {
+function getEditalFolderUrl(editalId, email) {
+  requirePerfil(email, EDITAL_READERS);
   const edital = sheetRows('Editais').find(e => String(e.ID) === String(editalId));
-  if (!edital) throw new Error('Edital não encontrado.');
+  if (!edital) throw userError('Edital não encontrado.');
   return { url: _ensureEditalFolder(edital).getUrl() };
 }
 
@@ -378,6 +383,90 @@ function _removeEditalPlacement(edital) {
   } catch (e) {}
 }
 
+// ============================================================
+// Acesso aos arquivos (SEC-002)
+// Os PDFs de edital NÃO são públicos por link. O acesso de leitura é concedido
+// na PASTA RAIZ do Drive aos e-mails com perfil Ativo (aba Perfis); os arquivos
+// dentro dela herdam essa permissão. Ao (des)cadastrar um perfil, o Admin.gs
+// chama grant/revoke; reconcileEditalAccess() ressincroniza tudo (e migra).
+// ============================================================
+
+// E-mails que devem ter leitura dos arquivos: perfis Ativos + super admin.
+function _editalAccessEmails() {
+  const set = {};
+  set[SUPER_ADMIN] = true;
+  sheetRows('Perfis').forEach(p => {
+    if (String(p.Status) === 'Ativo') {
+      const em = String(p.Email || '').toLowerCase().trim();
+      if (em) set[em] = true;
+    }
+  });
+  return Object.keys(set);
+}
+
+function _rootOwnerEmail(root) {
+  try { const o = root.getOwner(); return o ? String(o.getEmail()).toLowerCase() : ''; }
+  catch (e) { return ''; }
+}
+
+// Concede leitura a um e-mail na pasta raiz (os arquivos herdam). Não bloqueia
+// a operação chamadora em caso de erro do Drive.
+function grantEditalAccess(email) {
+  const em = String(email || '').toLowerCase().trim();
+  if (!em) return;
+  try { _editaisRootFolder().addViewer(em); } catch (e) {}
+}
+
+// Revoga o acesso de um e-mail (nunca remove o dono da pasta nem o super admin).
+function revokeEditalAccess(email) {
+  const em = String(email || '').toLowerCase().trim();
+  if (!em || em === SUPER_ADMIN) return;
+  try {
+    const root = _editaisRootFolder();
+    if (em === _rootOwnerEmail(root)) return;
+    root.removeViewer(em);
+    try { root.removeEditor(em); } catch (e) {}
+  } catch (e) {}
+}
+
+// Sincroniza o compartilhamento da pasta raiz com a lista de perfis Ativos.
+// Idempotente. Serve também de MIGRAÇÃO do compartilhamento — rode no editor.
+function reconcileEditalAccess() {
+  const root  = _editaisRootFolder();
+  const owner = _rootOwnerEmail(root);
+  const want  = _editalAccessEmails();
+  const wantSet = {};
+  want.forEach(e => { wantSet[e] = true; });
+
+  // Concede aos que faltam.
+  want.forEach(em => { if (em !== owner) { try { root.addViewer(em); } catch (e) {} } });
+
+  // Revoga quem não está mais na lista (preserva dono e super admin).
+  const purge = (users, remover) => users.forEach(u => {
+    const em = String(u.getEmail()).toLowerCase();
+    if (em && em !== owner && em !== SUPER_ADMIN && !wantSet[em]) { try { remover(em); } catch (e) {} }
+  });
+  try { purge(root.getViewers(), em => root.removeViewer(em)); } catch (e) {}
+  try { purge(root.getEditors(), em => root.removeEditor(em)); } catch (e) {}
+  return { ok: true, autorizados: want.length };
+}
+
+// MIGRAÇÃO one-shot: torna PRIVADOS os PDFs já enviados (remove ANYONE_WITH_LINK)
+// e reconcilia o acesso da pasta raiz. Rode UMA vez no editor do Apps Script
+// depois do deploy, para fechar os links públicos antigos.
+function migrateEditalDocsPrivados() {
+  let n = 0;
+  sheetRows('EditalDocumentos').forEach(d => {
+    if (!d.DriveFileId) return;
+    try {
+      DriveApp.getFileById(d.DriveFileId).setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
+      n++;
+    } catch (e) {}
+  });
+  const r = reconcileEditalAccess();
+  return 'Privados: ' + n + ' arquivo(s). Autorizados na raiz: ' + r.autorizados + '.';
+}
+
 // Valida que o arquivo enviado é mesmo um PDF (magic bytes "%PDF").
 function _isPdf(bytes) {
   return bytes.length >= 4 &&
@@ -388,14 +477,14 @@ function _isPdf(bytes) {
 // payload: { editalId, tipo, fileName, base64 }
 function uploadEditalDoc(payload, email) {
   requirePerfil(email, EDITAL_WRITERS);
-  if (!payload.editalId) throw new Error('Edital não informado.');
-  if (TIPOS_DOC.indexOf(payload.tipo) === -1) throw new Error('Tipo de documento inválido.');
+  if (!payload.editalId) throw userError('Edital não informado.');
+  if (TIPOS_DOC.indexOf(payload.tipo) === -1) throw userError('Tipo de documento inválido.');
 
   const edital = sheetRows('Editais').find(e => String(e.ID) === String(payload.editalId));
-  if (!edital) throw new Error('Edital não encontrado.');
+  if (!edital) throw userError('Edital não encontrado.');
 
   const bytes = Utilities.base64Decode(payload.base64);
-  if (!_isPdf(bytes)) throw new Error('O arquivo enviado não é um PDF válido.');
+  if (!_isPdf(bytes)) throw userError('O arquivo enviado não é um PDF válido.');
 
   // Nome do documento: usa o nome informado; senão, o nome do arquivo enviado.
   let fileName = String(payload.nome || payload.fileName || 'documento').trim() || 'documento';
@@ -407,7 +496,8 @@ function uploadEditalDoc(payload, email) {
   const folder = _childFolder(editalFolder, 'Documentos Edital');   // onde os PDFs ficam
   const blob   = Utilities.newBlob(bytes, 'application/pdf', fileName);
   const file   = folder.createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  // SEC-002: o arquivo NÃO é público. Herda o compartilhamento da pasta raiz,
+  // concedido aos e-mails com perfil Ativo (ver reconcileEditalAccess / Admin.gs).
 
   const id = genId();
   getSheet('EditalDocumentos').appendRow([
@@ -421,7 +511,7 @@ function uploadEditalDoc(payload, email) {
 function deleteEditalDoc(docId, email) {
   requirePerfil(email, EDITAL_WRITERS);
   const doc = sheetRows('EditalDocumentos').find(d => String(d.ID) === String(docId));
-  if (!doc) throw new Error('Documento não encontrado.');
+  if (!doc) throw userError('Documento não encontrado.');
   try { _deleteDocFile(doc.DriveFileId); } catch (e) {}
   const idx = findRowIndex('EditalDocumentos', docId);
   if (idx !== -1) getSheet('EditalDocumentos').deleteRow(idx);
@@ -432,9 +522,9 @@ function deleteEditalDoc(docId, email) {
 function renameEditalDoc(docId, novoNome, email) {
   requirePerfil(email, EDITAL_WRITERS);
   const doc = sheetRows('EditalDocumentos').find(d => String(d.ID) === String(docId));
-  if (!doc) throw new Error('Documento não encontrado.');
+  if (!doc) throw userError('Documento não encontrado.');
   let nome = String(novoNome || '').trim();
-  if (!nome) throw new Error('O nome não pode ficar vazio.');
+  if (!nome) throw userError('O nome não pode ficar vazio.');
   if (!/\.pdf$/i.test(nome)) nome += '.pdf';
   try { if (doc.DriveFileId) DriveApp.getFileById(doc.DriveFileId).setName(nome); } catch (e) {}
   const idx = findRowIndex('EditalDocumentos', docId);
