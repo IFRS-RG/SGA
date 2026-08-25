@@ -82,9 +82,14 @@ const Participantes = {
       : `<tr><th>Nome</th><th>Matrícula</th><th>Curso</th><th>E-mail</th><th>Telefone</th><th>Status</th>${actTh}</tr>`;
 
     const acoes = (id) => hasActions ? `<td class="col-actions">
-      ${fin ? `<button class="btn btn-ghost btn-xs" onclick="Participantes.openFinanceiro('${id}')">💳 Financeiro</button>` : ''}
-      ${w ? `<button class="btn btn-ghost btn-xs" onclick="Participantes.openForm('${id}')">✏️ Editar</button>
-      <button class="btn btn-danger btn-xs" onclick="Participantes.remove('${id}')">🗑</button>` : ''}
+      <details class="row-menu">
+        <summary class="btn btn-ghost btn-xs">Ações ▾</summary>
+        <div class="row-menu-list">
+          ${fin ? `<button onclick="Participantes.openFinanceiro('${id}')">💳 Financeiro</button>` : ''}
+          ${w ? `<button onclick="Participantes.openForm('${id}')">✏️ Editar</button>` : ''}
+          ${w ? `<button class="danger" onclick="Participantes.remove('${id}')">🗑 Excluir</button>` : ''}
+        </div>
+      </details>
     </td>` : '';
 
     const body = rows.map(r => {
@@ -166,7 +171,8 @@ const Participantes = {
     return `
       <div class="form-grid">
         <div class="fg"><label>Telefone</label>
-          <input class="input" id="pf-telefone" value="${esc(rec ? rec.telefone : '')}" placeholder="(00) 00000-0000"></div>
+          <input class="input" id="pf-telefone" value="${esc(maskTelefone(rec ? rec.telefone : ''))}" placeholder="(00) 00000-0000"
+                 inputmode="numeric" oninput="this.value=maskTelefone(this.value)"></div>
         <div class="fg"><label>Status</label>
           <select class="input" id="pf-status">${optionsHtml(STATUS_PARTICIPANTE, rec ? rec.status : 'Ativo')}</select></div>
       </div>

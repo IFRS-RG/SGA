@@ -8,6 +8,17 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// Máscara de telefone brasileiro: DDD entre parênteses + número com hífen.
+//   11 dígitos → (DD) NNNNN-NNNN   ·   10 dígitos → (DD) NNNN-NNNN
+function maskTelefone(val) {
+  const d = String(val == null ? '' : val).replace(/\D/g, '').slice(0, 11);
+  if (d.length <= 10) {
+    return d.replace(/(\d{0,2})(\d{0,4})(\d{0,4})/, (_, a, b, c) =>
+      a ? (b ? (c ? `(${a}) ${b}-${c}` : `(${a}) ${b}`) : `(${a}`) : '');
+  }
+  return d.replace(/(\d{2})(\d{5})(\d{0,4})/, (_, a, b, c) => c ? `(${a}) ${b}-${c}` : `(${a}) ${b}`);
+}
+
 // ── Toast ─────────────────────────────────────────────────────
 function toast(msg, type = 'info') {
   const wrap = document.getElementById('toast-wrap');
