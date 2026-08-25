@@ -78,8 +78,8 @@ const Participantes = {
 
     const actTh = hasActions ? '<th class="col-actions">Ações</th>' : '';
     const head = isServ
-      ? `<tr><th>Nome</th><th>SIAPE</th><th>Vínculo</th><th>E-mail</th><th>Telefone</th><th>Status</th>${actTh}</tr>`
-      : `<tr><th>Nome</th><th>Matrícula</th><th>Curso</th><th>E-mail</th><th>Telefone</th><th>Status</th>${actTh}</tr>`;
+      ? `<tr><th>Nome</th><th>SIAPE</th><th>Vínculo</th><th>E-mail</th><th>Telefone</th><th>Financeiro</th><th>Status</th>${actTh}</tr>`
+      : `<tr><th>Nome</th><th>Matrícula</th><th>Curso</th><th>E-mail</th><th>Telefone</th><th>Financeiro</th><th>Status</th>${actTh}</tr>`;
 
     const acoes = (id) => hasActions ? `<td class="col-actions">
       <details class="row-menu">
@@ -92,8 +92,12 @@ const Participantes = {
       </details>
     </td>` : '';
 
+    const finCell = (r) => r.temFin
+      ? '<td><span class="badge badge-ok">Sim</span></td>'
+      : '<td><span class="badge badge-muted">—</span></td>';
+
     const body = rows.map(r => {
-      const tel = r.Telefone ? esc(r.Telefone) + (r.WhatsApp ? ' <span class="link-chip">WhatsApp</span>' : '') : '—';
+      const tel = r.Telefone ? esc(maskTelefone(r.Telefone)) + (r.WhatsApp ? ' <span class="link-chip">WhatsApp</span>' : '') : '—';
       return isServ
         ? `<tr>
             <td><strong>${esc(r.Nome)}</strong></td>
@@ -101,6 +105,7 @@ const Participantes = {
             <td>${esc((r.vinculo || []).join(', ') || '—')}</td>
             <td class="cell-sub">${esc(r.Email || '—')}</td>
             <td>${tel}</td>
+            ${finCell(r)}
             <td>${this.badge(r.Status)}</td>${acoes(r.ID)}
           </tr>`
         : `<tr>
@@ -109,12 +114,13 @@ const Participantes = {
             <td>${esc(this.cursoNome(r.CursoID))}</td>
             <td class="cell-sub">${esc(r.Email || '—')}</td>
             <td>${tel}</td>
+            ${finCell(r)}
             <td>${this.badge(r.Status)}</td>${acoes(r.ID)}
           </tr>`;
     }).join('');
 
     const table = rows.length ? `
-      <div class="table-wrap">
+      <div class="table-wrap menus">
         <table class="data-table"><thead>${head}</thead><tbody>${body}</tbody></table>
       </div>`
       : emptyState(data.length
@@ -219,6 +225,14 @@ const Participantes = {
         <div class="fg"><label>Idade</label>
           <input class="input" id="pf-idade" disabled value=""></div>
       </div>
+      <div class="form-grid">
+        <div class="fg"><label>Ano/semestre de ingresso</label>
+          <input class="input" id="pf-ingresso" value="${esc(rec ? rec.anoSemestreIngresso : '')}" placeholder="Ex.: 2023/1"></div>
+        <div class="fg"><label>Ano/semestre atual</label>
+          <input class="input" id="pf-atual" value="${esc(rec ? rec.anoSemestreAtual : '')}" placeholder="Ex.: 2025/2"></div>
+      </div>
+      <div class="fg"><label>Endereço</label>
+        <input class="input" id="pf-endereco" value="${esc(rec ? rec.endereco : '')}"></div>
       <div class="fg"><label>E-mail</label>
         <input class="input" id="pf-email" value="${esc(rec ? rec.email : '')}" placeholder="usuario@aluno.riogrande.ifrs.edu.br"></div>
       ${this._contatoBlock(rec)}`;
@@ -261,6 +275,9 @@ const Participantes = {
       p.matricula = val('pf-matricula');
       p.cursoId = val('pf-curso');
       p.dataNascimento = val('pf-datanasc');
+      p.endereco = val('pf-endereco');
+      p.anoSemestreIngresso = val('pf-ingresso');
+      p.anoSemestreAtual = val('pf-atual');
     }
     return p;
   },
@@ -368,11 +385,8 @@ const Participantes = {
     let full = {};
     try { full = await API.revealFinanceiro(tipo, id); } catch (e) { toast(e.message, 'error'); return; }
 
-    const nomes = BANCOS.map(b => b.nome);
-    const outroSel = !!(fin.banco && nomes.indexOf(fin.banco) === -1);
-    const bancoSelVal = outroSel ? 'Outro' : (fin.banco || '');
-    const bancoOpts = ['<option value="">— Selecione —</option>']
-      .concat(BANCOS.map(b => `<option ${bancoSelVal === b.nome ? 'selected' : ''}>${esc(b.nome)}</option>`)).join('');
+    const bancoList = BANCOS.filter(b => b.nome !== 'Outro')
+      .map(b => `<option value="${esc(b.nome)}"></option>`).join('');
     const tcOpts = ['<option value="">—</option>']
       .concat(TIPO_CONTA.map(o => `<option ${fin.tipoConta === o ? 'selected' : ''}>${esc(o)}</option>`)).join('');
     const pxOpts = ['<option value="">—</option>']
@@ -380,17 +394,15 @@ const Participantes = {
 
     const body = `
       <div class="fg"><label>CPF</label>
-        <input class="input" id="fin-cpf" value="${esc(this._fmtCpf(full.cpf))}" inputmode="numeric" placeholder="000.000.000-00"></div>
+        <input class="input" id="fin-cpf" value="${esc(this._fmtCpf(full.cpf))}" inputmode="numeric" placeholder="000.000.000-00" oninput="this.value=maskCPF(this.value)"></div>
       <div class="seg-head">Dados bancários</div>
       <div class="form-grid">
         <div class="fg"><label>Banco</label>
-          <select class="input" id="fin-banco" onchange="Participantes.onBancoChange()">${bancoOpts}</select></div>
+          <input class="input" id="fin-banco" list="fin-bancos-list" value="${esc(fin.banco || '')}" oninput="Participantes.onBancoInput()" placeholder="Selecione ou digite">
+          <datalist id="fin-bancos-list">${bancoList}</datalist></div>
         <div class="fg"><label>Código</label>
           <input class="input" id="fin-bancocod" value="${esc(fin.bancoCodigo || '')}"></div>
       </div>
-      <div class="fg" id="fin-banco-outro-wrap" style="display:${outroSel ? 'block' : 'none'}">
-        <label>Nome do banco</label>
-        <input class="input" id="fin-bancooutro" value="${esc(outroSel ? fin.banco : '')}"></div>
       <div class="form-grid">
         <div class="fg"><label>Agência</label><input class="input" id="fin-agencia" value="${esc(fin.agencia || '')}"></div>
         <div class="fg"><label>Tipo de conta</label><select class="input" id="fin-tipoconta">${tcOpts}</select></div>
@@ -403,31 +415,24 @@ const Participantes = {
       </div>`;
     openModal('Editar financeiro — ' + this._nomeDe(id), body,
       async () => { await this.saveFin(id); }, { confirmLabel: 'Salvar' });
-    setTimeout(() => this.onBancoChange(), 50);
+    setTimeout(() => this.onBancoInput(), 50);
   },
 
-  // Preenche o código ao escolher o banco; "Outro" libera nome e código para digitar.
-  onBancoChange() {
-    const sel = document.getElementById('fin-banco');
+  // Campo único de banco (menu + digitação). Ao casar com um banco conhecido,
+  // preenche e trava o código; se for banco digitado (fora da lista), código manual.
+  onBancoInput() {
+    const inp = document.getElementById('fin-banco');
     const cod = document.getElementById('fin-bancocod');
-    const wrap = document.getElementById('fin-banco-outro-wrap');
-    if (!sel || !cod) return;
-    if (sel.value === 'Outro') {
-      if (wrap) wrap.style.display = 'block';
-      cod.readOnly = false;
-    } else {
-      if (wrap) wrap.style.display = 'none';
-      const b = BANCOS.find(x => x.nome === sel.value);
-      cod.value = b ? b.codigo : '';
-      cod.readOnly = !!(b && b.codigo);
-    }
+    if (!inp || !cod) return;
+    const b = BANCOS.find(x => x.nome !== 'Outro' && x.nome.toLowerCase() === inp.value.trim().toLowerCase());
+    if (b) { cod.value = b.codigo; cod.readOnly = true; }
+    else { cod.readOnly = false; }
   },
 
   async saveFin(id) {
-    const bancoSel = val('fin-banco');
     const p = {
       cpf: val('fin-cpf'),
-      banco: bancoSel === 'Outro' ? val('fin-bancooutro') : bancoSel,
+      banco: val('fin-banco'),
       bancoCodigo: val('fin-bancocod'),
       agencia: val('fin-agencia'),
       tipoConta: val('fin-tipoconta'),

@@ -19,6 +19,14 @@ function maskTelefone(val) {
   return d.replace(/(\d{2})(\d{5})(\d{0,4})/, (_, a, b, c) => c ? `(${a}) ${b}-${c}` : `(${a}) ${b}`);
 }
 
+// Máscara de CPF: 000.000.000-00
+function maskCPF(val) {
+  return String(val == null ? '' : val).replace(/\D/g, '').slice(0, 11)
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+}
+
 // ── Toast ─────────────────────────────────────────────────────
 function toast(msg, type = 'info') {
   const wrap = document.getElementById('toast-wrap');
