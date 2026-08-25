@@ -66,6 +66,10 @@ const VINCULOS_SERVIDOR = [
 // Status de um participante.
 const STATUS_PARTICIPANTE = ['Ativo', 'Inativo'];
 
+// Dados financeiros.
+const TIPO_CONTA = ['Corrente', 'Poupança'];
+const PIX_TIPO   = ['CPF', 'E-mail', 'Telefone', 'Aleatória'];
+
 // ── Índices de coluna (0-based) ──────────────────────────────
 const COL = {
   Editais: {
@@ -92,7 +96,12 @@ const COL = {
     ID: 0, Nome: 1, NomeSocial: 2, UsarNomeSocialDocs: 3, Matricula: 4, CursoID: 5,
     DataNascimento: 6, Email: 7, Telefone: 8, WhatsApp: 9, Status: 10, CriadoEm: 11, CriadoPor: 12
   },
-  Cursos: { ID: 0, Nome: 1, Modalidade: 2, Status: 3 }
+  Cursos: { ID: 0, Nome: 1, Modalidade: 2, Status: 3 },
+  // Store financeiro SEGREGADO (sensível) — chave RefID = ID do servidor/aluno.
+  ServidoresFinanceiro: { RefID: 0, CPF: 1, Banco: 2, Agencia: 3, TipoConta: 4, NumeroConta: 5, PixTipo: 6, PixChave: 7, AtualizadoEm: 8, AtualizadoPor: 9 },
+  AlunosFinanceiro:     { RefID: 0, CPF: 1, Banco: 2, Agencia: 3, TipoConta: 4, NumeroConta: 5, PixTipo: 6, PixChave: 7, AtualizadoEm: 8, AtualizadoPor: 9 },
+  // Trilha de auditoria — NÃO grava valores sensíveis, só a ação e o alvo.
+  Auditoria: { Timestamp: 0, Ator: 1, Papel: 2, Acao: 3, Alvo: 4, Detalhe: 5 }
 };
 
 const HEADERS = {
@@ -108,7 +117,10 @@ const HEADERS = {
                'Email', 'Telefone', 'WhatsApp', 'Status', 'CriadoEm', 'CriadoPor'],
   Alunos: ['ID', 'Nome', 'NomeSocial', 'UsarNomeSocialDocs', 'Matricula', 'CursoID',
            'DataNascimento', 'Email', 'Telefone', 'WhatsApp', 'Status', 'CriadoEm', 'CriadoPor'],
-  Cursos: ['ID', 'Nome', 'Modalidade', 'Status']
+  Cursos: ['ID', 'Nome', 'Modalidade', 'Status'],
+  ServidoresFinanceiro: ['RefID', 'CPF', 'Banco', 'Agencia', 'TipoConta', 'NumeroConta', 'PixTipo', 'PixChave', 'AtualizadoEm', 'AtualizadoPor'],
+  AlunosFinanceiro:     ['RefID', 'CPF', 'Banco', 'Agencia', 'TipoConta', 'NumeroConta', 'PixTipo', 'PixChave', 'AtualizadoEm', 'AtualizadoPor'],
+  Auditoria: ['Timestamp', 'Ator', 'Papel', 'Acao', 'Alvo', 'Detalhe']
 };
 
 // ── Helpers genéricos ────────────────────────────────────────

@@ -6,6 +6,10 @@ const Admin = {
   container: null,
   role: null,
   data: null,
+  cursos: [],
+  auditoria: null,
+  _audLoaded: false,
+  tab: 'perfis',
 
   async mount(container, role) {
     this.container = container;
@@ -24,6 +28,60 @@ const Admin = {
   },
 
   render() {
+    const panel = this.tab === 'cursos' ? this.cursosSection()
+                : this.tab === 'auditoria' ? this.auditoriaSection()
+                : this.perfisSection();
+    this.container.innerHTML = `
+      <div class="ftabs">
+        <button type="button" class="ftab ${this.tab === 'perfis' ? 'active' : ''}" onclick="Admin.switchTab('perfis')">🔑 Perfis de acesso</button>
+        <button type="button" class="ftab ${this.tab === 'cursos' ? 'active' : ''}" onclick="Admin.switchTab('cursos')">🎓 Cursos</button>
+        <button type="button" class="ftab ${this.tab === 'auditoria' ? 'active' : ''}" onclick="Admin.switchTab('auditoria')">📋 Auditoria</button>
+      </div>
+      <div id="admin-panel">${panel}</div>`;
+  },
+
+  async switchTab(t) {
+    if (this.tab === t) return;
+    this.tab = t;
+    if (t === 'auditoria' && !this._audLoaded) {
+      this.render();   // mostra o loading
+      try { this.auditoria = await API.getAuditoria() || []; }
+      catch (e) { this.auditoria = []; toast(e.message, 'error'); }
+      this._audLoaded = true;
+    }
+    this.render();
+  },
+
+  auditoriaSection() {
+    if (!this._audLoaded) return `<div class="loading-page"><div class="spinner"></div><p>Carregando…</p></div>`;
+    const logs = this.auditoria || [];
+    const rows = logs.map(l => `
+      <tr>
+        <td class="cell-sub" style="white-space:nowrap">${esc(new Date(l.Timestamp).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }))}</td>
+        <td>${esc(l.Ator || '')}</td>
+        <td>${esc(l.Papel || '')}</td>
+        <td>${esc(l.Acao || '')}</td>
+        <td class="cell-sub">${esc(l.Alvo || '')}</td>
+      </tr>`).join('');
+    return `
+      <section class="admin-section">
+        <div class="section-head">
+          <div>
+            <h2>Auditoria</h2>
+            <p class="section-sub">Registro de acessos e alterações (dados financeiros, etc.). Não contém os valores sensíveis.</p>
+          </div>
+        </div>
+        ${logs.length ? `
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Data/hora</th><th>Ator</th><th>Papel</th><th>Ação</th><th>Alvo</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>` : emptyState('Nenhum registro de auditoria ainda.')}
+      </section>`;
+  },
+
+  perfisSection() {
     const regs = this.data.registros || [];
     const rows = regs.map(r => `
       <tr>
@@ -38,7 +96,7 @@ const Admin = {
         </td>
       </tr>`).join('');
 
-    this.container.innerHTML = `
+    return `
       <section class="admin-section">
         <div class="section-head">
           <div>
@@ -63,8 +121,7 @@ const Admin = {
             <tbody>${rows}</tbody>
           </table>
         </div>` : emptyState('Nenhum perfil cadastrado além do super admin.')}
-      </section>
-      ${this.cursosSection()}`;
+      </section>`;
   },
 
   // ── Cursos (usados no cadastro de Aluno) ─────────────────────
@@ -82,7 +139,7 @@ const Admin = {
       </tr>`).join('');
 
     return `
-      <section class="admin-section" style="margin-top:28px">
+      <section class="admin-section">
         <div class="section-head">
           <div>
             <h2>Cursos</h2>
@@ -106,7 +163,10 @@ const Admin = {
       <div class="fg"><label>Nome do curso *</label>
         <input class="input" id="c-nome" value="${esc(c ? c.Nome : '')}"></div>
       <div class="fg"><label>Modalidade</label>
-        <input class="input" id="c-modalidade" value="${esc(c ? c.Modalidade : '')}" placeholder="Ex.: Técnico Integrado, Superior…"></div>
+        <select class="input" id="c-modalidade">
+          <option value="">— Selecione —</option>
+          ${MODALIDADES_CURSO.map(m => `<option ${c && c.Modalidade === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}
+        </select></div>
       ${c ? `<div class="fg"><label>Status</label><select class="input" id="c-status">${optionsHtml(['Ativo', 'Inativo'], c.Status || 'Ativo')}</select></div>` : ''}`;
     openModal(c ? 'Editar curso' : 'Adicionar curso', body,
       async () => { await this.saveCurso(c ? c.ID : null); }, { confirmLabel: c ? 'Salvar' : 'Adicionar' });

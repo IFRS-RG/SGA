@@ -69,6 +69,14 @@ const API = {
   updateAluno:(id, payload)     => gasCall('updateAluno', { id, payload }),
   deleteAluno:(id)              => gasCall('deleteAluno', { id }),
 
+  // Financeiro
+  getFinanceiro:    (tipo, refId)          => gasCall('getFinanceiro', { tipo, refId }),
+  revealFinanceiro: (tipo, refId)          => gasCall('revealFinanceiro', { tipo, refId }),
+  saveFinanceiro:   (tipo, refId, payload) => gasCall('saveFinanceiro', { tipo, refId, payload }),
+
+  // Auditoria
+  getAuditoria: () => gasCall('getAuditoria'),
+
   // Cursos
   getCursos:   ()               => gasCall('getCursos'),
   addCurso:    (payload)        => gasCall('addCurso', { payload }),

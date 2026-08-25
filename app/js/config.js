@@ -38,3 +38,18 @@ const VINCULOS_SERVIDOR = [
   'Docente Cedido', 'TAE Efetivo', 'TAE Cedido'
 ];
 const STATUS_PARTICIPANTE = ['Ativo', 'Inativo'];
+const MODALIDADES_CURSO = ['Integrado', 'Concomitante', 'Subsequente', 'Superior', 'Especialização', 'FIC'];
+
+// Financeiro.
+const TIPO_CONTA = ['Corrente', 'Poupança'];
+const PIX_TIPO   = ['CPF', 'E-mail', 'Telefone', 'Aleatória'];
+// Lista curada de bancos (código COMPE - nome). Ajuste conforme necessário.
+const BANCOS = [
+  '001 - Banco do Brasil', '033 - Santander', '104 - Caixa Econômica Federal',
+  '237 - Bradesco', '341 - Itaú Unibanco', '260 - Nubank (Nu Pagamentos)',
+  '077 - Banco Inter', '336 - Banco C6', '212 - Banco Original',
+  '756 - Sicoob', '748 - Sicredi', '085 - Ailos', '655 - Banco Votorantim',
+  '422 - Banco Safra', '070 - BRB', '021 - Banestes', '389 - Banco Mercantil',
+  '318 - Banco BMG', '208 - Banco BTG Pactual', '323 - Mercado Pago',
+  '290 - PagBank (PagSeguro)', '380 - PicPay', '000 - Outro'
+];

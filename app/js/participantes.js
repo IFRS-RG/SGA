@@ -22,6 +22,8 @@ const Participantes = {
   },
 
   canWrite() { return this.role === 'Admin' || this.role === 'Gestor'; },
+  canFin() { return ['Admin', 'Gestor', 'Financeiro'].indexOf(this.role) >= 0; },
+  _tipo() { return this.tab === 'servidores' ? 'servidor' : 'aluno'; },
   _reqId() { return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); },
 
   cursoNome(id) {
@@ -65,6 +67,8 @@ const Participantes = {
     const isServ = this.tab === 'servidores';
     const data = isServ ? this.servidores : this.alunos;
     const w = this.canWrite();
+    const fin = this.canFin();
+    const hasActions = w || fin;
     const f = this.filter;
 
     const rows = !f ? data : data.filter(r =>
@@ -72,13 +76,16 @@ const Participantes = {
       String((isServ ? r.SIAPE : r.Matricula) || '').toLowerCase().includes(f) ||
       String(r.Email || '').toLowerCase().includes(f));
 
+    const actTh = hasActions ? '<th class="col-actions">Ações</th>' : '';
     const head = isServ
-      ? `<tr><th>Nome</th><th>SIAPE</th><th>Vínculo</th><th>E-mail</th><th>Telefone</th><th>Status</th>${w ? '<th class="col-actions">Ações</th>' : ''}</tr>`
-      : `<tr><th>Nome</th><th>Matrícula</th><th>Curso</th><th>E-mail</th><th>Telefone</th><th>Status</th>${w ? '<th class="col-actions">Ações</th>' : ''}</tr>`;
+      ? `<tr><th>Nome</th><th>SIAPE</th><th>Vínculo</th><th>E-mail</th><th>Telefone</th><th>Status</th>${actTh}</tr>`
+      : `<tr><th>Nome</th><th>Matrícula</th><th>Curso</th><th>E-mail</th><th>Telefone</th><th>Status</th>${actTh}</tr>`;
 
-    const acoes = (id) => w ? `<td class="col-actions">
-      <button class="btn btn-ghost btn-xs" onclick="Participantes.openForm('${id}')">✏️ Editar</button>
-      <button class="btn btn-danger btn-xs" onclick="Participantes.remove('${id}')">🗑</button></td>` : '';
+    const acoes = (id) => hasActions ? `<td class="col-actions">
+      ${fin ? `<button class="btn btn-ghost btn-xs" onclick="Participantes.openFinanceiro('${id}')">💳 Financeiro</button>` : ''}
+      ${w ? `<button class="btn btn-ghost btn-xs" onclick="Participantes.openForm('${id}')">✏️ Editar</button>
+      <button class="btn btn-danger btn-xs" onclick="Participantes.remove('${id}')">🗑</button>` : ''}
+    </td>` : '';
 
     const body = rows.map(r => {
       const tel = r.Telefone ? esc(r.Telefone) + (r.WhatsApp ? ' <span class="link-chip">WhatsApp</span>' : '') : '—';
@@ -285,6 +292,120 @@ const Participantes = {
           await this.reloadTab();
         } catch (e) { toast(e.message, 'error'); }
       }, 'Excluir');
+  },
+
+  // ── Financeiro (CPF / banco / PIX — camadas de acesso + auditoria) ──
+  _nomeDe(id) {
+    const d = this.tab === 'servidores' ? this.servidores : this.alunos;
+    const r = d.find(x => String(x.ID) === String(id));
+    return r ? r.Nome : '';
+  },
+
+  _fmtCpf(cpf) {
+    const d = String(cpf || '').replace(/\D/g, '');
+    return d.length === 11 ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : d;
+  },
+
+  async openFinanceiro(id) {
+    if (!this.canFin()) return;
+    const tipo = this._tipo();
+    let fin;
+    try { fin = await API.getFinanceiro(tipo, id); }
+    catch (e) { toast(e.message, 'error'); return; }
+    this._finCache = { tipo, id, fin };
+    openModal('Financeiro — ' + this._nomeDe(id), this._finView(fin),
+      fin.canWrite ? async () => { await this.openFinanceiroForm(id); } : null,
+      { confirmLabel: 'Editar dados', hideConfirm: !fin.canWrite, cancelLabel: 'Fechar' });
+  },
+
+  _finView(fin) {
+    if (!fin.temRegistro) {
+      return `<p class="section-sub">Nenhum dado financeiro cadastrado para este participante.</p>`;
+    }
+    let html = '<div class="detail-grid">';
+    html += `<div><span class="dk">CPF</span><span class="dv" id="finv-cpf">${fin.temCpf ? esc(fin.cpf) : '—'}</span></div>`;
+    if (fin.canBank) {
+      html += `<div><span class="dk">Banco</span><span class="dv">${esc(fin.banco || '—')}</span></div>`;
+      html += `<div><span class="dk">Agência</span><span class="dv">${esc(fin.agencia || '—')}</span></div>`;
+      html += `<div><span class="dk">Tipo de conta</span><span class="dv">${esc(fin.tipoConta || '—')}</span></div>`;
+      html += `<div><span class="dk">Nº da conta</span><span class="dv" id="finv-conta">${fin.temConta ? esc(fin.numeroConta) : '—'}</span></div>`;
+      html += `<div><span class="dk">Tipo de chave PIX</span><span class="dv">${esc(fin.pixTipo || '—')}</span></div>`;
+      html += `<div><span class="dk">Chave PIX</span><span class="dv" id="finv-pix">${fin.temPix ? esc(fin.pixChave) : '—'}</span></div>`;
+    } else {
+      html += `<div><span class="dk">Dados bancários</span><span class="dv">🔒 Restrito (Admin / Financeiro)</span></div>`;
+    }
+    html += '</div>';
+    if (fin.temCpf || fin.temConta || fin.temPix) {
+      html += `<button class="btn btn-ghost btn-xs" style="margin-top:10px" onclick="Participantes.revelarFin()">👁 Revelar dados sensíveis</button>`;
+    }
+    if (fin.atualizadoEm) {
+      html += `<p class="section-sub" style="margin-top:10px">Atualizado em ${esc(fin.atualizadoEm)} por ${esc(fin.atualizadoPor || '')}.</p>`;
+    }
+    return html;
+  },
+
+  async revelarFin() {
+    const c = this._finCache; if (!c) return;
+    try {
+      const full = await API.revealFinanceiro(c.tipo, c.id);
+      const set = (elId, v) => { const el = document.getElementById(elId); if (el && v) el.textContent = v; };
+      set('finv-cpf', full.cpf ? this._fmtCpf(full.cpf) : null);
+      set('finv-conta', full.numeroConta || null);
+      set('finv-pix', full.pixChave || null);
+      toast('Dados revelados (acesso registrado na auditoria).', 'info');
+    } catch (e) { toast(e.message, 'error'); }
+  },
+
+  async openFinanceiroForm(id) {
+    const tipo = this._tipo();
+    const fin = (this._finCache && this._finCache.fin) || {};
+    let full = {};
+    try { full = await API.revealFinanceiro(tipo, id); } catch (e) { toast(e.message, 'error'); return; }
+
+    const bancoOpts = ['<option value="">— Selecione —</option>']
+      .concat(BANCOS.map(b => `<option ${fin.banco === b ? 'selected' : ''}>${esc(b)}</option>`)).join('');
+    const tcOpts = ['<option value="">—</option>']
+      .concat(TIPO_CONTA.map(o => `<option ${fin.tipoConta === o ? 'selected' : ''}>${esc(o)}</option>`)).join('');
+    const pxOpts = ['<option value="">—</option>']
+      .concat(PIX_TIPO.map(o => `<option ${fin.pixTipo === o ? 'selected' : ''}>${esc(o)}</option>`)).join('');
+
+    const body = `
+      <div class="fg"><label>CPF</label>
+        <input class="input" id="fin-cpf" value="${esc(this._fmtCpf(full.cpf))}" inputmode="numeric" placeholder="000.000.000-00"></div>
+      <div class="seg-head">Dados bancários</div>
+      <div class="form-grid">
+        <div class="fg"><label>Banco</label><select class="input" id="fin-banco">${bancoOpts}</select></div>
+        <div class="fg"><label>Agência</label><input class="input" id="fin-agencia" value="${esc(fin.agencia || '')}"></div>
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label>Tipo de conta</label><select class="input" id="fin-tipoconta">${tcOpts}</select></div>
+        <div class="fg"><label>Nº da conta</label><input class="input" id="fin-conta" value="${esc(full.numeroConta || '')}"></div>
+      </div>
+      <div class="seg-head">PIX</div>
+      <div class="form-grid">
+        <div class="fg"><label>Tipo de chave</label><select class="input" id="fin-pixtipo">${pxOpts}</select></div>
+        <div class="fg"><label>Chave PIX</label><input class="input" id="fin-pixchave" value="${esc(full.pixChave || '')}"></div>
+      </div>`;
+    openModal('Editar financeiro — ' + this._nomeDe(id), body,
+      async () => { await this.saveFin(id); }, { confirmLabel: 'Salvar' });
+  },
+
+  async saveFin(id) {
+    const p = {
+      cpf: val('fin-cpf'),
+      banco: val('fin-banco'),
+      agencia: val('fin-agencia'),
+      tipoConta: val('fin-tipoconta'),
+      numeroConta: val('fin-conta'),
+      pixTipo: val('fin-pixtipo'),
+      pixChave: val('fin-pixchave')
+    };
+    setBusy(true);
+    try {
+      await API.saveFinanceiro(this._tipo(), id, p);
+      toast('Dados financeiros salvos.', 'success');
+      closeModal();
+    } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
   }
 };
 

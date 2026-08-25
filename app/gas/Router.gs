@@ -13,7 +13,8 @@ const WRITE_ACTIONS = ['addEdital', 'updateEdital', 'deleteEdital', 'cloneEdital
   'addPerfil', 'updatePerfil', 'deletePerfil',
   'addServidor', 'updateServidor', 'deleteServidor',
   'addAluno', 'updateAluno', 'deleteAluno',
-  'addCurso', 'updateCurso', 'deleteCurso'];
+  'addCurso', 'updateCurso', 'deleteCurso',
+  'saveFinanceiro'];
 
 function doPost(e) {
   let lock = null;
@@ -85,6 +86,18 @@ function doPost(e) {
         return respond(updateAluno(data.id, data.payload, userEmail));
       case 'deleteAluno':
         return respond(deleteAluno(data.id, userEmail));
+
+      // ── Financeiro (segregado; acesso por camada + auditoria) ──
+      case 'getFinanceiro':
+        return respond(getFinanceiro(data.tipo, data.refId, userEmail));
+      case 'revealFinanceiro':
+        return respond(revealFinanceiro(data.tipo, data.refId, userEmail));
+      case 'saveFinanceiro':
+        return respond(saveFinanceiro(data.tipo, data.refId, data.payload, userEmail));
+
+      // ── Auditoria (só Admin) ──
+      case 'getAuditoria':
+        return respond(getAuditoria(userEmail));
 
       // ── Cursos (cadastro no Admin; usado no form de Aluno) ──
       case 'getCursos':
