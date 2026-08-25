@@ -331,7 +331,7 @@ const Participantes = {
     let html = '<div class="detail-grid">';
     html += `<div><span class="dk">CPF</span><span class="dv" id="finv-cpf">${fin.temCpf ? esc(fin.cpf) : '—'}</span></div>`;
     if (fin.canBank) {
-      html += `<div><span class="dk">Banco</span><span class="dv">${esc(fin.banco || '—')}</span></div>`;
+      html += `<div><span class="dk">Banco</span><span class="dv">${esc(fin.banco || '—')}${fin.bancoCodigo ? ' (' + esc(fin.bancoCodigo) + ')' : ''}</span></div>`;
       html += `<div><span class="dk">Agência</span><span class="dv">${esc(fin.agencia || '—')}</span></div>`;
       html += `<div><span class="dk">Tipo de conta</span><span class="dv">${esc(fin.tipoConta || '—')}</span></div>`;
       html += `<div><span class="dk">Nº da conta</span><span class="dv" id="finv-conta">${fin.temConta ? esc(fin.numeroConta) : '—'}</span></div>`;
@@ -368,8 +368,11 @@ const Participantes = {
     let full = {};
     try { full = await API.revealFinanceiro(tipo, id); } catch (e) { toast(e.message, 'error'); return; }
 
+    const nomes = BANCOS.map(b => b.nome);
+    const outroSel = !!(fin.banco && nomes.indexOf(fin.banco) === -1);
+    const bancoSelVal = outroSel ? 'Outro' : (fin.banco || '');
     const bancoOpts = ['<option value="">— Selecione —</option>']
-      .concat(BANCOS.map(b => `<option ${fin.banco === b ? 'selected' : ''}>${esc(b)}</option>`)).join('');
+      .concat(BANCOS.map(b => `<option ${bancoSelVal === b.nome ? 'selected' : ''}>${esc(b.nome)}</option>`)).join('');
     const tcOpts = ['<option value="">—</option>']
       .concat(TIPO_CONTA.map(o => `<option ${fin.tipoConta === o ? 'selected' : ''}>${esc(o)}</option>`)).join('');
     const pxOpts = ['<option value="">—</option>']
@@ -380,13 +383,19 @@ const Participantes = {
         <input class="input" id="fin-cpf" value="${esc(this._fmtCpf(full.cpf))}" inputmode="numeric" placeholder="000.000.000-00"></div>
       <div class="seg-head">Dados bancários</div>
       <div class="form-grid">
-        <div class="fg"><label>Banco</label><select class="input" id="fin-banco">${bancoOpts}</select></div>
-        <div class="fg"><label>Agência</label><input class="input" id="fin-agencia" value="${esc(fin.agencia || '')}"></div>
+        <div class="fg"><label>Banco</label>
+          <select class="input" id="fin-banco" onchange="Participantes.onBancoChange()">${bancoOpts}</select></div>
+        <div class="fg"><label>Código</label>
+          <input class="input" id="fin-bancocod" value="${esc(fin.bancoCodigo || '')}"></div>
       </div>
+      <div class="fg" id="fin-banco-outro-wrap" style="display:${outroSel ? 'block' : 'none'}">
+        <label>Nome do banco</label>
+        <input class="input" id="fin-bancooutro" value="${esc(outroSel ? fin.banco : '')}"></div>
       <div class="form-grid">
+        <div class="fg"><label>Agência</label><input class="input" id="fin-agencia" value="${esc(fin.agencia || '')}"></div>
         <div class="fg"><label>Tipo de conta</label><select class="input" id="fin-tipoconta">${tcOpts}</select></div>
-        <div class="fg"><label>Nº da conta</label><input class="input" id="fin-conta" value="${esc(full.numeroConta || '')}"></div>
       </div>
+      <div class="fg"><label>Nº da conta</label><input class="input" id="fin-conta" value="${esc(full.numeroConta || '')}"></div>
       <div class="seg-head">PIX</div>
       <div class="form-grid">
         <div class="fg"><label>Tipo de chave</label><select class="input" id="fin-pixtipo">${pxOpts}</select></div>
@@ -394,12 +403,32 @@ const Participantes = {
       </div>`;
     openModal('Editar financeiro — ' + this._nomeDe(id), body,
       async () => { await this.saveFin(id); }, { confirmLabel: 'Salvar' });
+    setTimeout(() => this.onBancoChange(), 50);
+  },
+
+  // Preenche o código ao escolher o banco; "Outro" libera nome e código para digitar.
+  onBancoChange() {
+    const sel = document.getElementById('fin-banco');
+    const cod = document.getElementById('fin-bancocod');
+    const wrap = document.getElementById('fin-banco-outro-wrap');
+    if (!sel || !cod) return;
+    if (sel.value === 'Outro') {
+      if (wrap) wrap.style.display = 'block';
+      cod.readOnly = false;
+    } else {
+      if (wrap) wrap.style.display = 'none';
+      const b = BANCOS.find(x => x.nome === sel.value);
+      cod.value = b ? b.codigo : '';
+      cod.readOnly = !!(b && b.codigo);
+    }
   },
 
   async saveFin(id) {
+    const bancoSel = val('fin-banco');
     const p = {
       cpf: val('fin-cpf'),
-      banco: val('fin-banco'),
+      banco: bancoSel === 'Outro' ? val('fin-bancooutro') : bancoSel,
+      bancoCodigo: val('fin-bancocod'),
       agencia: val('fin-agencia'),
       tipoConta: val('fin-tipoconta'),
       numeroConta: val('fin-conta'),
