@@ -38,6 +38,10 @@ const VINCULOS_SERVIDOR = [
   'Docente Cedido', 'TAE Efetivo', 'TAE Cedido'
 ];
 const STATUS_PARTICIPANTE = ['Ativo', 'Inativo'];
+
+// Ações.
+const TIPO_ACAO = ['Projeto', 'Programa', 'Evento', 'Prestação institucional de Serviços', 'Curso FIC', 'Curso MOOC'];
+const STATUS_ACAO = ['Ativa', 'Encerrada', 'Suspensa'];
 const MODALIDADES_CURSO = ['Integrado', 'Concomitante', 'Subsequente', 'Superior', 'Especialização', 'FIC'];
 
 // Financeiro.

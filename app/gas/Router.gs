@@ -14,7 +14,8 @@ const WRITE_ACTIONS = ['addEdital', 'updateEdital', 'deleteEdital', 'cloneEdital
   'addServidor', 'updateServidor', 'deleteServidor',
   'addAluno', 'updateAluno', 'deleteAluno',
   'addCurso', 'updateCurso', 'deleteCurso',
-  'saveFinanceiro'];
+  'saveFinanceiro',
+  'addAcao', 'updateAcao', 'deleteAcao'];
 
 function doPost(e) {
   let lock = null;
@@ -94,6 +95,18 @@ function doPost(e) {
         return respond(revealFinanceiro(data.tipo, data.refId, userEmail));
       case 'saveFinanceiro':
         return respond(saveFinanceiro(data.tipo, data.refId, data.payload, userEmail));
+
+      // ── Ações ──
+      case 'getAcoes':
+        return respond(getAcoes(userEmail));
+      case 'getAcao':
+        return respond(getAcao(data.id, userEmail));
+      case 'addAcao':
+        return respond(addAcao(data.payload, userEmail, data.reqId));
+      case 'updateAcao':
+        return respond(updateAcao(data.id, data.payload, userEmail));
+      case 'deleteAcao':
+        return respond(deleteAcao(data.id, userEmail));
 
       // ── Auditoria (só Admin) ──
       case 'getAuditoria':

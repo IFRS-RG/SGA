@@ -70,6 +70,13 @@ const STATUS_PARTICIPANTE = ['Ativo', 'Inativo'];
 const TIPO_CONTA = ['Corrente', 'Poupança'];
 const PIX_TIPO   = ['CPF', 'E-mail', 'Telefone', 'Aleatória'];
 
+// Ações.
+const TIPO_ACAO = ['Projeto', 'Programa', 'Evento', 'Prestação institucional de Serviços', 'Curso FIC', 'Curso MOOC'];
+const STATUS_ACAO = ['Ativa', 'Encerrada', 'Suspensa'];
+const STATUS_VINCULO = ['Ativo', 'Desligado', 'Concluído'];   // bolsista/voluntário
+const STATUS_SIGAA = ['Cadastrado', 'Não cadastrado', 'Cadastro incorreto'];
+const STATUS_RELATORIO = ['Não entregue', 'Entregue', 'Em análise', 'Aprovado', 'Reprovado'];
+
 // ── Índices de coluna (0-based) ──────────────────────────────
 const COL = {
   Editais: {
@@ -94,14 +101,21 @@ const COL = {
   // Identidade/contato do aluno (CPF/financeiro ficam em AlunosFinanceiro — F3).
   Alunos: {
     ID: 0, Nome: 1, NomeSocial: 2, UsarNomeSocialDocs: 3, Matricula: 4, CursoID: 5,
-    DataNascimento: 6, Email: 7, Telefone: 8, WhatsApp: 9, Status: 10, CriadoEm: 11, CriadoPor: 12
+    DataNascimento: 6, Email: 7, Telefone: 8, WhatsApp: 9, Status: 10,
+    Endereco: 11, AnoSemestreIngresso: 12, AnoSemestreAtual: 13, CriadoEm: 14, CriadoPor: 15
   },
   Cursos: { ID: 0, Nome: 1, Modalidade: 2, Status: 3 },
   // Store financeiro SEGREGADO (sensível) — chave RefID = ID do servidor/aluno.
-  ServidoresFinanceiro: { RefID: 0, CPF: 1, Banco: 2, Agencia: 3, TipoConta: 4, NumeroConta: 5, PixTipo: 6, PixChave: 7, AtualizadoEm: 8, AtualizadoPor: 9 },
-  AlunosFinanceiro:     { RefID: 0, CPF: 1, Banco: 2, Agencia: 3, TipoConta: 4, NumeroConta: 5, PixTipo: 6, PixChave: 7, AtualizadoEm: 8, AtualizadoPor: 9 },
+  ServidoresFinanceiro: { RefID: 0, CPF: 1, Banco: 2, BancoCodigo: 3, Agencia: 4, TipoConta: 5, NumeroConta: 6, PixTipo: 7, PixChave: 8, AtualizadoEm: 9, AtualizadoPor: 10 },
+  AlunosFinanceiro:     { RefID: 0, CPF: 1, Banco: 2, BancoCodigo: 3, Agencia: 4, TipoConta: 5, NumeroConta: 6, PixTipo: 7, PixChave: 8, AtualizadoEm: 9, AtualizadoPor: 10 },
   // Trilha de auditoria — NÃO grava valores sensíveis, só a ação e o alvo.
-  Auditoria: { Timestamp: 0, Ator: 1, Papel: 2, Acao: 3, Alvo: 4, Detalhe: 5 }
+  Auditoria: { Timestamp: 0, Ator: 1, Papel: 2, Acao: 3, Alvo: 4, Detalhe: 5 },
+  // Ações — aba Dados (Documentos/Bolsistas/Voluntários vêm nas fatias B/C/D).
+  Acoes: {
+    ID: 0, Titulo: 1, TipoAcao: 2, Modalidade: 3, AnoExecucao: 4, Segmento: 5, EditalID: 6,
+    CoordenadorID: 7, CoorientadorID: 8, ColaboradoresJSON: 9, DataInicio: 10, DataFim: 11,
+    Status: 12, DriveFolderId: 13, CriadoEm: 14, CriadoPor: 15
+  }
 };
 
 const HEADERS = {
@@ -116,11 +130,15 @@ const HEADERS = {
   Servidores: ['ID', 'Nome', 'NomeSocial', 'UsarNomeSocialDocs', 'SIAPE', 'VinculoJSON',
                'Email', 'Telefone', 'WhatsApp', 'Status', 'CriadoEm', 'CriadoPor'],
   Alunos: ['ID', 'Nome', 'NomeSocial', 'UsarNomeSocialDocs', 'Matricula', 'CursoID',
-           'DataNascimento', 'Email', 'Telefone', 'WhatsApp', 'Status', 'CriadoEm', 'CriadoPor'],
+           'DataNascimento', 'Email', 'Telefone', 'WhatsApp', 'Status',
+           'Endereco', 'AnoSemestreIngresso', 'AnoSemestreAtual', 'CriadoEm', 'CriadoPor'],
   Cursos: ['ID', 'Nome', 'Modalidade', 'Status'],
-  ServidoresFinanceiro: ['RefID', 'CPF', 'Banco', 'Agencia', 'TipoConta', 'NumeroConta', 'PixTipo', 'PixChave', 'AtualizadoEm', 'AtualizadoPor'],
-  AlunosFinanceiro:     ['RefID', 'CPF', 'Banco', 'Agencia', 'TipoConta', 'NumeroConta', 'PixTipo', 'PixChave', 'AtualizadoEm', 'AtualizadoPor'],
-  Auditoria: ['Timestamp', 'Ator', 'Papel', 'Acao', 'Alvo', 'Detalhe']
+  ServidoresFinanceiro: ['RefID', 'CPF', 'Banco', 'BancoCodigo', 'Agencia', 'TipoConta', 'NumeroConta', 'PixTipo', 'PixChave', 'AtualizadoEm', 'AtualizadoPor'],
+  AlunosFinanceiro:     ['RefID', 'CPF', 'Banco', 'BancoCodigo', 'Agencia', 'TipoConta', 'NumeroConta', 'PixTipo', 'PixChave', 'AtualizadoEm', 'AtualizadoPor'],
+  Auditoria: ['Timestamp', 'Ator', 'Papel', 'Acao', 'Alvo', 'Detalhe'],
+  Acoes: ['ID', 'Titulo', 'TipoAcao', 'Modalidade', 'AnoExecucao', 'Segmento', 'EditalID',
+          'CoordenadorID', 'CoorientadorID', 'ColaboradoresJSON', 'DataInicio', 'DataFim',
+          'Status', 'DriveFolderId', 'CriadoEm', 'CriadoPor']
 };
 
 // ── Helpers genéricos ────────────────────────────────────────

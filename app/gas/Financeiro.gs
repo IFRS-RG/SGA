@@ -91,6 +91,7 @@ function getFinanceiro(tipo, refId, email) {
   };
   if (bank && rec) {
     out.banco       = rec.Banco || '';
+    out.bancoCodigo = rec.BancoCodigo || '';
     out.agencia     = rec.Agencia || '';
     out.tipoConta   = rec.TipoConta || '';
     out.numeroConta = _maskTail(rec.NumeroConta, 2);
@@ -133,6 +134,7 @@ function saveFinanceiro(tipo, refId, p, email) {
   const row = [
     refId, cpf,
     String(p.banco || '').trim(),
+    String(p.bancoCodigo || '').trim(),
     String(p.agencia || '').trim(),
     p.tipoConta || '',
     String(p.numeroConta || '').trim(),

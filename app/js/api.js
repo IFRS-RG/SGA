@@ -69,6 +69,13 @@ const API = {
   updateAluno:(id, payload)     => gasCall('updateAluno', { id, payload }),
   deleteAluno:(id)              => gasCall('deleteAluno', { id }),
 
+  // Ações
+  getAcoes:   ()               => gasCall('getAcoes'),
+  getAcao:    (id)             => gasCall('getAcao', { id }),
+  addAcao:    (payload, reqId) => gasCall('addAcao', { payload, reqId }),
+  updateAcao: (id, payload)    => gasCall('updateAcao', { id, payload }),
+  deleteAcao: (id)             => gasCall('deleteAcao', { id }),
+
   // Financeiro
   getFinanceiro:    (tipo, refId)          => gasCall('getFinanceiro', { tipo, refId }),
   revealFinanceiro: (tipo, refId)          => gasCall('revealFinanceiro', { tipo, refId }),

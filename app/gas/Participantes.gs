@@ -24,10 +24,21 @@ function _parseVinculo(v) {
   catch (e) { return []; }
 }
 
+// Conjunto de RefIDs que já têm ALGUM dado financeiro preenchido (p/ a coluna
+// "Financeiro" da lista). Só indica existência — não devolve valor sensível.
+function _finRefsComDados(sheetName) {
+  const set = {};
+  sheetRows(sheetName).forEach(r => {
+    if (r.CPF || r.Banco || r.NumeroConta || r.PixChave) set[String(r.RefID)] = true;
+  });
+  return set;
+}
+
 // ── Servidores ────────────────────────────────────────────────
 // Retorno MINIMIZADO: só identidade/contato não sensível — nada de CPF/banco.
 function getServidores(email) {
   requirePerfil(email, PARTICIPANTES_READERS);
+  const fset = _finRefsComDados('ServidoresFinanceiro');
   return sheetRows('Servidores').map(r => ({
     ID:      r.ID,
     Nome:    _nomeExib(r),
@@ -36,7 +47,8 @@ function getServidores(email) {
     Email:   r.Email || '',
     Telefone: r.Telefone || '',
     WhatsApp: r.WhatsApp === true || r.WhatsApp === 'TRUE' || r.WhatsApp === 'Sim',
-    Status:  r.Status || ''
+    Status:  r.Status || '',
+    temFin:  !!fset[String(r.ID)]
   }));
 }
 
@@ -44,6 +56,7 @@ function getServidores(email) {
 // Retorno MINIMIZADO. DataNascimento/idade e CPF NÃO entram na lista (F3/F4).
 function getAlunos(email) {
   requirePerfil(email, PARTICIPANTES_READERS);
+  const fset = _finRefsComDados('AlunosFinanceiro');
   return sheetRows('Alunos').map(r => ({
     ID:        r.ID,
     Nome:      _nomeExib(r),
@@ -52,7 +65,8 @@ function getAlunos(email) {
     Email:     r.Email || '',
     Telefone:  r.Telefone || '',
     WhatsApp:  r.WhatsApp === true || r.WhatsApp === 'TRUE' || r.WhatsApp === 'Sim',
-    Status:    r.Status || ''
+    Status:    r.Status || '',
+    temFin:    !!fset[String(r.ID)]
   }));
 }
 
@@ -170,6 +184,9 @@ function _alunoRow(id, p, criadoEm, criadoPor) {
     String(p.telefone || '').trim(),
     _pbool(p.whatsapp),
     _pstatus(p.status),
+    String(p.endereco || '').trim(),
+    String(p.anoSemestreIngresso || '').trim(),
+    String(p.anoSemestreAtual || '').trim(),
     criadoEm, criadoPor
   ];
 }
@@ -184,6 +201,9 @@ function getAluno(id, email) {
     matricula: r.Matricula, cursoId: r.CursoID,
     dataNascimento: _dateStr(r.DataNascimento),
     email: r.Email, telefone: r.Telefone, whatsapp: _pbool(r.WhatsApp),
+    endereco: r.Endereco || '',
+    anoSemestreIngresso: r.AnoSemestreIngresso || '',
+    anoSemestreAtual: r.AnoSemestreAtual || '',
     status: r.Status
   };
 }
