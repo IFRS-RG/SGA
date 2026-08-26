@@ -121,6 +121,11 @@ const COL = {
   },
   AcaoDocumentos: {
     ID: 0, AcaoID: 1, Tipo: 2, NomeArquivo: 3, DriveFileId: 4, DriveUrl: 5, DataUpload: 6, EnviadoPor: 7
+  },
+  AcaoBolsistas: {
+    ID: 0, AcaoID: 1, AlunoID: 2, EditalBolsaID: 3, CHBolsa: 4, ValorBolsa: 5, DataInicio: 6, DataFim: 7,
+    TotalSemanas: 8, CHTotal: 9, StatusSIGAA: 10, StatusRelatorio: 11, RelatorioFileId: 12, RelatorioUrl: 13,
+    Observacoes: 14, Status: 15, CriadoEm: 16, CriadoPor: 17
   }
 };
 
@@ -145,7 +150,10 @@ const HEADERS = {
   Acoes: ['ID', 'Titulo', 'TipoAcao', 'Modalidade', 'AnoExecucao', 'Segmento', 'EditalID',
           'CoordenadorID', 'CoorientadorID', 'ColaboradoresJSON', 'DataInicio', 'DataFim',
           'Status', 'DriveFolderId', 'CriadoEm', 'CriadoPor'],
-  AcaoDocumentos: ['ID', 'AcaoID', 'Tipo', 'NomeArquivo', 'DriveFileId', 'DriveUrl', 'DataUpload', 'EnviadoPor']
+  AcaoDocumentos: ['ID', 'AcaoID', 'Tipo', 'NomeArquivo', 'DriveFileId', 'DriveUrl', 'DataUpload', 'EnviadoPor'],
+  AcaoBolsistas: ['ID', 'AcaoID', 'AlunoID', 'EditalBolsaID', 'CHBolsa', 'ValorBolsa', 'DataInicio', 'DataFim',
+                  'TotalSemanas', 'CHTotal', 'StatusSIGAA', 'StatusRelatorio', 'RelatorioFileId', 'RelatorioUrl',
+                  'Observacoes', 'Status', 'CriadoEm', 'CriadoPor']
 };
 
 // ── Helpers genéricos ────────────────────────────────────────

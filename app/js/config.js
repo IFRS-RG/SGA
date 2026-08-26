@@ -44,6 +44,10 @@ const TIPO_ACAO = ['Projeto', 'Programa', 'Evento', 'Prestação institucional d
 const STATUS_ACAO = ['Ativa', 'Encerrada', 'Suspensa'];
 const TIPOS_DOC_ACAO = ['Ação (SIGAA)', 'Relatório final da ação', 'Demais'];
 const TIPOS_FIN_ACAO = ['Plano de aplicação de recursos', 'Prestação de contas'];
+const CH_BOLSA = ['4', '8', '12', '16'];
+const STATUS_VINCULO = ['Ativo', 'Desligado', 'Concluído'];
+const STATUS_SIGAA = ['Cadastrado', 'Não cadastrado', 'Cadastro incorreto'];
+const STATUS_RELATORIO = ['Não entregue', 'Entregue', 'Em análise', 'Aprovado', 'Reprovado'];
 const MODALIDADES_CURSO = ['Integrado', 'Concomitante', 'Subsequente', 'Superior', 'Especialização', 'FIC'];
 
 // Financeiro.

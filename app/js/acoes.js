@@ -13,6 +13,7 @@ const Acoes = {
   currentId: null,
   detail: null,
   docs: [],
+  bolsistas: [],
   detailTab: 'dados',
 
   async mount(container, role) {
@@ -105,8 +106,8 @@ const Acoes = {
   async openDetail(id) {
     this.container.innerHTML = '<div class="loading-page"><div class="spinner"></div><p>Carregando…</p></div>';
     try {
-      const [rec, docs] = await Promise.all([API.getAcao(id), API.getAcaoDocs(id)]);
-      this.detail = rec; this.docs = docs || []; this.currentId = id; this.detailTab = 'dados'; this.view = 'detail';
+      const [rec, docs, bols] = await Promise.all([API.getAcao(id), API.getAcaoDocs(id), API.getBolsistas(id)]);
+      this.detail = rec; this.docs = docs || []; this.bolsistas = bols || []; this.currentId = id; this.detailTab = 'dados'; this.view = 'detail';
     } catch (e) { toast(e.message, 'error'); this.view = 'list'; this.renderList(); return; }
     this.renderDetail();
   },
@@ -135,7 +136,7 @@ const Acoes = {
     switch (this.detailTab) {
       case 'documentos': return this._docsPanel('documentos');
       case 'financeiro': return this._docsPanel('financeiro');
-      case 'bolsistas':  return emptyState('🚧 Bolsistas — em breve (Fatia C).');
+      case 'bolsistas':  return this._bolsistasPanel();
       case 'voluntarios': return emptyState('🚧 Voluntários — em breve (Fatia D).');
       default: return this._dadosPanel();
     }
@@ -246,6 +247,150 @@ const Acoes = {
         this.renderDetail();
       } catch (e) { toast(e.message, 'error'); }
     })();
+  },
+
+  // ── Bolsistas ───────────────────────────────────────────────
+  _vbadge(s) { return `<span class="badge ${s === 'Ativo' ? 'badge-ok' : 'badge-muted'}">${esc(s || '—')}</span>`; },
+  _semanasFront(ini, fim) {
+    if (!ini || !fim) return 0;
+    const d1 = new Date(ini + 'T00:00:00'), d2 = new Date(fim + 'T00:00:00');
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime()) || d2 < d1) return 0;
+    return Math.floor((d2 - d1) / (7 * 24 * 3600 * 1000));
+  },
+  // Valor da bolsa a partir das linhas de bolsa do edital (casando pela CH e, se houver, pelo segmento).
+  _valorBolsaDoEdital(editalId, ch) {
+    const e = this.editais.find(x => String(x.ID) === String(editalId));
+    if (!e || !e.bolsas) return '';
+    const seg = this.detail ? this.detail.segmento : '';
+    let line = e.bolsas.find(b => String(b.ch) === String(ch) && b.segmento && b.segmento === seg);
+    if (!line) line = e.bolsas.find(b => String(b.ch) === String(ch));
+    return line ? line.valor : '';
+  },
+
+  _bolsistasPanel() {
+    const w = this.canWrite();
+    const bs = this.bolsistas || [];
+    const menu = (id) => w ? `<td class="col-actions"><details class="row-menu"><summary class="btn btn-ghost btn-xs">Ações ▾</summary><div class="row-menu-list">
+      <button onclick="Acoes.openBolsista('${id}')">✏️ Editar</button>
+      <button onclick="Acoes.pickRelatorio('${id}')">📄 Enviar relatório</button>
+      <button class="danger" onclick="Acoes.removeBolsista('${id}')">🗑 Excluir</button>
+    </div></details></td>` : '';
+    const rows = bs.map(b => `<tr>
+      <td><strong>${esc(b.alunoNome || '—')}</strong></td>
+      <td>${esc(b.CHBolsa || '—')}h</td>
+      <td>${b.ValorBolsa !== '' && b.ValorBolsa != null ? fmtMoney(b.ValorBolsa) : '—'}</td>
+      <td>${esc((this._br(b.DataInicio) || '?') + ' a ' + (this._br(b.DataFim) || '?'))}</td>
+      <td class="cell-sub">${esc(String(b.TotalSemanas || 0))} sem · ${esc(String(b.CHTotal || 0))}h</td>
+      <td>${esc(b.StatusSIGAA || '—')}</td>
+      <td>${b.temRelatorio ? `<a href="${esc(b.relatorioUrl)}" target="_blank" rel="noopener">${esc(b.StatusRelatorio || 'ver')}</a>` : esc(b.StatusRelatorio || '—')}</td>
+      <td>${this._vbadge(b.Status)}</td>${menu(b.ID)}
+    </tr>`).join('');
+    const table = bs.length ? `<div class="table-wrap menus"><table class="data-table">
+      <thead><tr><th>Aluno</th><th>CH</th><th>Valor</th><th>Período</th><th>Semanas · CH total</th><th>SIGAA</th><th>Relatório</th><th>Status</th>${w ? '<th class="col-actions">Ações</th>' : ''}</tr></thead>
+      <tbody>${rows}</tbody></table></div>` : emptyState('Nenhum bolsista cadastrado nesta ação.');
+    return `<div class="page-actions">${w ? `<button class="btn btn-primary" onclick="Acoes.openBolsista()">+ Adicionar bolsista</button>` : ''}</div>${table}`;
+  },
+
+  openBolsista(id) {
+    if (!this.canWrite()) return;
+    const b = id ? (this.bolsistas || []).find(x => String(x.ID) === String(id)) : null;
+    openModal((id ? 'Editar ' : 'Novo ') + 'bolsista', this._bolsistaForm(b),
+      async () => { await this.saveBolsista(id); }, { confirmLabel: id ? 'Salvar' : 'Adicionar' });
+    setTimeout(() => this.recalcBolsista(), 50);
+  },
+
+  _bolsistaForm(b) {
+    const alunoOpts = ['<option value="">— Selecione —</option>'].concat(this.alunos.map(a => `<option value="${esc(a.ID)}" ${b && String(b.AlunoID) === String(a.ID) ? 'selected' : ''}>${esc(a.Nome)}</option>`)).join('');
+    const editalOpts = ['<option value="">— Selecione —</option>'].concat(this.editais.map(e => `<option value="${esc(e.ID)}" ${b && String(b.EditalBolsaID) === String(e.ID) ? 'selected' : ''}>${esc(this.editalLabel(e))}</option>`)).join('');
+    const chOpts = ['<option value="">—</option>'].concat(CH_BOLSA.map(c => `<option ${b && String(b.CHBolsa) === String(c) ? 'selected' : ''}>${esc(c)}</option>`)).join('');
+    const menuOpts = (list, sel) => ['<option value="">—</option>'].concat(list.map(o => `<option ${sel === o ? 'selected' : ''}>${esc(o)}</option>`)).join('');
+    const statusOpts = STATUS_VINCULO.map(o => `<option ${(b ? b.Status : 'Ativo') === o ? 'selected' : ''}>${esc(o)}</option>`).join('');
+    return `
+      <div class="fg"><label>Aluno *</label><select class="input" id="bo-aluno">${alunoOpts}</select></div>
+      <div class="form-grid">
+        <div class="fg"><label>Edital da bolsa</label><select class="input" id="bo-edital" onchange="Acoes.onBolsaEditalOrCh()">${editalOpts}</select></div>
+        <div class="fg"><label>CH semanal</label><select class="input" id="bo-ch" onchange="Acoes.onBolsaEditalOrCh()">${chOpts}</select></div>
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label>Valor da bolsa (R$)</label><input class="input" id="bo-valor" value="${esc(b ? b.ValorBolsa : '')}"></div>
+        <div class="fg"><label>Status</label><select class="input" id="bo-status">${statusOpts}</select></div>
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label>Data de início</label><input class="input" type="date" id="bo-inicio" value="${esc(b ? b.DataInicio : '')}" oninput="Acoes.recalcBolsista()"></div>
+        <div class="fg"><label>Data de término</label><input class="input" type="date" id="bo-fim" value="${esc(b ? b.DataFim : '')}" oninput="Acoes.recalcBolsista()"></div>
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label>Total de semanas</label><input class="input" id="bo-semanas" disabled value="${esc(b ? b.TotalSemanas : '')}"></div>
+        <div class="fg"><label>CH total</label><input class="input" id="bo-chtotal" disabled value="${esc(b ? b.CHTotal : '')}"></div>
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label>Status no SIGAA</label><select class="input" id="bo-sigaa">${menuOpts(STATUS_SIGAA, b ? b.StatusSIGAA : '')}</select></div>
+        <div class="fg"><label>Relatório final</label><select class="input" id="bo-rel">${menuOpts(STATUS_RELATORIO, b ? b.StatusRelatorio : '')}</select></div>
+      </div>
+      <div class="fg"><label>Observações</label><textarea class="input" id="bo-obs" rows="2">${esc(b ? b.Observacoes : '')}</textarea></div>`;
+  },
+
+  onBolsaEditalOrCh() {
+    const v = this._valorBolsaDoEdital(val('bo-edital'), val('bo-ch'));
+    const el = document.getElementById('bo-valor');
+    if (el && v !== '' && v != null) el.value = v;
+    this.recalcBolsista();
+  },
+
+  recalcBolsista() {
+    const sem = this._semanasFront(val('bo-inicio'), val('bo-fim'));
+    const ch = Number(val('bo-ch')) || 0;
+    const s = document.getElementById('bo-semanas'); if (s) s.value = sem;
+    const ct = document.getElementById('bo-chtotal'); if (ct) ct.value = ch * sem;
+  },
+
+  async saveBolsista(id) {
+    const p = {
+      alunoId: val('bo-aluno'), editalBolsaId: val('bo-edital'), chBolsa: val('bo-ch'),
+      valorBolsa: val('bo-valor'), dataInicio: val('bo-inicio'), dataFim: val('bo-fim'),
+      statusSigaa: val('bo-sigaa'), statusRelatorio: val('bo-rel'),
+      observacoes: val('bo-obs'), status: val('bo-status')
+    };
+    if (!p.alunoId) { toast('Selecione o aluno.', 'error'); return; }
+    setBusy(true);
+    try {
+      if (id) await API.updateBolsista(id, p);
+      else { p.acaoId = this.currentId; await API.addBolsista(p, this._reqId()); }
+      toast(id ? 'Bolsista atualizado.' : 'Bolsista adicionado.', 'success');
+      closeModal();
+      this.bolsistas = await API.getBolsistas(this.currentId) || [];
+      this.renderDetail();
+    } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
+  },
+
+  removeBolsista(id) {
+    if (!window.confirm('Excluir este bolsista da ação?')) return;
+    (async () => {
+      try { await API.deleteBolsista(id); toast('Bolsista excluído.', 'success'); this.bolsistas = await API.getBolsistas(this.currentId) || []; this.renderDetail(); }
+      catch (e) { toast(e.message, 'error'); }
+    })();
+  },
+
+  pickRelatorio(id) {
+    let inp = document.getElementById('_bo-rel-file');
+    if (!inp) { inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/pdf'; inp.id = '_bo-rel-file'; inp.style.display = 'none'; document.body.appendChild(inp); }
+    inp.value = '';
+    inp.onchange = () => this._doRelatorio(inp, id);
+    inp.click();
+  },
+
+  async _doRelatorio(inp, id) {
+    const file = inp.files && inp.files[0];
+    if (!file) return;
+    if (!/\.pdf$/i.test(file.name)) { toast('O relatório precisa ser um PDF.', 'error'); return; }
+    toast('Enviando relatório…', 'info');
+    try {
+      const base64 = await fileToBase64(file);
+      await API.uploadBolsistaRelatorio(id, { fileName: file.name, base64: base64 });
+      toast('Relatório enviado.', 'success');
+      this.bolsistas = await API.getBolsistas(this.currentId) || [];
+      this.renderDetail();
+    } catch (e) { toast(e.message, 'error'); }
   },
 
   // ── Formulário Dados (add/edit) ─────────────────────────────
