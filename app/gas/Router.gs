@@ -16,7 +16,7 @@ const WRITE_ACTIONS = ['addEdital', 'updateEdital', 'deleteEdital', 'cloneEdital
   'addCurso', 'updateCurso', 'deleteCurso',
   'saveFinanceiro',
   'addAcao', 'updateAcao', 'deleteAcao',
-  'uploadAcaoDoc', 'deleteAcaoDoc'];
+  'uploadAcaoDoc', 'deleteAcaoDoc', 'renameAcaoDoc'];
 
 function doPost(e) {
   let lock = null;
@@ -114,6 +114,8 @@ function doPost(e) {
         return respond(uploadAcaoDoc(data.payload, userEmail));
       case 'deleteAcaoDoc':
         return respond(deleteAcaoDoc(data.docId, userEmail));
+      case 'renameAcaoDoc':
+        return respond(renameAcaoDoc(data.docId, data.nome, userEmail));
 
       // ── Auditoria (só Admin) ──
       case 'getAuditoria':

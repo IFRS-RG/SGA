@@ -162,57 +162,90 @@ const Acoes = {
       <div style="margin-top:12px"><span class="dk">Colaboradores</span><div class="dv">${colabs}</div></div>`;
   },
 
+  // group define o conjunto de tipos e é lido pelo upload para saber o Tipo.
   _docsPanel(group) {
     const w = this.canWrite();
     const tipos = group === 'financeiro' ? TIPOS_FIN_ACAO : TIPOS_DOC_ACAO;
     const docs = (this.docs || []).filter(x => tipos.indexOf(x.Tipo) >= 0);
-    const upBtns = w ? `<div class="page-actions" style="flex-wrap:wrap;gap:8px">
-      ${tipos.map((t, i) => `<button class="btn btn-primary btn-xs" onclick="Acoes.pickFile('${group}', ${i})">⬆ ${esc(t)}</button>`).join('')}
-    </div>` : '';
-    const rows = docs.map(x => `<tr>
-      <td>${esc(x.Tipo)}</td>
-      <td><a href="${esc(x.DriveUrl)}" target="_blank" rel="noopener">${esc(x.NomeArquivo)}</a></td>
-      <td class="cell-sub">${esc(x.DataUpload || '')}</td>
-      ${w ? `<td class="col-actions"><button class="btn btn-danger btn-xs" onclick="Acoes.removeDoc('${x.ID}')">🗑</button></td>` : ''}
-    </tr>`).join('');
-    const table = docs.length
-      ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Tipo</th><th>Arquivo</th><th>Enviado em</th>${w ? '<th class="col-actions"></th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div>`
-      : emptyState('Nenhum arquivo enviado ainda.');
-    return upBtns + table;
+    const uploader = w ? `
+      <div class="upload-box">
+        <div class="fg"><label>Nome do documento</label>
+          <input class="input" id="acdoc-nome" placeholder="ex.: Relatório final — ${esc(this.detail ? this.detail.titulo : '')}"></div>
+        <div class="fg"><label>Tipo</label><select class="input" id="acdoc-tipo">${optionsHtml(tipos)}</select></div>
+        <div class="fg"><label>Arquivo PDF</label>
+          <input type="file" accept="application/pdf,.pdf" class="input" id="acdoc-file" onchange="Acoes.onDocFile()">
+          <span class="field-hint" id="acdoc-file-name"></span></div>
+        <button class="btn btn-primary" id="acdoc-btn" onclick="Acoes.uploadDoc()">Enviar PDF</button>
+      </div>` : '';
+    const list = docs.length ? `
+      <ul class="doc-list">
+        ${docs.map(d => `
+          <li class="doc-item">
+            <span class="doc-type doc-type--demais">${esc(d.Tipo)}</span>
+            <a class="doc-name" href="${esc(d.DriveUrl)}" target="_blank" rel="noopener">${esc(d.NomeArquivo)}</a>
+            <span class="doc-date">${esc(d.DataUpload || '')}</span>
+            ${w ? `<button class="btn btn-ghost btn-xs" onclick="Acoes.renameDoc('${d.ID}')">Renomear</button>` : ''}
+            ${w ? `<button class="btn btn-danger btn-xs" onclick="Acoes.removeDoc('${d.ID}')">Remover</button>` : ''}
+          </li>`).join('')}
+      </ul>` : emptyState('Nenhum arquivo enviado ainda.');
+    return uploader + list;
   },
 
-  pickFile(group, i) {
-    const tipo = (group === 'financeiro' ? TIPOS_FIN_ACAO : TIPOS_DOC_ACAO)[i];
-    let inp = document.getElementById('_acao-file');
-    if (!inp) { inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/pdf'; inp.id = '_acao-file'; inp.style.display = 'none'; document.body.appendChild(inp); }
-    inp.value = '';
-    inp.onchange = () => this._doUpload(inp, tipo);
-    inp.click();
+  onDocFile() {
+    const f = document.getElementById('acdoc-file');
+    const n = document.getElementById('acdoc-nome');
+    const fn = document.getElementById('acdoc-file-name');
+    const file = f && f.files[0];
+    if (file && n && !n.value) n.value = file.name.replace(/\.pdf$/i, '');
+    if (fn) fn.textContent = file ? 'Arquivo escolhido: ' + file.name : '';
   },
 
-  async _doUpload(inp, tipo) {
-    const file = inp.files && inp.files[0];
-    if (!file) return;
-    if (file.size > 15 * 1024 * 1024) { toast('Arquivo muito grande (máx. 15 MB).', 'error'); return; }
-    toast('Enviando…', 'info');
+  async uploadDoc() {
+    const fileEl = document.getElementById('acdoc-file');
+    const tipo = val('acdoc-tipo');
+    const nome = val('acdoc-nome');
+    const file = fileEl && fileEl.files[0];
+    if (!file) { toast('Selecione um arquivo PDF.', 'error'); return; }
+    if (!/\.pdf$/i.test(file.name)) { toast('O arquivo precisa ter extensão .pdf.', 'error'); return; }
+    if (file.type && file.type !== 'application/pdf') { toast('O arquivo precisa ser um PDF.', 'error'); return; }
+    const btn = document.getElementById('acdoc-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
     try {
       const base64 = await fileToBase64(file);
-      await API.uploadAcaoDoc({ acaoId: this.currentId, tipo: tipo, fileName: file.name, base64: base64 });
-      toast('Arquivo enviado.', 'success');
+      await API.uploadAcaoDoc({ acaoId: this.currentId, tipo: tipo, nome: nome, fileName: file.name, base64: base64 });
+      toast('PDF enviado.', 'success');
+      this.docs = await API.getAcaoDocs(this.currentId) || [];
+      this.renderDetail();
+    } catch (e) {
+      toast(e.message, 'error');
+      if (btn) { btn.disabled = false; btn.textContent = 'Enviar PDF'; }
+    }
+  },
+
+  async renameDoc(docId) {
+    const d = (this.docs || []).find(x => String(x.ID) === String(docId));
+    const atual = d ? String(d.NomeArquivo || '').replace(/\.pdf$/i, '') : '';
+    const novo = window.prompt('Novo nome do documento:', atual);
+    if (novo == null) return;
+    if (!novo.trim()) { toast('Informe um nome.', 'error'); return; }
+    try {
+      await API.renameAcaoDoc(docId, novo);
+      toast('Documento renomeado.', 'success');
       this.docs = await API.getAcaoDocs(this.currentId) || [];
       this.renderDetail();
     } catch (e) { toast(e.message, 'error'); }
   },
 
   removeDoc(id) {
-    confirmDialog('Excluir arquivo', 'Excluir este arquivo? Ele vai para a lixeira do Drive.', async () => {
+    if (!window.confirm('Remover este arquivo? Ele vai para a lixeira do Drive.')) return;
+    (async () => {
       try {
         await API.deleteAcaoDoc(id);
-        toast('Arquivo excluído.', 'success');
+        toast('Arquivo removido.', 'success');
         this.docs = await API.getAcaoDocs(this.currentId) || [];
         this.renderDetail();
       } catch (e) { toast(e.message, 'error'); }
-    }, 'Excluir');
+    })();
   },
 
   // ── Formulário Dados (add/edit) ─────────────────────────────

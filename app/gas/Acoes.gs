@@ -201,3 +201,18 @@ function deleteAcaoDoc(docId, email) {
   if (idx !== -1) getSheet('AcaoDocumentos').deleteRow(idx);
   return { ok: true };
 }
+
+function renameAcaoDoc(docId, novoNome, email) {
+  const info = requirePerfil(email, ACAO_WRITERS);
+  const doc = sheetRows('AcaoDocumentos').find(d => String(d.ID) === String(docId));
+  if (!doc) throw userError('Documento não encontrado.');
+  const acao = sheetRows('Acoes').find(a => String(a.ID) === String(doc.AcaoID));
+  if (acao) _assertSegmentoAcao(info, acao.Segmento);
+  let nome = String(novoNome || '').trim();
+  if (!nome) throw userError('O nome não pode ficar vazio.');
+  if (!/\.pdf$/i.test(nome)) nome += '.pdf';
+  try { if (doc.DriveFileId) DriveApp.getFileById(doc.DriveFileId).setName(nome); } catch (e) {}
+  const idx = findRowIndex('AcaoDocumentos', docId);
+  if (idx !== -1) getSheet('AcaoDocumentos').getRange(idx, COL.AcaoDocumentos.NomeArquivo + 1).setValue(nome);
+  return { ok: true, nome: nome };
+}
