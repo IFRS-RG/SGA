@@ -129,6 +129,75 @@ function deleteAcao(id, email) {
   _assertSegmentoAcao(info, a.Segmento);
   const idx = findRowIndex('Acoes', id);
   if (a.DriveFolderId) { try { DriveApp.getFolderById(a.DriveFolderId).setTrashed(true); } catch (e) {} }
+  // Remove também os registros de documentos desta ação (arquivos já vão junto com a pasta).
+  const sh = getSheet('AcaoDocumentos');
+  const data = sh.getDataRange().getValues();
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][COL.AcaoDocumentos.AcaoID]) === String(id)) sh.deleteRow(i + 1);
+  }
   getSheet('Acoes').deleteRow(idx);
+  return { ok: true };
+}
+
+// ============================================================
+// FATIA B — Documentos da ação (abas Documentos + Financeiro)
+// ============================================================
+
+// Garante a pasta real da ação (rastreada por DriveFolderId).
+function _acaoFolder(acao) {
+  if (acao.DriveFolderId) {
+    try { const f = DriveApp.getFolderById(acao.DriveFolderId); if (!f.isTrashed()) return f; } catch (e) {}
+  }
+  const fid = _criarPastaAcao(acao.EditalID, acao.Titulo);
+  if (!fid) throw userError('Pasta da ação indisponível. Vincule um edital à ação primeiro.');
+  const idx = findRowIndex('Acoes', acao.ID);
+  if (idx !== -1) getSheet('Acoes').getRange(idx, COL.Acoes.DriveFolderId + 1).setValue(fid);
+  return DriveApp.getFolderById(fid);
+}
+
+// Subpasta conforme o tipo: Financeiro (aberto) vai em "Financeiro", o resto em "Documentos".
+function _acaoSubfolder(acao, tipo) {
+  const base = _acaoFolder(acao);
+  const isFin = TIPOS_FIN_ACAO.indexOf(tipo) >= 0;
+  return _childFolder(base, isFin ? 'Financeiro' : 'Documentos');
+}
+
+function getAcaoDocs(acaoId, email) {
+  requirePerfil(email, ACAO_READERS);
+  return sheetRows('AcaoDocumentos').filter(d => String(d.AcaoID) === String(acaoId));
+}
+
+// payload: { acaoId, tipo, fileName, nome, base64 }
+function uploadAcaoDoc(payload, email) {
+  const info = requirePerfil(email, ACAO_WRITERS);
+  const acao = sheetRows('Acoes').find(a => String(a.ID) === String(payload.acaoId));
+  if (!acao) throw userError('Ação não encontrada.');
+  _assertSegmentoAcao(info, acao.Segmento);
+  if (TIPOS_DOC_ACAO.concat(TIPOS_FIN_ACAO).indexOf(payload.tipo) === -1) throw userError('Tipo de documento inválido.');
+
+  const bytes = Utilities.base64Decode(payload.base64);
+  if (!_isPdf(bytes)) throw userError('O arquivo enviado não é um PDF válido.');
+
+  let fileName = String(payload.nome || payload.fileName || 'documento').trim() || 'documento';
+  if (!/\.pdf$/i.test(fileName)) fileName += '.pdf';
+
+  const folder = _acaoSubfolder(acao, payload.tipo);
+  const file = folder.createFile(Utilities.newBlob(bytes, 'application/pdf', fileName));
+  // Privado: herda o compartilhamento da pasta (sem ANYONE_WITH_LINK).
+
+  const id = genId();
+  getSheet('AcaoDocumentos').appendRow([id, payload.acaoId, payload.tipo, fileName, file.getId(), file.getUrl(), nowBR(), email]);
+  return { ok: true, id: id, url: file.getUrl() };
+}
+
+function deleteAcaoDoc(docId, email) {
+  const info = requirePerfil(email, ACAO_WRITERS);
+  const doc = sheetRows('AcaoDocumentos').find(d => String(d.ID) === String(docId));
+  if (!doc) throw userError('Documento não encontrado.');
+  const acao = sheetRows('Acoes').find(a => String(a.ID) === String(doc.AcaoID));
+  if (acao) _assertSegmentoAcao(info, acao.Segmento);
+  try { if (doc.DriveFileId) DriveApp.getFileById(doc.DriveFileId).setTrashed(true); } catch (e) {}
+  const idx = findRowIndex('AcaoDocumentos', docId);
+  if (idx !== -1) getSheet('AcaoDocumentos').deleteRow(idx);
   return { ok: true };
 }

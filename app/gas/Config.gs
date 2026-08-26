@@ -73,6 +73,9 @@ const PIX_TIPO   = ['CPF', 'E-mail', 'Telefone', 'Aleatória'];
 // Ações.
 const TIPO_ACAO = ['Projeto', 'Programa', 'Evento', 'Prestação institucional de Serviços', 'Curso FIC', 'Curso MOOC'];
 const STATUS_ACAO = ['Ativa', 'Encerrada', 'Suspensa'];
+// Documentos da ação (aba Documentos) e da aba Financeiro (aberto, sem LGPD).
+const TIPOS_DOC_ACAO = ['Ação (SIGAA)', 'Relatório final da ação', 'Demais'];
+const TIPOS_FIN_ACAO = ['Plano de aplicação de recursos', 'Prestação de contas'];
 const STATUS_VINCULO = ['Ativo', 'Desligado', 'Concluído'];   // bolsista/voluntário
 const STATUS_SIGAA = ['Cadastrado', 'Não cadastrado', 'Cadastro incorreto'];
 const STATUS_RELATORIO = ['Não entregue', 'Entregue', 'Em análise', 'Aprovado', 'Reprovado'];
@@ -115,6 +118,9 @@ const COL = {
     ID: 0, Titulo: 1, TipoAcao: 2, Modalidade: 3, AnoExecucao: 4, Segmento: 5, EditalID: 6,
     CoordenadorID: 7, CoorientadorID: 8, ColaboradoresJSON: 9, DataInicio: 10, DataFim: 11,
     Status: 12, DriveFolderId: 13, CriadoEm: 14, CriadoPor: 15
+  },
+  AcaoDocumentos: {
+    ID: 0, AcaoID: 1, Tipo: 2, NomeArquivo: 3, DriveFileId: 4, DriveUrl: 5, DataUpload: 6, EnviadoPor: 7
   }
 };
 
@@ -138,7 +144,8 @@ const HEADERS = {
   Auditoria: ['Timestamp', 'Ator', 'Papel', 'Acao', 'Alvo', 'Detalhe'],
   Acoes: ['ID', 'Titulo', 'TipoAcao', 'Modalidade', 'AnoExecucao', 'Segmento', 'EditalID',
           'CoordenadorID', 'CoorientadorID', 'ColaboradoresJSON', 'DataInicio', 'DataFim',
-          'Status', 'DriveFolderId', 'CriadoEm', 'CriadoPor']
+          'Status', 'DriveFolderId', 'CriadoEm', 'CriadoPor'],
+  AcaoDocumentos: ['ID', 'AcaoID', 'Tipo', 'NomeArquivo', 'DriveFileId', 'DriveUrl', 'DataUpload', 'EnviadoPor']
 };
 
 // ── Helpers genéricos ────────────────────────────────────────

@@ -42,6 +42,8 @@ const STATUS_PARTICIPANTE = ['Ativo', 'Inativo'];
 // Ações.
 const TIPO_ACAO = ['Projeto', 'Programa', 'Evento', 'Prestação institucional de Serviços', 'Curso FIC', 'Curso MOOC'];
 const STATUS_ACAO = ['Ativa', 'Encerrada', 'Suspensa'];
+const TIPOS_DOC_ACAO = ['Ação (SIGAA)', 'Relatório final da ação', 'Demais'];
+const TIPOS_FIN_ACAO = ['Plano de aplicação de recursos', 'Prestação de contas'];
 const MODALIDADES_CURSO = ['Integrado', 'Concomitante', 'Subsequente', 'Superior', 'Especialização', 'FIC'];
 
 // Financeiro.

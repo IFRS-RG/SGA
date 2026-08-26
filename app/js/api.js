@@ -75,6 +75,9 @@ const API = {
   addAcao:    (payload, reqId) => gasCall('addAcao', { payload, reqId }),
   updateAcao: (id, payload)    => gasCall('updateAcao', { id, payload }),
   deleteAcao: (id)             => gasCall('deleteAcao', { id }),
+  getAcaoDocs:   (acaoId)      => gasCall('getAcaoDocs', { acaoId }),
+  uploadAcaoDoc: (payload)     => gasCall('uploadAcaoDoc', { payload }),
+  deleteAcaoDoc: (docId)       => gasCall('deleteAcaoDoc', { docId }),
 
   // Financeiro
   getFinanceiro:    (tipo, refId)          => gasCall('getFinanceiro', { tipo, refId }),

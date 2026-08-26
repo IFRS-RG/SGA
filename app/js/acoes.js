@@ -1,17 +1,24 @@
 // ============================================================
 // SGA — Módulo Ações (frontend)
-// FATIA A: aba Dados (lista + formulário). Documentos/Bolsistas/Voluntários/
-// Financeiro vêm nas fatias B/C/D. Layout herdado de Editais.
+// Fatia A: lista + Dados. Fatia B: tela de detalhe com sub-abas +
+// Documentos e Financeiro (uploads). Bolsistas/Voluntários = fatias C/D.
+// Layout herdado de Editais.
 // ============================================================
 const Acoes = {
   container: null,
   role: null,
   acoes: [], editais: [], servidores: [], alunos: [],
   filter: '',
+  view: 'list',          // 'list' | 'detail'
+  currentId: null,
+  detail: null,
+  docs: [],
+  detailTab: 'dados',
 
   async mount(container, role) {
     this.container = container;
     this.role = role;
+    this.view = 'list';
     this.container.innerHTML = '<div class="loading-page"><div class="spinner"></div><p>Carregando…</p></div>';
     try {
       const [ac, ed, sv, al] = await Promise.all([
@@ -27,20 +34,27 @@ const Acoes = {
 
   canWrite() { return this.role === 'Admin' || this.role === 'Gestor'; },
   _reqId() { return 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); },
-  onSearch(v) { this.filter = String(v || '').toLowerCase(); this.render(); },
+  onSearch(v) { this.filter = String(v || '').toLowerCase(); this.renderList(); },
 
   editalLabel(e) { return `${e.Numero || ''}/${e.Ano || ''} — ${e.Titulo || ''}`.trim(); },
+  _editalNome(id) { const e = this.editais.find(x => String(x.ID) === String(id)); return e ? this.editalLabel(e) : '—'; },
+  _pessoaNome(tipo, id) {
+    if (!id) return '';
+    const list = tipo === 'aluno' ? this.alunos : this.servidores;
+    const r = list.find(x => String(x.ID) === String(id));
+    return r ? r.Nome : '';
+  },
   _br(iso) { if (!iso) return ''; const p = String(iso).slice(0, 10).split('-'); return p[2] ? `${p[2]}/${p[1]}/${p[0]}` : iso; },
   _periodo(a) {
     if (!a.DataInicio && !a.DataFim) return '—';
     return (this._br(a.DataInicio) || '?') + ' a ' + (this._br(a.DataFim) || '?');
   },
-  badge(s) {
-    const cls = s === 'Ativa' ? 'badge-ok' : 'badge-muted';
-    return `<span class="badge ${cls}">${esc(s || '—')}</span>`;
-  },
+  badge(s) { return `<span class="badge ${s === 'Ativa' ? 'badge-ok' : 'badge-muted'}">${esc(s || '—')}</span>`; },
 
-  render() {
+  render() { if (this.view === 'detail') this.renderDetail(); else this.renderList(); },
+
+  // ── Lista ───────────────────────────────────────────────────
+  renderList() {
     const w = this.canWrite();
     const f = this.filter;
     const rows = !f ? this.acoes : this.acoes.filter(a =>
@@ -48,29 +62,30 @@ const Acoes = {
       String(a.coordenadorNome || '').toLowerCase().includes(f) ||
       String(a.editalLabel || '').toLowerCase().includes(f));
 
-    const acoesMenu = (id) => w ? `<td class="col-actions">
+    const menu = (id) => `<td class="col-actions">
       <details class="row-menu">
         <summary class="btn btn-ghost btn-xs">Ações ▾</summary>
         <div class="row-menu-list">
-          <button onclick="Acoes.openForm('${id}')">✏️ Editar</button>
-          <button class="danger" onclick="Acoes.remove('${id}')">🗑 Excluir</button>
+          <button onclick="Acoes.openDetail('${id}')">📂 Abrir</button>
+          ${w ? `<button onclick="Acoes.openForm('${id}')">✏️ Editar dados</button>` : ''}
+          ${w ? `<button class="danger" onclick="Acoes.remove('${id}')">🗑 Excluir</button>` : ''}
         </div>
-      </details></td>` : '';
+      </details></td>`;
 
     const body = rows.map(a => `<tr>
-      <td><strong>${esc(a.Titulo)}</strong></td>
+      <td><a href="#" onclick="Acoes.openDetail('${a.ID}');return false;"><strong>${esc(a.Titulo)}</strong></a></td>
       <td>${esc(a.TipoAcao || '—')}</td>
       <td>${esc(a.coordenadorNome || '—')}</td>
       <td>${esc(a.Segmento || '—')}</td>
       <td class="cell-sub">${esc(a.editalLabel || '—')}</td>
       <td>${esc(this._periodo(a))}</td>
-      <td>${this.badge(a.Status)}</td>${acoesMenu(a.ID)}
+      <td>${this.badge(a.Status)}</td>${menu(a.ID)}
     </tr>`).join('');
 
     const table = rows.length ? `
       <div class="table-wrap menus">
         <table class="data-table">
-          <thead><tr><th>Título</th><th>Tipo</th><th>Coordenador</th><th>Segmento</th><th>Edital</th><th>Período</th><th>Status</th>${w ? '<th class="col-actions">Ações</th>' : ''}</tr></thead>
+          <thead><tr><th>Título</th><th>Tipo</th><th>Coordenador</th><th>Segmento</th><th>Edital</th><th>Período</th><th>Status</th><th class="col-actions">Ações</th></tr></thead>
           <tbody>${body}</tbody>
         </table>
       </div>`
@@ -86,6 +101,121 @@ const Acoes = {
       ${table}`;
   },
 
+  // ── Detalhe (sub-abas) ──────────────────────────────────────
+  async openDetail(id) {
+    this.container.innerHTML = '<div class="loading-page"><div class="spinner"></div><p>Carregando…</p></div>';
+    try {
+      const [rec, docs] = await Promise.all([API.getAcao(id), API.getAcaoDocs(id)]);
+      this.detail = rec; this.docs = docs || []; this.currentId = id; this.detailTab = 'dados'; this.view = 'detail';
+    } catch (e) { toast(e.message, 'error'); this.view = 'list'; this.renderList(); return; }
+    this.renderDetail();
+  },
+
+  async back() {
+    this.view = 'list';
+    this.renderList();
+    try { this.acoes = await API.getAcoes() || []; this.renderList(); } catch (e) {}
+  },
+
+  switchDetailTab(t) { this.detailTab = t; this.renderDetail(); },
+
+  renderDetail() {
+    const d = this.detail;
+    const tabs = [['dados', '📋 Dados'], ['documentos', '📎 Documentos'], ['bolsistas', '🎓 Bolsistas'], ['voluntarios', '🙌 Voluntários'], ['financeiro', '💰 Financeiro']];
+    const ftabs = tabs.map(([id, label]) => `<button type="button" class="ftab ${this.detailTab === id ? 'active' : ''}" onclick="Acoes.switchDetailTab('${id}')">${label}</button>`).join('');
+    this.container.innerHTML = `
+      <div class="page-actions"><button class="btn btn-ghost" onclick="Acoes.back()">← Voltar</button></div>
+      <h2 style="margin:6px 0 2px">${esc(d.titulo)}</h2>
+      <p class="section-sub">${esc(d.tipoAcao || '')}${d.segmento ? ' · ' + esc(d.segmento) : ''}</p>
+      <div class="ftabs">${ftabs}</div>
+      <div id="acao-panel">${this._panel()}</div>`;
+  },
+
+  _panel() {
+    switch (this.detailTab) {
+      case 'documentos': return this._docsPanel('documentos');
+      case 'financeiro': return this._docsPanel('financeiro');
+      case 'bolsistas':  return emptyState('🚧 Bolsistas — em breve (Fatia C).');
+      case 'voluntarios': return emptyState('🚧 Voluntários — em breve (Fatia D).');
+      default: return this._dadosPanel();
+    }
+  },
+
+  _dadosPanel() {
+    const d = this.detail;
+    const w = this.canWrite();
+    const cell = (k, v) => `<div><span class="dk">${esc(k)}</span><span class="dv">${v}</span></div>`;
+    const colabs = (d.colaboradores || []).map(c => (c.tipo === 'aluno' ? '🎓 ' : '👤 ') + esc(this._pessoaNome(c.tipo, c.id) || c.id)).join(', ') || '—';
+    return `
+      ${w ? `<div class="page-actions"><button class="btn btn-ghost btn-xs" onclick="Acoes.openForm('${d.ID}')">✏️ Editar dados</button></div>` : ''}
+      <div class="detail-grid">
+        ${cell('Tipo', esc(d.tipoAcao || '—'))}
+        ${cell('Modalidade', esc(d.modalidade || '—'))}
+        ${cell('Ano', esc(d.anoExecucao || '—'))}
+        ${cell('Segmento', esc(d.segmento || '—'))}
+        ${cell('Edital', esc(this._editalNome(d.editalId)))}
+        ${cell('Status', esc(d.status || '—'))}
+        ${cell('Coordenador', esc(this._pessoaNome('servidor', d.coordenadorId) || '—'))}
+        ${cell('Coorientador', esc(this._pessoaNome('servidor', d.coorientadorId) || '—'))}
+        ${cell('Período', esc((this._br(d.dataInicio) || '?') + ' a ' + (this._br(d.dataFim) || '?')))}
+      </div>
+      <div style="margin-top:12px"><span class="dk">Colaboradores</span><div class="dv">${colabs}</div></div>`;
+  },
+
+  _docsPanel(group) {
+    const w = this.canWrite();
+    const tipos = group === 'financeiro' ? TIPOS_FIN_ACAO : TIPOS_DOC_ACAO;
+    const docs = (this.docs || []).filter(x => tipos.indexOf(x.Tipo) >= 0);
+    const upBtns = w ? `<div class="page-actions" style="flex-wrap:wrap;gap:8px">
+      ${tipos.map((t, i) => `<button class="btn btn-primary btn-xs" onclick="Acoes.pickFile('${group}', ${i})">⬆ ${esc(t)}</button>`).join('')}
+    </div>` : '';
+    const rows = docs.map(x => `<tr>
+      <td>${esc(x.Tipo)}</td>
+      <td><a href="${esc(x.DriveUrl)}" target="_blank" rel="noopener">${esc(x.NomeArquivo)}</a></td>
+      <td class="cell-sub">${esc(x.DataUpload || '')}</td>
+      ${w ? `<td class="col-actions"><button class="btn btn-danger btn-xs" onclick="Acoes.removeDoc('${x.ID}')">🗑</button></td>` : ''}
+    </tr>`).join('');
+    const table = docs.length
+      ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Tipo</th><th>Arquivo</th><th>Enviado em</th>${w ? '<th class="col-actions"></th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div>`
+      : emptyState('Nenhum arquivo enviado ainda.');
+    return upBtns + table;
+  },
+
+  pickFile(group, i) {
+    const tipo = (group === 'financeiro' ? TIPOS_FIN_ACAO : TIPOS_DOC_ACAO)[i];
+    let inp = document.getElementById('_acao-file');
+    if (!inp) { inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/pdf'; inp.id = '_acao-file'; inp.style.display = 'none'; document.body.appendChild(inp); }
+    inp.value = '';
+    inp.onchange = () => this._doUpload(inp, tipo);
+    inp.click();
+  },
+
+  async _doUpload(inp, tipo) {
+    const file = inp.files && inp.files[0];
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) { toast('Arquivo muito grande (máx. 15 MB).', 'error'); return; }
+    toast('Enviando…', 'info');
+    try {
+      const base64 = await fileToBase64(file);
+      await API.uploadAcaoDoc({ acaoId: this.currentId, tipo: tipo, fileName: file.name, base64: base64 });
+      toast('Arquivo enviado.', 'success');
+      this.docs = await API.getAcaoDocs(this.currentId) || [];
+      this.renderDetail();
+    } catch (e) { toast(e.message, 'error'); }
+  },
+
+  removeDoc(id) {
+    confirmDialog('Excluir arquivo', 'Excluir este arquivo? Ele vai para a lixeira do Drive.', async () => {
+      try {
+        await API.deleteAcaoDoc(id);
+        toast('Arquivo excluído.', 'success');
+        this.docs = await API.getAcaoDocs(this.currentId) || [];
+        this.renderDetail();
+      } catch (e) { toast(e.message, 'error'); }
+    }, 'Excluir');
+  },
+
+  // ── Formulário Dados (add/edit) ─────────────────────────────
   async openForm(id) {
     if (!this.canWrite()) return;
     let rec = null;
@@ -133,7 +263,6 @@ const Acoes = {
         <div class="chk-list">${(colabServ + colabAlun) || '<span class="line-empty">Nenhum servidor/aluno cadastrado.</span>'}</div></div>`;
   },
 
-  // Ao escolher o edital, sugere o segmento dele (editável).
   onEditalChange() {
     const e = this.editais.find(x => String(x.ID) === String(val('ac-edital')));
     const seg = document.getElementById('ac-segmento');
@@ -163,7 +292,8 @@ const Acoes = {
       toast(id ? 'Ação atualizada.' : 'Ação criada.', 'success');
       closeModal();
       this.acoes = await API.getAcoes() || [];
-      this.render();
+      if (this.view === 'detail' && this.currentId) { this.detail = await API.getAcao(this.currentId); this.renderDetail(); }
+      else this.renderList();
     } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
   },
 
@@ -172,7 +302,7 @@ const Acoes = {
     const a = this.acoes.find(x => String(x.ID) === String(id));
     confirmDialog('Excluir ação', `Excluir a ação "${a ? a.Titulo : ''}"? A pasta no Drive vai para a lixeira.`,
       async () => {
-        try { await API.deleteAcao(id); toast('Ação excluída.', 'success'); this.acoes = await API.getAcoes() || []; this.render(); }
+        try { await API.deleteAcao(id); toast('Ação excluída.', 'success'); this.view = 'list'; this.acoes = await API.getAcoes() || []; this.renderList(); }
         catch (e) { toast(e.message, 'error'); }
       }, 'Excluir');
   }
