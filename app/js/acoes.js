@@ -588,9 +588,88 @@ const Acoes = {
       <div class="page-actions" style="flex-wrap:wrap;gap:8px">${w ? `<button class="btn btn-primary" onclick="Acoes.openBem()">+ Adicionar bem</button>` : ''}${gerarBtn}</div>
       ${bTable}`;
 
+    // Alterações de despesa (Anexo II)
+    const alts = f.alteracoes || [];
+    const amenu = (id) => w ? `<td class="col-actions"><details class="row-menu"><summary class="btn btn-ghost btn-xs">Ações ▾</summary><div class="row-menu-list">
+      <button onclick="Acoes.openAlteracao('${id}')">✏️ Editar</button>
+      <button class="danger" onclick="Acoes.removeAlteracao('${id}')">🗑 Excluir</button>
+    </div></details></td>` : '';
+    const arows = alts.map(a => `<tr>
+      <td>${esc(this._br(a.Data) || '—')}</td>
+      <td>${fmtMoney(a.CusteioOriginal)} → <strong>${fmtMoney(a.CusteioNovo)}</strong></td>
+      <td>${fmtMoney(a.CapitalOriginal)} → <strong>${fmtMoney(a.CapitalNovo)}</strong></td>
+      <td class="cell-sub">${esc(a.Justificativa || '—')}</td>
+      <td><span class="badge ${a.StatusAutorizacao === 'Autorizada' ? 'badge-ok' : 'badge-muted'}">${esc(a.StatusAutorizacao || '—')}</span></td>
+      ${amenu(a.ID)}
+    </tr>`).join('');
+    const aTable = alts.length ? `<div class="table-wrap menus"><table class="data-table">
+      <thead><tr><th>Data</th><th>Custeio (orig → novo)</th><th>Capital (orig → novo)</th><th>Justificativa</th><th>Autorização</th>${w ? '<th class="col-actions"></th>' : ''}</tr></thead>
+      <tbody>${arows}</tbody></table></div>` : emptyState('Nenhuma alteração de despesa registrada.');
+    const altSection = `<div class="seg-head" style="margin-top:18px">Alterações de despesa (Anexo II)</div>
+      <div class="page-actions">${w ? `<button class="btn btn-primary" onclick="Acoes.openAlteracao()">+ Registrar alteração</button>` : ''}</div>
+      ${aTable}`;
+
     const docsSection = `<div class="seg-head" style="margin-top:18px">Documentos financeiros</div>${this._docsPanel('financeiro')}`;
 
-    return plano + despSection + bensSection + docsSection;
+    return plano + despSection + bensSection + altSection + docsSection;
+  },
+
+  openAlteracao(id) {
+    if (!this.canWrite()) return;
+    const a = id ? ((this.financeiro && this.financeiro.alteracoes) || []).find(x => String(x.ID) === String(id)) : null;
+    openModal((id ? 'Editar ' : 'Registrar ') + 'alteração de despesa', this._alteracaoForm(a),
+      async () => { await this.saveAlteracao(id); }, { confirmLabel: id ? 'Salvar' : 'Registrar' });
+  },
+
+  _alteracaoForm(a) {
+    const f = this.financeiro || {};
+    const co = a ? a.CusteioOriginal : f.custeioPrevisto;
+    const cap = a ? a.CapitalOriginal : f.capitalPrevisto;
+    const statusOpts = STATUS_ALTERACAO.map(s => `<option ${(a ? a.StatusAutorizacao : 'Pendente') === s ? 'selected' : ''}>${esc(s)}</option>`).join('');
+    return `
+      <div class="seg-head">Previsão original</div>
+      <div class="form-grid">
+        <div class="fg"><label>Custeio (R$)</label><input class="input" id="al-co" value="${esc(co)}"></div>
+        <div class="fg"><label>Capital (R$)</label><input class="input" id="al-cao" value="${esc(cap)}"></div>
+      </div>
+      <div class="seg-head">Nova previsão</div>
+      <div class="form-grid">
+        <div class="fg"><label>Custeio (R$)</label><input class="input" id="al-cn" value="${esc(a ? a.CusteioNovo : '')}"></div>
+        <div class="fg"><label>Capital (R$)</label><input class="input" id="al-can" value="${esc(a ? a.CapitalNovo : '')}"></div>
+      </div>
+      <div class="fg"><label>Justificativa *</label><textarea class="input" id="al-just" rows="2">${esc(a ? a.Justificativa : '')}</textarea></div>
+      <div class="form-grid">
+        <div class="fg"><label>Status da autorização</label><select class="input" id="al-status">${statusOpts}</select></div>
+        <div class="fg"><label>Data</label><input class="input" type="date" id="al-data" value="${esc(a ? a.Data : '')}"></div>
+      </div>
+      <div class="fg"><label>Observação (motivo, se negada)</label><input class="input" id="al-obs" value="${esc(a ? a.Observacao : '')}"></div>`;
+  },
+
+  async saveAlteracao(id) {
+    const p = {
+      custeioOriginal: parseMoney(val('al-co')), capitalOriginal: parseMoney(val('al-cao')),
+      custeioNovo: parseMoney(val('al-cn')), capitalNovo: parseMoney(val('al-can')),
+      justificativa: val('al-just'), statusAutorizacao: val('al-status'),
+      data: val('al-data'), observacao: val('al-obs')
+    };
+    if (!p.justificativa) { toast('Informe a justificativa.', 'error'); return; }
+    setBusy(true);
+    try {
+      if (id) await API.updateAlteracao(id, p);
+      else { p.acaoId = this.currentId; await API.addAlteracao(p, this._reqId()); }
+      toast(id ? 'Alteração atualizada.' : 'Alteração registrada.', 'success');
+      closeModal();
+      this.financeiro = await API.getAcaoFinanceiro(this.currentId);
+      this.renderDetail();
+    } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
+  },
+
+  removeAlteracao(id) {
+    if (!window.confirm('Excluir esta alteração de despesa?')) return;
+    (async () => {
+      try { await API.deleteAlteracao(id); toast('Alteração excluída.', 'success'); this.financeiro = await API.getAcaoFinanceiro(this.currentId); this.renderDetail(); }
+      catch (e) { toast(e.message, 'error'); }
+    })();
   },
 
   openBem(id) {

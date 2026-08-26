@@ -52,6 +52,7 @@ const TIPO_DESPESA = ['Material de consumo', 'Material permanente', 'Serviços d
                       'Serviços de terceiros (PJ)', 'Hospedagem', 'Passagens', 'Alimentação de estudantes'];
 const CLASSIF_DESPESA = ['Custeio', 'Capital'];
 const SITUACAO_BEM = ['Bom (B)', 'Ocioso (O)', 'Recuperável (R)', 'Antieconômico (A)', 'Irrecuperável (I)'];
+const STATUS_ALTERACAO = ['Pendente', 'Autorizada', 'Negada'];
 const MODALIDADES_CURSO = ['Integrado', 'Concomitante', 'Subsequente', 'Superior', 'Especialização', 'FIC'];
 
 // Financeiro.

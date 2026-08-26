@@ -29,6 +29,11 @@ function getAcaoFinanceiro(acaoId, email) {
   const usados = {};
   bens.forEach(b => { if (b.DespesaID) usados[String(b.DespesaID)] = true; });
   const bensPendentes = despesas.filter(d => d.Tipo === 'Material permanente' && !usados[String(d.ID)]).length;
+  const alteracoes = sheetRows('AcaoAlteracoes').filter(a => String(a.AcaoID) === String(acaoId)).map(a => ({
+    ID: a.ID, CusteioOriginal: a.CusteioOriginal, CapitalOriginal: a.CapitalOriginal,
+    CusteioNovo: a.CusteioNovo, CapitalNovo: a.CapitalNovo, Justificativa: a.Justificativa,
+    StatusAutorizacao: a.StatusAutorizacao, Observacao: a.Observacao, Data: _dateStr(a.Data)
+  }));
   return {
     unidadeExecucao: h.UnidadeExecucao || '',
     custeioPrevisto: h.CusteioPrevisto === undefined ? '' : h.CusteioPrevisto,
@@ -38,8 +43,58 @@ function getAcaoFinanceiro(acaoId, email) {
     valorUtilizado:  utilizado,
     despesas: despesas,
     bens: bens,
-    bensPendentes: bensPendentes
+    bensPendentes: bensPendentes,
+    alteracoes: alteracoes
   };
+}
+
+// ── Alterações de despesa (Anexo II) ──────────────────────────
+function _alteracaoRow(id, p, criadoEm, criadoPor) {
+  return [
+    id, p.acaoId, _num2(p.custeioOriginal), _num2(p.capitalOriginal), _num2(p.custeioNovo), _num2(p.capitalNovo),
+    String(p.justificativa || '').trim(),
+    STATUS_ALTERACAO.indexOf(p.statusAutorizacao) >= 0 ? p.statusAutorizacao : 'Pendente',
+    String(p.observacao || '').trim(), _dateStr(p.data), criadoEm, criadoPor
+  ];
+}
+
+function addAlteracao(p, email, reqId) {
+  const info = requirePerfil(email, ACAO_WRITERS);
+  const acao = sheetRows('Acoes').find(a => String(a.ID) === String(p.acaoId));
+  if (!acao) throw userError('Ação não encontrada.');
+  _assertSegmentoAcao(info, acao.Segmento);
+  if (!String(p.justificativa || '').trim()) throw userError('A justificativa é obrigatória.');
+  const dup = _idempotentId(reqId);
+  if (dup) return { ok: true, id: dup, duplicate: true };
+  const id = genId();
+  getSheet('AcaoAlteracoes').appendRow(_alteracaoRow(id, p, nowBR(), email));
+  _idempotentStore(reqId, id);
+  return { ok: true, id: id };
+}
+
+function updateAlteracao(id, p, email) {
+  const info = requirePerfil(email, ACAO_WRITERS);
+  const idx = findRowIndex('AcaoAlteracoes', id);
+  if (idx === -1) throw userError('Alteração não encontrada.');
+  const sh = getSheet('AcaoAlteracoes');
+  const old = sh.getRange(idx, 1, 1, HEADERS.AcaoAlteracoes.length).getValues()[0];
+  const acao = sheetRows('Acoes').find(a => String(a.ID) === String(old[COL.AcaoAlteracoes.AcaoID]));
+  if (acao) _assertSegmentoAcao(info, acao.Segmento);
+  if (!String(p.justificativa || '').trim()) throw userError('A justificativa é obrigatória.');
+  p.acaoId = old[COL.AcaoAlteracoes.AcaoID];
+  const row = _alteracaoRow(id, p, old[COL.AcaoAlteracoes.CriadoEm], old[COL.AcaoAlteracoes.CriadoPor]);
+  sh.getRange(idx, 1, 1, row.length).setValues([row]);
+  return { ok: true };
+}
+
+function deleteAlteracao(id, email) {
+  const info = requirePerfil(email, ACAO_WRITERS);
+  const a = sheetRows('AcaoAlteracoes').find(x => String(x.ID) === String(id));
+  if (!a) throw userError('Alteração não encontrada.');
+  const acao = sheetRows('Acoes').find(x => String(x.ID) === String(a.AcaoID));
+  if (acao) _assertSegmentoAcao(info, acao.Segmento);
+  getSheet('AcaoAlteracoes').deleteRow(findRowIndex('AcaoAlteracoes', id));
+  return { ok: true };
 }
 
 // ── Bens doados (Anexo IV) ────────────────────────────────────

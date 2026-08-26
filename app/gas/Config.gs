@@ -82,6 +82,8 @@ const TIPO_DESPESA = ['Material de consumo', 'Material permanente', 'Serviços d
 const CLASSIF_DESPESA = ['Custeio', 'Capital'];
 // Situação do bem doado (Anexo IV): B/O/R/A/I.
 const SITUACAO_BEM = ['Bom (B)', 'Ocioso (O)', 'Recuperável (R)', 'Antieconômico (A)', 'Irrecuperável (I)'];
+// Status da solicitação de alteração de despesas (Anexo II).
+const STATUS_ALTERACAO = ['Pendente', 'Autorizada', 'Negada'];
 const STATUS_VINCULO = ['Ativo', 'Desligado', 'Concluído'];   // bolsista/voluntário
 const STATUS_SIGAA = ['Cadastrado', 'Não cadastrado', 'Cadastro incorreto'];
 const STATUS_RELATORIO = ['Não entregue', 'Entregue', 'Em análise', 'Aprovado', 'Reprovado'];
@@ -152,6 +154,11 @@ const COL = {
   AcaoBensDoados: {
     ID: 0, AcaoID: 1, DespesaID: 2, MaterialPermanente: 3, Qtd: 4, MarcaModelo: 5, Situacao: 6,
     NumDocFiscal: 7, NumTombamento: 8, Descricao: 9, CriadoEm: 10, CriadoPor: 11
+  },
+  // Alterações de despesa (Anexo II).
+  AcaoAlteracoes: {
+    ID: 0, AcaoID: 1, CusteioOriginal: 2, CapitalOriginal: 3, CusteioNovo: 4, CapitalNovo: 5,
+    Justificativa: 6, StatusAutorizacao: 7, Observacao: 8, Data: 9, CriadoEm: 10, CriadoPor: 11
   }
 };
 
@@ -188,7 +195,9 @@ const HEADERS = {
   AcaoDespesas: ['ID', 'AcaoID', 'Descricao', 'Tipo', 'Classificacao', 'DataCompra', 'Fornecedor', 'NumDocFiscal',
                  'ValorUnitario', 'Qtd', 'ValorTotal', 'CriadoEm', 'CriadoPor'],
   AcaoBensDoados: ['ID', 'AcaoID', 'DespesaID', 'MaterialPermanente', 'Qtd', 'MarcaModelo', 'Situacao',
-                   'NumDocFiscal', 'NumTombamento', 'Descricao', 'CriadoEm', 'CriadoPor']
+                   'NumDocFiscal', 'NumTombamento', 'Descricao', 'CriadoEm', 'CriadoPor'],
+  AcaoAlteracoes: ['ID', 'AcaoID', 'CusteioOriginal', 'CapitalOriginal', 'CusteioNovo', 'CapitalNovo',
+                   'Justificativa', 'StatusAutorizacao', 'Observacao', 'Data', 'CriadoEm', 'CriadoPor']
 };
 
 // ── Helpers genéricos ────────────────────────────────────────

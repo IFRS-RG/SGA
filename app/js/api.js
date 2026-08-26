@@ -98,6 +98,9 @@ const API = {
   updateBem: (id, payload)    => gasCall('updateBem', { id, payload }),
   deleteBem: (id)             => gasCall('deleteBem', { id }),
   gerarBensDaDespesa: (acaoId) => gasCall('gerarBensDaDespesa', { acaoId }),
+  addAlteracao:    (payload, reqId) => gasCall('addAlteracao', { payload, reqId }),
+  updateAlteracao: (id, payload)    => gasCall('updateAlteracao', { id, payload }),
+  deleteAlteracao: (id)             => gasCall('deleteAlteracao', { id }),
 
   // Financeiro
   getFinanceiro:    (tipo, refId)          => gasCall('getFinanceiro', { tipo, refId }),
