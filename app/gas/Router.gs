@@ -17,7 +17,8 @@ const WRITE_ACTIONS = ['addEdital', 'updateEdital', 'deleteEdital', 'cloneEdital
   'saveFinanceiro',
   'addAcao', 'updateAcao', 'deleteAcao',
   'uploadAcaoDoc', 'deleteAcaoDoc', 'renameAcaoDoc',
-  'addBolsista', 'updateBolsista', 'deleteBolsista', 'uploadBolsistaRelatorio'];
+  'addBolsista', 'updateBolsista', 'deleteBolsista', 'uploadBolsistaRelatorio',
+  'addVoluntario', 'updateVoluntario', 'deleteVoluntario', 'uploadVoluntarioRelatorio'];
 
 function doPost(e) {
   let lock = null;
@@ -127,6 +128,16 @@ function doPost(e) {
         return respond(deleteBolsista(data.id, userEmail));
       case 'uploadBolsistaRelatorio':
         return respond(uploadBolsistaRelatorio(data.id, data.payload, userEmail));
+      case 'getVoluntarios':
+        return respond(getVoluntarios(data.acaoId, userEmail));
+      case 'addVoluntario':
+        return respond(addVoluntario(data.payload, userEmail, data.reqId));
+      case 'updateVoluntario':
+        return respond(updateVoluntario(data.id, data.payload, userEmail));
+      case 'deleteVoluntario':
+        return respond(deleteVoluntario(data.id, userEmail));
+      case 'uploadVoluntarioRelatorio':
+        return respond(uploadVoluntarioRelatorio(data.id, data.payload, userEmail));
 
       // ── Auditoria (só Admin) ──
       case 'getAuditoria':

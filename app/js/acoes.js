@@ -14,6 +14,7 @@ const Acoes = {
   detail: null,
   docs: [],
   bolsistas: [],
+  voluntarios: [],
   detailTab: 'dados',
 
   async mount(container, role) {
@@ -106,8 +107,8 @@ const Acoes = {
   async openDetail(id) {
     this.container.innerHTML = '<div class="loading-page"><div class="spinner"></div><p>Carregando…</p></div>';
     try {
-      const [rec, docs, bols] = await Promise.all([API.getAcao(id), API.getAcaoDocs(id), API.getBolsistas(id)]);
-      this.detail = rec; this.docs = docs || []; this.bolsistas = bols || []; this.currentId = id; this.detailTab = 'dados'; this.view = 'detail';
+      const [rec, docs, bols, vols] = await Promise.all([API.getAcao(id), API.getAcaoDocs(id), API.getBolsistas(id), API.getVoluntarios(id)]);
+      this.detail = rec; this.docs = docs || []; this.bolsistas = bols || []; this.voluntarios = vols || []; this.currentId = id; this.detailTab = 'dados'; this.view = 'detail';
     } catch (e) { toast(e.message, 'error'); this.view = 'list'; this.renderList(); return; }
     this.renderDetail();
   },
@@ -137,7 +138,7 @@ const Acoes = {
       case 'documentos': return this._docsPanel('documentos');
       case 'financeiro': return this._docsPanel('financeiro');
       case 'bolsistas':  return this._bolsistasPanel();
-      case 'voluntarios': return emptyState('🚧 Voluntários — em breve (Fatia D).');
+      case 'voluntarios': return this._voluntariosPanel();
       default: return this._dadosPanel();
     }
   },
@@ -389,6 +390,120 @@ const Acoes = {
       await API.uploadBolsistaRelatorio(id, { fileName: file.name, base64: base64 });
       toast('Relatório enviado.', 'success');
       this.bolsistas = await API.getBolsistas(this.currentId) || [];
+      this.renderDetail();
+    } catch (e) { toast(e.message, 'error'); }
+  },
+
+  // ── Voluntários ─────────────────────────────────────────────
+  _voluntariosPanel() {
+    const w = this.canWrite();
+    const vs = this.voluntarios || [];
+    const menu = (id) => w ? `<td class="col-actions"><details class="row-menu"><summary class="btn btn-ghost btn-xs">Ações ▾</summary><div class="row-menu-list">
+      <button onclick="Acoes.openVoluntario('${id}')">✏️ Editar</button>
+      <button onclick="Acoes.pickRelatorioVol('${id}')">📄 Enviar relatório</button>
+      <button class="danger" onclick="Acoes.removeVoluntario('${id}')">🗑 Excluir</button>
+    </div></details></td>` : '';
+    const rows = vs.map(v => `<tr>
+      <td><strong>${esc(v.alunoNome || '—')}</strong></td>
+      <td>${esc(v.CHVoluntariado || '—')}h</td>
+      <td>${esc((this._br(v.DataInicio) || '?') + ' a ' + (this._br(v.DataFim) || '?'))}</td>
+      <td class="cell-sub">${esc(String(v.TotalSemanas || 0))} sem · ${esc(String(v.CHTotal || 0))}h</td>
+      <td>${esc(v.StatusSIGAA || '—')}</td>
+      <td>${v.temRelatorio ? `<a href="${esc(v.relatorioUrl)}" target="_blank" rel="noopener">${esc(v.StatusRelatorio || 'ver')}</a>` : esc(v.StatusRelatorio || '—')}</td>
+      <td>${this._vbadge(v.Status)}</td>${menu(v.ID)}
+    </tr>`).join('');
+    const table = vs.length ? `<div class="table-wrap menus"><table class="data-table">
+      <thead><tr><th>Aluno</th><th>CH</th><th>Período</th><th>Semanas · CH total</th><th>SIGAA</th><th>Relatório</th><th>Status</th>${w ? '<th class="col-actions">Ações</th>' : ''}</tr></thead>
+      <tbody>${rows}</tbody></table></div>` : emptyState('Nenhum voluntário cadastrado nesta ação.');
+    return `<div class="page-actions">${w ? `<button class="btn btn-primary" onclick="Acoes.openVoluntario()">+ Adicionar voluntário</button>` : ''}</div>${table}`;
+  },
+
+  openVoluntario(id) {
+    if (!this.canWrite()) return;
+    const v = id ? (this.voluntarios || []).find(x => String(x.ID) === String(id)) : null;
+    openModal((id ? 'Editar ' : 'Novo ') + 'voluntário', this._voluntarioForm(v),
+      async () => { await this.saveVoluntario(id); }, { confirmLabel: id ? 'Salvar' : 'Adicionar' });
+    setTimeout(() => this.recalcVoluntario(), 50);
+  },
+
+  _voluntarioForm(v) {
+    const alunoOpts = ['<option value="">— Selecione —</option>'].concat(this.alunos.map(a => `<option value="${esc(a.ID)}" ${v && String(v.AlunoID) === String(a.ID) ? 'selected' : ''}>${esc(a.Nome)}</option>`)).join('');
+    const chOpts = ['<option value="">—</option>'].concat(CH_BOLSA.map(c => `<option ${v && String(v.CHVoluntariado) === String(c) ? 'selected' : ''}>${esc(c)}</option>`)).join('');
+    const menuOpts = (list, sel) => ['<option value="">—</option>'].concat(list.map(o => `<option ${sel === o ? 'selected' : ''}>${esc(o)}</option>`)).join('');
+    const statusOpts = STATUS_VINCULO.map(o => `<option ${(v ? v.Status : 'Ativo') === o ? 'selected' : ''}>${esc(o)}</option>`).join('');
+    return `
+      <div class="fg"><label>Aluno *</label><select class="input" id="vo-aluno">${alunoOpts}</select></div>
+      <div class="form-grid">
+        <div class="fg"><label>CH semanal</label><select class="input" id="vo-ch" onchange="Acoes.recalcVoluntario()">${chOpts}</select></div>
+        <div class="fg"><label>Status</label><select class="input" id="vo-status">${statusOpts}</select></div>
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label>Data de início</label><input class="input" type="date" id="vo-inicio" value="${esc(v ? v.DataInicio : '')}" oninput="Acoes.recalcVoluntario()"></div>
+        <div class="fg"><label>Data de término</label><input class="input" type="date" id="vo-fim" value="${esc(v ? v.DataFim : '')}" oninput="Acoes.recalcVoluntario()"></div>
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label>Total de semanas</label><input class="input" id="vo-semanas" disabled value="${esc(v ? v.TotalSemanas : '')}"></div>
+        <div class="fg"><label>CH total</label><input class="input" id="vo-chtotal" disabled value="${esc(v ? v.CHTotal : '')}"></div>
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label>Status no SIGAA</label><select class="input" id="vo-sigaa">${menuOpts(STATUS_SIGAA, v ? v.StatusSIGAA : '')}</select></div>
+        <div class="fg"><label>Relatório final</label><select class="input" id="vo-rel">${menuOpts(STATUS_RELATORIO, v ? v.StatusRelatorio : '')}</select></div>
+      </div>
+      <div class="fg"><label>Observações</label><textarea class="input" id="vo-obs" rows="2">${esc(v ? v.Observacoes : '')}</textarea></div>`;
+  },
+
+  recalcVoluntario() {
+    const sem = this._semanasFront(val('vo-inicio'), val('vo-fim'));
+    const ch = Number(val('vo-ch')) || 0;
+    const s = document.getElementById('vo-semanas'); if (s) s.value = sem;
+    const ct = document.getElementById('vo-chtotal'); if (ct) ct.value = ch * sem;
+  },
+
+  async saveVoluntario(id) {
+    const p = {
+      alunoId: val('vo-aluno'), chVoluntariado: val('vo-ch'),
+      dataInicio: val('vo-inicio'), dataFim: val('vo-fim'),
+      statusSigaa: val('vo-sigaa'), statusRelatorio: val('vo-rel'),
+      observacoes: val('vo-obs'), status: val('vo-status')
+    };
+    if (!p.alunoId) { toast('Selecione o aluno.', 'error'); return; }
+    setBusy(true);
+    try {
+      if (id) await API.updateVoluntario(id, p);
+      else { p.acaoId = this.currentId; await API.addVoluntario(p, this._reqId()); }
+      toast(id ? 'Voluntário atualizado.' : 'Voluntário adicionado.', 'success');
+      closeModal();
+      this.voluntarios = await API.getVoluntarios(this.currentId) || [];
+      this.renderDetail();
+    } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
+  },
+
+  removeVoluntario(id) {
+    if (!window.confirm('Excluir este voluntário da ação?')) return;
+    (async () => {
+      try { await API.deleteVoluntario(id); toast('Voluntário excluído.', 'success'); this.voluntarios = await API.getVoluntarios(this.currentId) || []; this.renderDetail(); }
+      catch (e) { toast(e.message, 'error'); }
+    })();
+  },
+
+  pickRelatorioVol(id) {
+    let inp = document.getElementById('_vo-rel-file');
+    if (!inp) { inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/pdf'; inp.id = '_vo-rel-file'; inp.style.display = 'none'; document.body.appendChild(inp); }
+    inp.value = '';
+    inp.onchange = () => this._doRelatorioVol(inp, id);
+    inp.click();
+  },
+
+  async _doRelatorioVol(inp, id) {
+    const file = inp.files && inp.files[0];
+    if (!file) return;
+    if (!/\.pdf$/i.test(file.name)) { toast('O relatório precisa ser um PDF.', 'error'); return; }
+    toast('Enviando relatório…', 'info');
+    try {
+      const base64 = await fileToBase64(file);
+      await API.uploadVoluntarioRelatorio(id, { fileName: file.name, base64: base64 });
+      toast('Relatório enviado.', 'success');
+      this.voluntarios = await API.getVoluntarios(this.currentId) || [];
       this.renderDetail();
     } catch (e) { toast(e.message, 'error'); }
   },

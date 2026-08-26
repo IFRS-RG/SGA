@@ -126,6 +126,11 @@ const COL = {
     ID: 0, AcaoID: 1, AlunoID: 2, EditalBolsaID: 3, CHBolsa: 4, ValorBolsa: 5, DataInicio: 6, DataFim: 7,
     TotalSemanas: 8, CHTotal: 9, StatusSIGAA: 10, StatusRelatorio: 11, RelatorioFileId: 12, RelatorioUrl: 13,
     Observacoes: 14, Status: 15, CriadoEm: 16, CriadoPor: 17
+  },
+  AcaoVoluntarios: {
+    ID: 0, AcaoID: 1, AlunoID: 2, CHVoluntariado: 3, DataInicio: 4, DataFim: 5, TotalSemanas: 6, CHTotal: 7,
+    StatusSIGAA: 8, StatusRelatorio: 9, RelatorioFileId: 10, RelatorioUrl: 11, Observacoes: 12, Status: 13,
+    CriadoEm: 14, CriadoPor: 15
   }
 };
 
@@ -153,7 +158,10 @@ const HEADERS = {
   AcaoDocumentos: ['ID', 'AcaoID', 'Tipo', 'NomeArquivo', 'DriveFileId', 'DriveUrl', 'DataUpload', 'EnviadoPor'],
   AcaoBolsistas: ['ID', 'AcaoID', 'AlunoID', 'EditalBolsaID', 'CHBolsa', 'ValorBolsa', 'DataInicio', 'DataFim',
                   'TotalSemanas', 'CHTotal', 'StatusSIGAA', 'StatusRelatorio', 'RelatorioFileId', 'RelatorioUrl',
-                  'Observacoes', 'Status', 'CriadoEm', 'CriadoPor']
+                  'Observacoes', 'Status', 'CriadoEm', 'CriadoPor'],
+  AcaoVoluntarios: ['ID', 'AcaoID', 'AlunoID', 'CHVoluntariado', 'DataInicio', 'DataFim', 'TotalSemanas', 'CHTotal',
+                    'StatusSIGAA', 'StatusRelatorio', 'RelatorioFileId', 'RelatorioUrl', 'Observacoes', 'Status',
+                    'CriadoEm', 'CriadoPor']
 };
 
 // ── Helpers genéricos ────────────────────────────────────────
