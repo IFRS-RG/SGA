@@ -80,6 +80,8 @@ const TIPOS_FIN_ACAO = ['Plano de aplicação de recursos', 'Prestação de cont
 const TIPO_DESPESA = ['Material de consumo', 'Material permanente', 'Serviços de terceiros (PF)',
                       'Serviços de terceiros (PJ)', 'Hospedagem', 'Passagens', 'Alimentação de estudantes'];
 const CLASSIF_DESPESA = ['Custeio', 'Capital'];
+// Situação do bem doado (Anexo IV): B/O/R/A/I.
+const SITUACAO_BEM = ['Bom (B)', 'Ocioso (O)', 'Recuperável (R)', 'Antieconômico (A)', 'Irrecuperável (I)'];
 const STATUS_VINCULO = ['Ativo', 'Desligado', 'Concluído'];   // bolsista/voluntário
 const STATUS_SIGAA = ['Cadastrado', 'Não cadastrado', 'Cadastro incorreto'];
 const STATUS_RELATORIO = ['Não entregue', 'Entregue', 'Em análise', 'Aprovado', 'Reprovado'];
@@ -145,6 +147,11 @@ const COL = {
   AcaoDespesas: {
     ID: 0, AcaoID: 1, Descricao: 2, Tipo: 3, Classificacao: 4, DataCompra: 5, Fornecedor: 6, NumDocFiscal: 7,
     ValorUnitario: 8, Qtd: 9, ValorTotal: 10, CriadoEm: 11, CriadoPor: 12
+  },
+  // Bens permanentes doados (Anexo IV). DespesaID liga à despesa de origem (quando gerado dela).
+  AcaoBensDoados: {
+    ID: 0, AcaoID: 1, DespesaID: 2, MaterialPermanente: 3, Qtd: 4, MarcaModelo: 5, Situacao: 6,
+    NumDocFiscal: 7, NumTombamento: 8, Descricao: 9, CriadoEm: 10, CriadoPor: 11
   }
 };
 
@@ -179,7 +186,9 @@ const HEADERS = {
   AcaoFinanceiro: ['AcaoID', 'UnidadeExecucao', 'CusteioPrevisto', 'CapitalPrevisto', 'ValorRecebido',
                    'ValorDevolvido', 'CriadoEm', 'CriadoPor'],
   AcaoDespesas: ['ID', 'AcaoID', 'Descricao', 'Tipo', 'Classificacao', 'DataCompra', 'Fornecedor', 'NumDocFiscal',
-                 'ValorUnitario', 'Qtd', 'ValorTotal', 'CriadoEm', 'CriadoPor']
+                 'ValorUnitario', 'Qtd', 'ValorTotal', 'CriadoEm', 'CriadoPor'],
+  AcaoBensDoados: ['ID', 'AcaoID', 'DespesaID', 'MaterialPermanente', 'Qtd', 'MarcaModelo', 'Situacao',
+                   'NumDocFiscal', 'NumTombamento', 'Descricao', 'CriadoEm', 'CriadoPor']
 };
 
 // ── Helpers genéricos ────────────────────────────────────────

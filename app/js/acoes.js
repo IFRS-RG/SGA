@@ -565,9 +565,89 @@ const Acoes = {
       <div class="page-actions">${w ? `<button class="btn btn-primary" onclick="Acoes.openDespesa()">+ Adicionar despesa</button>` : ''}</div>
       ${despTable}`;
 
+    // Bens doados (Anexo IV)
+    const bens = f.bens || [];
+    const bmenu = (id) => w ? `<td class="col-actions"><details class="row-menu"><summary class="btn btn-ghost btn-xs">Ações ▾</summary><div class="row-menu-list">
+      <button onclick="Acoes.openBem('${id}')">✏️ Editar</button>
+      <button class="danger" onclick="Acoes.removeBem('${id}')">🗑 Excluir</button>
+    </div></details></td>` : '';
+    const brows = bens.map(b => `<tr>
+      <td>${esc(b.MaterialPermanente || '—')}</td>
+      <td>${esc(String(b.Qtd || ''))}</td>
+      <td>${esc(b.MarcaModelo || '—')}</td>
+      <td>${esc(b.Situacao || '—')}</td>
+      <td>${esc(b.NumDocFiscal || '—')}</td>
+      <td>${esc(b.NumTombamento || '—')}</td>
+      ${bmenu(b.ID)}
+    </tr>`).join('');
+    const bTable = bens.length ? `<div class="table-wrap menus"><table class="data-table">
+      <thead><tr><th>Material permanente</th><th>Qtd</th><th>Marca/modelo</th><th>Situação</th><th>Doc fiscal</th><th>Tombamento</th>${w ? '<th class="col-actions"></th>' : ''}</tr></thead>
+      <tbody>${brows}</tbody></table></div>` : emptyState('Nenhum bem doado cadastrado.');
+    const gerarBtn = (w && f.bensPendentes > 0) ? `<button class="btn btn-ghost" onclick="Acoes.gerarBens()">↧ Gerar ${f.bensPendentes} das despesas de capital</button>` : '';
+    const bensSection = `<div class="seg-head" style="margin-top:18px">Bens doados (Anexo IV)</div>
+      <div class="page-actions" style="flex-wrap:wrap;gap:8px">${w ? `<button class="btn btn-primary" onclick="Acoes.openBem()">+ Adicionar bem</button>` : ''}${gerarBtn}</div>
+      ${bTable}`;
+
     const docsSection = `<div class="seg-head" style="margin-top:18px">Documentos financeiros</div>${this._docsPanel('financeiro')}`;
 
-    return plano + despSection + docsSection;
+    return plano + despSection + bensSection + docsSection;
+  },
+
+  openBem(id) {
+    if (!this.canWrite()) return;
+    const b = id ? ((this.financeiro && this.financeiro.bens) || []).find(x => String(x.ID) === String(id)) : null;
+    openModal((id ? 'Editar ' : 'Novo ') + 'bem doado', this._bemForm(b),
+      async () => { await this.saveBem(id); }, { confirmLabel: id ? 'Salvar' : 'Adicionar' });
+  },
+
+  _bemForm(b) {
+    const sitOpts = ['<option value="">—</option>'].concat(SITUACAO_BEM.map(s => `<option ${b && b.Situacao === s ? 'selected' : ''}>${esc(s)}</option>`)).join('');
+    return `
+      <div class="fg"><label>Material permanente *</label><input class="input" id="bm-mat" value="${esc(b ? b.MaterialPermanente : '')}"></div>
+      <div class="form-grid">
+        <div class="fg"><label>Qtd</label><input class="input" id="bm-qtd" value="${esc(b ? b.Qtd : '')}"></div>
+        <div class="fg"><label>Marca/modelo</label><input class="input" id="bm-marca" value="${esc(b ? b.MarcaModelo : '')}"></div>
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label>Situação</label><select class="input" id="bm-sit">${sitOpts}</select></div>
+        <div class="fg"><label>Nº documento fiscal</label><input class="input" id="bm-doc" value="${esc(b ? b.NumDocFiscal : '')}"></div>
+      </div>
+      <div class="fg"><label>Nº de tombamento</label><input class="input" id="bm-tomb" value="${esc(b ? b.NumTombamento : '')}"></div>
+      <div class="fg"><label>Descrição (características)</label><textarea class="input" id="bm-desc" rows="2">${esc(b ? b.Descricao : '')}</textarea></div>`;
+  },
+
+  async saveBem(id) {
+    const p = {
+      materialPermanente: val('bm-mat'), qtd: Number(val('bm-qtd')) || 0, marcaModelo: val('bm-marca'),
+      situacao: val('bm-sit'), numDocFiscal: val('bm-doc'), numTombamento: val('bm-tomb'), descricao: val('bm-desc')
+    };
+    if (!p.materialPermanente) { toast('Informe o material permanente.', 'error'); return; }
+    setBusy(true);
+    try {
+      if (id) await API.updateBem(id, p);
+      else { p.acaoId = this.currentId; await API.addBem(p, this._reqId()); }
+      toast(id ? 'Bem atualizado.' : 'Bem adicionado.', 'success');
+      closeModal();
+      this.financeiro = await API.getAcaoFinanceiro(this.currentId);
+      this.renderDetail();
+    } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
+  },
+
+  removeBem(id) {
+    if (!window.confirm('Excluir este bem doado?')) return;
+    (async () => {
+      try { await API.deleteBem(id); toast('Bem excluído.', 'success'); this.financeiro = await API.getAcaoFinanceiro(this.currentId); this.renderDetail(); }
+      catch (e) { toast(e.message, 'error'); }
+    })();
+  },
+
+  async gerarBens() {
+    try {
+      const r = await API.gerarBensDaDespesa(this.currentId);
+      toast('Gerados ' + (r.gerados || 0) + ' bem(ns) das despesas de capital.', 'success');
+      this.financeiro = await API.getAcaoFinanceiro(this.currentId);
+      this.renderDetail();
+    } catch (e) { toast(e.message, 'error'); }
   },
 
   async savePlano() {
