@@ -76,6 +76,10 @@ const STATUS_ACAO = ['Ativa', 'Encerrada', 'Suspensa'];
 // Documentos da ação (aba Documentos) e da aba Financeiro (aberto, sem LGPD).
 const TIPOS_DOC_ACAO = ['Ação (SIGAA)', 'Relatório final da ação', 'Demais'];
 const TIPOS_FIN_ACAO = ['Plano de aplicação de recursos', 'Prestação de contas'];
+// Despesas (Anexo III). Classificação custeio/capital (Art. 3º da IN).
+const TIPO_DESPESA = ['Material de consumo', 'Material permanente', 'Serviços de terceiros (PF)',
+                      'Serviços de terceiros (PJ)', 'Hospedagem', 'Passagens', 'Alimentação de estudantes'];
+const CLASSIF_DESPESA = ['Custeio', 'Capital'];
 const STATUS_VINCULO = ['Ativo', 'Desligado', 'Concluído'];   // bolsista/voluntário
 const STATUS_SIGAA = ['Cadastrado', 'Não cadastrado', 'Cadastro incorreto'];
 const STATUS_RELATORIO = ['Não entregue', 'Entregue', 'Em análise', 'Aprovado', 'Reprovado'];
@@ -131,6 +135,16 @@ const COL = {
     ID: 0, AcaoID: 1, AlunoID: 2, CHVoluntariado: 3, DataInicio: 4, DataFim: 5, TotalSemanas: 6, CHTotal: 7,
     StatusSIGAA: 8, StatusRelatorio: 9, RelatorioFileId: 10, RelatorioUrl: 11, Observacoes: 12, Status: 13,
     CriadoEm: 14, CriadoPor: 15
+  },
+  // Financeiro estruturado da ação (aberto, sem LGPD). Cabeçalho: 1 linha por ação (chave = AcaoID).
+  AcaoFinanceiro: {
+    AcaoID: 0, UnidadeExecucao: 1, CusteioPrevisto: 2, CapitalPrevisto: 3, ValorRecebido: 4, ValorDevolvido: 5,
+    CriadoEm: 6, CriadoPor: 7
+  },
+  // Itens de despesa (Anexo III).
+  AcaoDespesas: {
+    ID: 0, AcaoID: 1, Descricao: 2, Tipo: 3, Classificacao: 4, DataCompra: 5, Fornecedor: 6, NumDocFiscal: 7,
+    ValorUnitario: 8, Qtd: 9, ValorTotal: 10, CriadoEm: 11, CriadoPor: 12
   }
 };
 
@@ -161,7 +175,11 @@ const HEADERS = {
                   'Observacoes', 'Status', 'CriadoEm', 'CriadoPor'],
   AcaoVoluntarios: ['ID', 'AcaoID', 'AlunoID', 'CHVoluntariado', 'DataInicio', 'DataFim', 'TotalSemanas', 'CHTotal',
                     'StatusSIGAA', 'StatusRelatorio', 'RelatorioFileId', 'RelatorioUrl', 'Observacoes', 'Status',
-                    'CriadoEm', 'CriadoPor']
+                    'CriadoEm', 'CriadoPor'],
+  AcaoFinanceiro: ['AcaoID', 'UnidadeExecucao', 'CusteioPrevisto', 'CapitalPrevisto', 'ValorRecebido',
+                   'ValorDevolvido', 'CriadoEm', 'CriadoPor'],
+  AcaoDespesas: ['ID', 'AcaoID', 'Descricao', 'Tipo', 'Classificacao', 'DataCompra', 'Fornecedor', 'NumDocFiscal',
+                 'ValorUnitario', 'Qtd', 'ValorTotal', 'CriadoEm', 'CriadoPor']
 };
 
 // ── Helpers genéricos ────────────────────────────────────────

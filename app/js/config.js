@@ -48,6 +48,9 @@ const CH_BOLSA = ['4', '8', '12', '16'];
 const STATUS_VINCULO = ['Ativo', 'Desligado', 'Concluído'];
 const STATUS_SIGAA = ['Cadastrado', 'Não cadastrado', 'Cadastro incorreto'];
 const STATUS_RELATORIO = ['Não entregue', 'Entregue', 'Em análise', 'Aprovado', 'Reprovado'];
+const TIPO_DESPESA = ['Material de consumo', 'Material permanente', 'Serviços de terceiros (PF)',
+                      'Serviços de terceiros (PJ)', 'Hospedagem', 'Passagens', 'Alimentação de estudantes'];
+const CLASSIF_DESPESA = ['Custeio', 'Capital'];
 const MODALIDADES_CURSO = ['Integrado', 'Concomitante', 'Subsequente', 'Superior', 'Especialização', 'FIC'];
 
 // Financeiro.

@@ -15,6 +15,7 @@ const Acoes = {
   docs: [],
   bolsistas: [],
   voluntarios: [],
+  financeiro: null,
   detailTab: 'dados',
 
   async mount(container, role) {
@@ -107,8 +108,8 @@ const Acoes = {
   async openDetail(id) {
     this.container.innerHTML = '<div class="loading-page"><div class="spinner"></div><p>Carregando…</p></div>';
     try {
-      const [rec, docs, bols, vols] = await Promise.all([API.getAcao(id), API.getAcaoDocs(id), API.getBolsistas(id), API.getVoluntarios(id)]);
-      this.detail = rec; this.docs = docs || []; this.bolsistas = bols || []; this.voluntarios = vols || []; this.currentId = id; this.detailTab = 'dados'; this.view = 'detail';
+      const [rec, docs, bols, vols, fin] = await Promise.all([API.getAcao(id), API.getAcaoDocs(id), API.getBolsistas(id), API.getVoluntarios(id), API.getAcaoFinanceiro(id)]);
+      this.detail = rec; this.docs = docs || []; this.bolsistas = bols || []; this.voluntarios = vols || []; this.financeiro = fin || {}; this.currentId = id; this.detailTab = 'dados'; this.view = 'detail';
     } catch (e) { toast(e.message, 'error'); this.view = 'list'; this.renderList(); return; }
     this.renderDetail();
   },
@@ -136,7 +137,7 @@ const Acoes = {
   _panel() {
     switch (this.detailTab) {
       case 'documentos': return this._docsPanel('documentos');
-      case 'financeiro': return this._docsPanel('financeiro');
+      case 'financeiro': return this._financeiroPanel();
       case 'bolsistas':  return this._bolsistasPanel();
       case 'voluntarios': return this._voluntariosPanel();
       default: return this._dadosPanel();
@@ -506,6 +507,149 @@ const Acoes = {
       this.voluntarios = await API.getVoluntarios(this.currentId) || [];
       this.renderDetail();
     } catch (e) { toast(e.message, 'error'); }
+  },
+
+  // ── Financeiro estruturado (Plano + Despesas + Documentos) ──
+  _financeiroPanel() {
+    const w = this.canWrite();
+    const f = this.financeiro || {};
+    const desp = f.despesas || [];
+    const dis = w ? '' : 'disabled';
+    const totalPrev = parseMoney(f.custeioPrevisto) + parseMoney(f.capitalPrevisto);
+    const utilizado = Number(f.valorUtilizado) || 0;
+    const saldo = parseMoney(f.valorRecebido) - utilizado;
+
+    const plano = `<div class="upload-box">
+      <div class="seg-head">Plano de aplicação (Anexo I)</div>
+      <div class="form-grid">
+        <div class="fg"><label>Unidade de execução</label><input class="input" id="fin-unidade" value="${esc(f.unidadeExecucao || '')}" ${dis}></div>
+        <div class="fg"><label>Custeio previsto (R$)</label><input class="input" id="fin-custeio" value="${esc(f.custeioPrevisto)}" ${dis}></div>
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label>Capital previsto (R$)</label><input class="input" id="fin-capital" value="${esc(f.capitalPrevisto)}" ${dis}></div>
+        <div class="fg"><label>Total previsto</label><input class="input" disabled value="${fmtMoney(totalPrev)}"></div>
+      </div>
+      <div class="seg-head">Prestação de contas — totais (Anexo III)</div>
+      <div class="form-grid">
+        <div class="fg"><label>Valor recebido (R$)</label><input class="input" id="fin-recebido" value="${esc(f.valorRecebido)}" ${dis}></div>
+        <div class="fg"><label>Valor utilizado (auto)</label><input class="input" disabled value="${fmtMoney(utilizado)}"></div>
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label>Valor devolvido (R$)</label><input class="input" id="fin-devolvido" value="${esc(f.valorDevolvido)}" ${dis}></div>
+        <div class="fg"><label>Saldo (recebido − utilizado)</label><input class="input" disabled value="${fmtMoney(saldo)}"></div>
+      </div>
+      ${w ? `<button class="btn btn-primary" id="fin-plano-btn" onclick="Acoes.savePlano()">Salvar plano/totais</button>` : ''}
+    </div>`;
+
+    const menu = (id) => w ? `<td class="col-actions"><details class="row-menu"><summary class="btn btn-ghost btn-xs">Ações ▾</summary><div class="row-menu-list">
+      <button onclick="Acoes.openDespesa('${id}')">✏️ Editar</button>
+      <button class="danger" onclick="Acoes.removeDespesa('${id}')">🗑 Excluir</button>
+    </div></details></td>` : '';
+    const rows = desp.map(d => `<tr>
+      <td>${esc(d.Descricao)}</td>
+      <td>${esc(d.Tipo || '—')}</td>
+      <td>${esc(d.Classificacao || '—')}</td>
+      <td>${esc(this._br(d.DataCompra) || '—')}</td>
+      <td class="cell-sub">${esc(d.Fornecedor || '—')}</td>
+      <td>${esc(d.NumDocFiscal || '—')}</td>
+      <td>${d.ValorUnitario !== '' && d.ValorUnitario != null ? fmtMoney(d.ValorUnitario) : '—'}</td>
+      <td>${esc(String(d.Qtd || ''))}</td>
+      <td><strong>${d.ValorTotal !== '' && d.ValorTotal != null ? fmtMoney(d.ValorTotal) : '—'}</strong></td>
+      ${menu(d.ID)}
+    </tr>`).join('');
+    const despTable = desp.length ? `<div class="table-wrap menus"><table class="data-table">
+      <thead><tr><th>Descrição</th><th>Tipo</th><th>Classif.</th><th>Data</th><th>Fornecedor</th><th>Doc fiscal</th><th>Unit.</th><th>Qtd</th><th>Total</th>${w ? '<th class="col-actions"></th>' : ''}</tr></thead>
+      <tbody>${rows}</tbody></table></div>` : emptyState('Nenhuma despesa lançada ainda.');
+
+    const despSection = `<div class="seg-head" style="margin-top:18px">Despesas (Anexo III)</div>
+      <div class="page-actions">${w ? `<button class="btn btn-primary" onclick="Acoes.openDespesa()">+ Adicionar despesa</button>` : ''}</div>
+      ${despTable}`;
+
+    const docsSection = `<div class="seg-head" style="margin-top:18px">Documentos financeiros</div>${this._docsPanel('financeiro')}`;
+
+    return plano + despSection + docsSection;
+  },
+
+  async savePlano() {
+    const p = {
+      unidadeExecucao: val('fin-unidade'),
+      custeioPrevisto: parseMoney(val('fin-custeio')),
+      capitalPrevisto: parseMoney(val('fin-capital')),
+      valorRecebido: parseMoney(val('fin-recebido')),
+      valorDevolvido: parseMoney(val('fin-devolvido'))
+    };
+    const btn = document.getElementById('fin-plano-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
+    try {
+      await API.saveAcaoFinanceiro(this.currentId, p);
+      toast('Plano/totais salvos.', 'success');
+      this.financeiro = await API.getAcaoFinanceiro(this.currentId);
+      this.renderDetail();
+    } catch (e) { toast(e.message, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Salvar plano/totais'; } }
+  },
+
+  openDespesa(id) {
+    if (!this.canWrite()) return;
+    const d = id ? ((this.financeiro && this.financeiro.despesas) || []).find(x => String(x.ID) === String(id)) : null;
+    openModal((id ? 'Editar ' : 'Nova ') + 'despesa', this._despesaForm(d),
+      async () => { await this.saveDespesa(id); }, { confirmLabel: id ? 'Salvar' : 'Adicionar' });
+    setTimeout(() => this.recalcDespesa(), 50);
+  },
+
+  _despesaForm(d) {
+    const tipoOpts = ['<option value="">—</option>'].concat(TIPO_DESPESA.map(t => `<option ${d && d.Tipo === t ? 'selected' : ''}>${esc(t)}</option>`)).join('');
+    const classifOpts = CLASSIF_DESPESA.map(c => `<option ${d && d.Classificacao === c ? 'selected' : ''}>${esc(c)}</option>`).join('');
+    return `
+      <div class="fg"><label>Descrição *</label><input class="input" id="dp-desc" value="${esc(d ? d.Descricao : '')}"></div>
+      <div class="form-grid">
+        <div class="fg"><label>Tipo</label><select class="input" id="dp-tipo" onchange="Acoes.onDespesaTipo()">${tipoOpts}</select></div>
+        <div class="fg"><label>Classificação</label><select class="input" id="dp-classif">${classifOpts}</select></div>
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label>Data da compra</label><input class="input" type="date" id="dp-data" value="${esc(d ? d.DataCompra : '')}"></div>
+        <div class="fg"><label>Fornecedor</label><input class="input" id="dp-forn" value="${esc(d ? d.Fornecedor : '')}"></div>
+      </div>
+      <div class="fg"><label>Nº documento fiscal</label><input class="input" id="dp-doc" value="${esc(d ? d.NumDocFiscal : '')}"></div>
+      <div class="form-grid">
+        <div class="fg"><label>Valor unitário (R$)</label><input class="input" id="dp-unit" value="${esc(d ? d.ValorUnitario : '')}" oninput="Acoes.recalcDespesa()"></div>
+        <div class="fg"><label>Qtd</label><input class="input" id="dp-qtd" value="${esc(d ? d.Qtd : '')}" oninput="Acoes.recalcDespesa()"></div>
+      </div>
+      <div class="fg"><label>Valor total</label><input class="input" id="dp-total" disabled value="${d && d.ValorTotal != null ? fmtMoney(d.ValorTotal) : ''}"></div>`;
+  },
+
+  onDespesaTipo() {
+    const c = document.getElementById('dp-classif');
+    if (c) c.value = val('dp-tipo') === 'Material permanente' ? 'Capital' : 'Custeio';
+  },
+  recalcDespesa() {
+    const total = parseMoney(val('dp-unit')) * (Number(val('dp-qtd')) || 0);
+    const el = document.getElementById('dp-total'); if (el) el.value = fmtMoney(total);
+  },
+
+  async saveDespesa(id) {
+    const p = {
+      descricao: val('dp-desc'), tipo: val('dp-tipo'), classificacao: val('dp-classif'),
+      dataCompra: val('dp-data'), fornecedor: val('dp-forn'), numDocFiscal: val('dp-doc'),
+      valorUnitario: parseMoney(val('dp-unit')), qtd: Number(val('dp-qtd')) || 0
+    };
+    if (!p.descricao) { toast('Informe a descrição.', 'error'); return; }
+    setBusy(true);
+    try {
+      if (id) await API.updateDespesa(id, p);
+      else { p.acaoId = this.currentId; await API.addDespesa(p, this._reqId()); }
+      toast(id ? 'Despesa atualizada.' : 'Despesa adicionada.', 'success');
+      closeModal();
+      this.financeiro = await API.getAcaoFinanceiro(this.currentId);
+      this.renderDetail();
+    } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
+  },
+
+  removeDespesa(id) {
+    if (!window.confirm('Excluir esta despesa?')) return;
+    (async () => {
+      try { await API.deleteDespesa(id); toast('Despesa excluída.', 'success'); this.financeiro = await API.getAcaoFinanceiro(this.currentId); this.renderDetail(); }
+      catch (e) { toast(e.message, 'error'); }
+    })();
   },
 
   // ── Formulário Dados (add/edit) ─────────────────────────────
