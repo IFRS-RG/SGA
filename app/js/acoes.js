@@ -16,6 +16,8 @@ const Acoes = {
   bolsistas: [],
   voluntarios: [],
   financeiro: null,
+  certificados: [],
+  certPessoas: [],
   detailTab: 'dados',
   finTab: 'plano',
 
@@ -109,8 +111,8 @@ const Acoes = {
   async openDetail(id) {
     this.container.innerHTML = '<div class="loading-page"><div class="spinner"></div><p>Carregando…</p></div>';
     try {
-      const [rec, docs, bols, vols, fin] = await Promise.all([API.getAcao(id), API.getAcaoDocs(id), API.getBolsistas(id), API.getVoluntarios(id), API.getAcaoFinanceiro(id)]);
-      this.detail = rec; this.docs = docs || []; this.bolsistas = bols || []; this.voluntarios = vols || []; this.financeiro = fin || {}; this.currentId = id; this.detailTab = 'dados'; this.view = 'detail';
+      const [rec, docs, bols, vols, fin, certs] = await Promise.all([API.getAcao(id), API.getAcaoDocs(id), API.getBolsistas(id), API.getVoluntarios(id), API.getAcaoFinanceiro(id), API.getCertificadosDaAcao(id)]);
+      this.detail = rec; this.docs = docs || []; this.bolsistas = bols || []; this.voluntarios = vols || []; this.financeiro = fin || {}; this.certificados = certs || []; this.currentId = id; this.detailTab = 'dados'; this.view = 'detail';
     } catch (e) { toast(e.message, 'error'); this.view = 'list'; this.renderList(); return; }
     this.renderDetail();
   },
@@ -125,7 +127,7 @@ const Acoes = {
 
   renderDetail() {
     const d = this.detail;
-    const tabs = [['dados', '📋 Dados'], ['documentos', '📎 Documentos'], ['bolsistas', '🎓 Bolsistas'], ['voluntarios', '🙌 Voluntários'], ['financeiro', '💰 Financeiro']];
+    const tabs = [['dados', '📋 Dados'], ['documentos', '📎 Documentos'], ['bolsistas', '🎓 Bolsistas'], ['voluntarios', '🙌 Voluntários'], ['financeiro', '💰 Financeiro'], ['certificados', '📜 Certificados']];
     const ftabs = tabs.map(([id, label]) => `<button type="button" class="ftab ${this.detailTab === id ? 'active' : ''}" onclick="Acoes.switchDetailTab('${id}')">${label}</button>`).join('');
     this.container.innerHTML = `
       <div class="page-actions"><button class="btn btn-ghost" onclick="Acoes.back()">← Voltar</button></div>
@@ -141,6 +143,7 @@ const Acoes = {
       case 'financeiro': return this._financeiroPanel();
       case 'bolsistas':  return this._bolsistasPanel();
       case 'voluntarios': return this._voluntariosPanel();
+      case 'certificados': return this._certificadosPanel();
       default: return this._dadosPanel();
     }
   },
@@ -886,6 +889,101 @@ const Acoes = {
     if (!window.confirm('Excluir esta despesa?')) return;
     (async () => {
       try { await API.deleteDespesa(id); toast('Despesa excluída.', 'success'); this.financeiro = await API.getAcaoFinanceiro(this.currentId); this.renderDetail(); }
+      catch (e) { toast(e.message, 'error'); }
+    })();
+  },
+
+  // ── Certificados da ação ────────────────────────────────────
+  _certificadosPanel() {
+    const w = this.canWrite();
+    const cs = this.certificados || [];
+    const rows = cs.map(c => `<tr>
+      <td class="cell-sub">${esc(c.NomeDocumento || '')}</td>
+      <td><strong>${esc(c.NomeSocial || c.NomeCivil || '—')}</strong></td>
+      <td>${esc(c.Categoria || '')}${c.Papel ? ' · ' + esc(c.Papel) : ''}</td>
+      <td><a href="${esc(c.ArquivoUrl)}" target="_blank" rel="noopener">abrir</a></td>
+      ${w ? `<td class="col-actions"><button class="btn btn-danger btn-xs" onclick="Acoes.removeCert('${c.ID}')">🗑</button></td>` : ''}
+    </tr>`).join('');
+    const table = cs.length ? `<div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Documento</th><th>Nome</th><th>Categoria</th><th>Arquivo</th>${w ? '<th class="col-actions"></th>' : ''}</tr></thead>
+      <tbody>${rows}</tbody></table></div>` : emptyState('Nenhum certificado desta ação.');
+    return `<div class="page-actions">${w ? `<button class="btn btn-primary" onclick="Acoes.openCertForm()">+ Registrar certificado</button>` : ''}</div>${table}`;
+  },
+
+  async openCertForm() {
+    if (!this.canWrite()) return;
+    if (!this.detail.editalId) { toast('Esta ação não tem edital vinculado; vincule um edital antes de emitir certificado.', 'error'); return; }
+    try { this.certPessoas = await API.getPessoasDaAcao(this.currentId) || []; } catch (e) { this.certPessoas = []; }
+    const d = this.detail;
+    const pessoaOpts = ['<option value="">— Selecione —</option>'].concat(this.certPessoas.map((p, i) =>
+      `<option value="${i}">${esc(p.nomeSocial || p.nomeCivil)}${p.nomeSocial && p.nomeSocial !== p.nomeCivil ? ' (' + esc(p.nomeCivil) + ')' : ''} — ${esc(p.papel)}</option>`)).join('');
+    const body = `
+      <p class="section-sub">Vinculado a: <strong>${esc(this._editalNome(d.editalId))}</strong> · <strong>${esc(d.titulo)}</strong></p>
+      <div class="fg"><label>Categoria</label><select class="input" id="ct-cat" onchange="Acoes.onCertCat()">
+        <option value="Equipe">Equipe da ação</option>
+        <option value="Público">Público-alvo</option></select></div>
+      <div id="ct-eq">
+        <div class="fg"><label>Nome (equipe) *</label><select class="input" id="ct-pessoa" onchange="Acoes.onCertPessoa()">${pessoaOpts}</select></div>
+        <div class="form-grid">
+          <div class="fg"><label>CPF</label><input class="input" id="ct-cpf" disabled></div>
+          <div class="fg"><label>Papel</label><input class="input" id="ct-papel" disabled></div>
+        </div>
+      </div>
+      <div id="ct-pub" style="display:none">
+        <div class="fg"><label>Nome completo *</label><input class="input" id="ct-nome"></div>
+        <div class="fg"><label>CPF *</label><input class="input" id="ct-cpfpub" inputmode="numeric" placeholder="000.000.000-00" oninput="this.value=maskCPF(this.value)"></div>
+      </div>
+      <div class="fg"><label>Arquivo PDF *</label><input type="file" accept="application/pdf,.pdf" class="input" id="ct-file"></div>`;
+    openModal('Registrar certificado', body, async () => { await this.saveCert(); }, { confirmLabel: 'Registrar' });
+  },
+
+  onCertCat() {
+    const cat = val('ct-cat');
+    const eq = document.getElementById('ct-eq'); const pu = document.getElementById('ct-pub');
+    if (eq) eq.style.display = cat === 'Equipe' ? 'block' : 'none';
+    if (pu) pu.style.display = cat === 'Público' ? 'block' : 'none';
+  },
+  onCertPessoa() {
+    const i = val('ct-pessoa');
+    const p = (i !== '' && this.certPessoas[Number(i)]) ? this.certPessoas[Number(i)] : null;
+    const cpf = document.getElementById('ct-cpf'); const pap = document.getElementById('ct-papel');
+    if (cpf) cpf.value = p ? maskCPF(String(p.cpf || '')) : '';
+    if (pap) pap.value = p ? p.papel : '';
+  },
+
+  async saveCert() {
+    const cat = val('ct-cat');
+    const fileEl = document.getElementById('ct-file');
+    const file = fileEl && fileEl.files[0];
+    if (!file) { toast('Selecione o arquivo PDF.', 'error'); return; }
+    if (!/\.pdf$/i.test(file.name)) { toast('O arquivo precisa ser PDF.', 'error'); return; }
+    const p = { categoria: cat, editalId: this.detail.editalId, acaoId: this.currentId };
+    if (cat === 'Equipe') {
+      const i = val('ct-pessoa');
+      if (i === '' || !this.certPessoas[Number(i)]) { toast('Selecione a pessoa.', 'error'); return; }
+      const pe = this.certPessoas[Number(i)];
+      p.nomeCivil = pe.nomeCivil; p.nomeSocial = pe.nomeSocial; p.cpf = pe.cpf;
+      p.papel = pe.papel; p.pessoaTipo = pe.tipo; p.pessoaId = pe.id;
+    } else {
+      p.nomeCivil = val('ct-nome'); p.cpf = val('ct-cpfpub');
+      if (!p.nomeCivil) { toast('Informe o nome completo.', 'error'); return; }
+      if (!p.cpf) { toast('Informe o CPF.', 'error'); return; }
+    }
+    setBusy(true);
+    try {
+      p.base64 = await fileToBase64(file); p.fileName = file.name;
+      await API.addCertificado(p, this._reqId());
+      toast('Certificado registrado.', 'success');
+      closeModal();
+      this.certificados = await API.getCertificadosDaAcao(this.currentId) || [];
+      this.renderDetail();
+    } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
+  },
+
+  removeCert(id) {
+    if (!window.confirm('Excluir este certificado? O arquivo vai para a lixeira.')) return;
+    (async () => {
+      try { await API.deleteCertificado(id); toast('Certificado excluído.', 'success'); this.certificados = await API.getCertificadosDaAcao(this.currentId) || []; this.renderDetail(); }
       catch (e) { toast(e.message, 'error'); }
     })();
   },

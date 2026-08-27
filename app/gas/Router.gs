@@ -175,6 +175,10 @@ function doPost(e) {
         return respond(getCertificados(userEmail));
       case 'getPessoasDaAcao':
         return respond(getPessoasDaAcao(data.acaoId, userEmail));
+      case 'getCertificadosDaAcao':
+        return respond(getCertificadosDaAcao(data.acaoId, userEmail));
+      case 'getCertificadosDaPessoa':
+        return respond(getCertificadosDaPessoa(data.tipo, data.id, userEmail));
       case 'addCertificado':
         return respond(addCertificado(data.payload, userEmail, data.reqId));
       case 'deleteCertificado':

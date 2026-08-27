@@ -65,6 +65,32 @@ function getCertificados(email) {
   }).filter(c => info.role === 'Admin' || info.segmento === 'Todos' || String(c.segmento) === String(info.segmento));
 }
 
+// Certificados de uma ação (sem CPF — visível a leitores; para a aba na ação).
+function getCertificadosDaAcao(acaoId, email) {
+  requirePerfil(email, ACAO_READERS);
+  return sheetRows('Certificados').filter(c => String(c.AcaoID) === String(acaoId)).map(c => ({
+    ID: c.ID, NomeDocumento: c.NomeDocumento, Categoria: c.Categoria, Papel: c.Papel,
+    NomeCivil: c.NomeCivil, NomeSocial: c.NomeSocial, ArquivoUrl: c.ArquivoUrl
+  }));
+}
+
+// Certificados de uma pessoa (para o botão em Participantes).
+function getCertificadosDaPessoa(tipo, id, email) {
+  requirePerfil(email, ACAO_READERS);
+  const acoes = sheetRows('Acoes');
+  const editais = sheetRows('Editais');
+  return sheetRows('Certificados')
+    .filter(c => String(c.PessoaTipo) === String(tipo) && String(c.PessoaID) === String(id))
+    .map(c => {
+      const acao = acoes.find(a => String(a.ID) === String(c.AcaoID));
+      const ed = editais.find(e => String(e.ID) === String(c.EditalID));
+      return {
+        ID: c.ID, NomeDocumento: c.NomeDocumento, Categoria: c.Categoria, Papel: c.Papel,
+        ArquivoUrl: c.ArquivoUrl, acaoTitulo: acao ? acao.Titulo : '', editalLabel: ed ? _editalLabel(ed) : ''
+      };
+    });
+}
+
 function addCertificado(p, email, reqId) {
   const info = requirePerfil(email, ACAO_WRITERS);
   const acao = sheetRows('Acoes').find(a => String(a.ID) === String(p.acaoId));

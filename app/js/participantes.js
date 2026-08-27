@@ -86,6 +86,7 @@ const Participantes = {
         <summary class="btn btn-ghost btn-xs">Ações ▾</summary>
         <div class="row-menu-list">
           ${fin ? `<button onclick="Participantes.openFinanceiro('${id}')">💳 Financeiro</button>` : ''}
+          ${w ? `<button onclick="Participantes.openCertificados('${id}')">📜 Certificados</button>` : ''}
           ${w ? `<button onclick="Participantes.openForm('${id}')">✏️ Editar</button>` : ''}
           ${w ? `<button class="danger" onclick="Participantes.remove('${id}')">🗑 Excluir</button>` : ''}
         </div>
@@ -315,6 +316,22 @@ const Participantes = {
           await this.reloadTab();
         } catch (e) { toast(e.message, 'error'); }
       }, 'Excluir');
+  },
+
+  // ── Certificados da pessoa ──────────────────────────────────
+  async openCertificados(id) {
+    if (!this.canWrite()) return;
+    const tipo = this._tipo();
+    let list;
+    try { list = await API.getCertificadosDaPessoa(tipo, id) || []; }
+    catch (e) { toast(e.message, 'error'); return; }
+    const rows = list.map(c => `<li class="doc-item">
+      <span class="doc-type doc-type--demais">${esc(c.Categoria || '')}${c.Papel ? ' · ' + esc(c.Papel) : ''}</span>
+      <a class="doc-name" href="${esc(c.ArquivoUrl)}" target="_blank" rel="noopener">${esc(c.NomeDocumento || 'certificado')}</a>
+      <span class="doc-date">${esc(c.acaoTitulo || '')}</span>
+    </li>`).join('');
+    const bodyHtml = list.length ? `<ul class="doc-list">${rows}</ul>` : emptyState('Nenhum certificado para esta pessoa.');
+    openModal('Certificados — ' + this._nomeDe(id), bodyHtml, null, { hideConfirm: true, cancelLabel: 'Fechar' });
   },
 
   // ── Financeiro (CPF / banco / PIX — camadas de acesso + auditoria) ──

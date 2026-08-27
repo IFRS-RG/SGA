@@ -111,6 +111,8 @@ const API = {
   // Certificados
   getCertificados:  ()               => gasCall('getCertificados'),
   getPessoasDaAcao: (acaoId)         => gasCall('getPessoasDaAcao', { acaoId }),
+  getCertificadosDaAcao:   (acaoId)  => gasCall('getCertificadosDaAcao', { acaoId }),
+  getCertificadosDaPessoa: (tipo, id) => gasCall('getCertificadosDaPessoa', { tipo, id }),
   addCertificado:   (payload, reqId) => gasCall('addCertificado', { payload, reqId }),
   deleteCertificado:(id)             => gasCall('deleteCertificado', { id }),
 
