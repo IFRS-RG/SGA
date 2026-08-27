@@ -155,7 +155,7 @@ const COL = {
   // Bens permanentes doados (Anexo IV). DespesaID liga à despesa de origem (quando gerado dela).
   AcaoBensDoados: {
     ID: 0, AcaoID: 1, DespesaID: 2, MaterialPermanente: 3, Qtd: 4, MarcaModelo: 5, Situacao: 6,
-    NumDocFiscal: 7, NumTombamento: 8, Descricao: 9, CriadoEm: 10, CriadoPor: 11
+    NumDocFiscal: 7, NumTombamento: 8, Descricao: 9, AnexoFileId: 10, AnexoUrl: 11, CriadoEm: 12, CriadoPor: 13
   },
   // Alterações de despesa (Anexo II).
   AcaoAlteracoes: {
@@ -202,7 +202,7 @@ const HEADERS = {
   AcaoDespesas: ['ID', 'AcaoID', 'Descricao', 'Tipo', 'Classificacao', 'DataCompra', 'Fornecedor', 'NumDocFiscal',
                  'ValorUnitario', 'Qtd', 'ValorTotal', 'CriadoEm', 'CriadoPor'],
   AcaoBensDoados: ['ID', 'AcaoID', 'DespesaID', 'MaterialPermanente', 'Qtd', 'MarcaModelo', 'Situacao',
-                   'NumDocFiscal', 'NumTombamento', 'Descricao', 'CriadoEm', 'CriadoPor'],
+                   'NumDocFiscal', 'NumTombamento', 'Descricao', 'AnexoFileId', 'AnexoUrl', 'CriadoEm', 'CriadoPor'],
   AcaoAlteracoes: ['ID', 'AcaoID', 'CusteioOriginal', 'CapitalOriginal', 'CusteioNovo', 'CapitalNovo',
                    'Justificativa', 'StatusAutorizacao', 'Observacao', 'Data', 'CriadoEm', 'CriadoPor'],
   Parametros: ['Chave', 'Valor']

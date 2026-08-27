@@ -23,7 +23,8 @@ function getAcaoFinanceiro(acaoId, email) {
   const bens = sheetRows('AcaoBensDoados').filter(b => String(b.AcaoID) === String(acaoId)).map(b => ({
     ID: b.ID, DespesaID: b.DespesaID, MaterialPermanente: b.MaterialPermanente, Qtd: b.Qtd,
     MarcaModelo: b.MarcaModelo, Situacao: b.Situacao, NumDocFiscal: b.NumDocFiscal,
-    NumTombamento: b.NumTombamento, Descricao: b.Descricao
+    NumTombamento: b.NumTombamento, Descricao: b.Descricao,
+    anexoUrl: b.AnexoUrl || '', temAnexo: !!b.AnexoFileId
   }));
   // Despesas "Material permanente" ainda sem bem doado vinculado (para o botão de gerar).
   const usados = {};
@@ -99,11 +100,22 @@ function deleteAlteracao(id, email) {
 }
 
 // ── Bens doados (Anexo IV) ────────────────────────────────────
-function _bemRow(id, p, criadoEm, criadoPor) {
+// Aceita PDF, JPG/JPEG e PNG (magic bytes).
+function _isImageOrPdf(bytes) {
+  if (bytes.length < 4) return false;
+  if (bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46) return true;   // %PDF
+  if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return true;                        // JPEG
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return true;   // PNG
+  return false;
+}
+
+function _bemRow(id, p, criadoEm, criadoPor, keepAnexo) {
+  keepAnexo = keepAnexo || {};
   return [
     id, p.acaoId, p.despesaId || '', String(p.materialPermanente || '').trim(), _num2(p.qtd),
     String(p.marcaModelo || '').trim(), p.situacao || '', String(p.numDocFiscal || '').trim(),
-    String(p.numTombamento || '').trim(), String(p.descricao || '').trim(), criadoEm, criadoPor
+    String(p.numTombamento || '').trim(), String(p.descricao || '').trim(),
+    keepAnexo.fileId || '', keepAnexo.url || '', criadoEm, criadoPor
   ];
 }
 
@@ -117,7 +129,7 @@ function addBem(p, email, reqId) {
   const dup = _idempotentId(reqId);
   if (dup) return { ok: true, id: dup, duplicate: true };
   const id = genId();
-  getSheet('AcaoBensDoados').appendRow(_bemRow(id, p, nowBR(), email));
+  getSheet('AcaoBensDoados').appendRow(_bemRow(id, p, nowBR(), email, {}));
   _idempotentStore(reqId, id);
   return { ok: true, id: id };
 }
@@ -133,7 +145,8 @@ function updateBem(id, p, email) {
   if (p.situacao && SITUACAO_BEM.indexOf(p.situacao) === -1) throw userError('Situação inválida.');
   p.acaoId = old[COL.AcaoBensDoados.AcaoID];
   p.despesaId = old[COL.AcaoBensDoados.DespesaID];   // preserva o vínculo com a despesa
-  const row = _bemRow(id, p, old[COL.AcaoBensDoados.CriadoEm], old[COL.AcaoBensDoados.CriadoPor]);
+  const keepAnexo = { fileId: old[COL.AcaoBensDoados.AnexoFileId], url: old[COL.AcaoBensDoados.AnexoUrl] };
+  const row = _bemRow(id, p, old[COL.AcaoBensDoados.CriadoEm], old[COL.AcaoBensDoados.CriadoPor], keepAnexo);
   sh.getRange(idx, 1, 1, row.length).setValues([row]);
   return { ok: true };
 }
@@ -144,8 +157,32 @@ function deleteBem(id, email) {
   if (!b) throw userError('Bem não encontrado.');
   const acao = sheetRows('Acoes').find(a => String(a.ID) === String(b.AcaoID));
   if (acao) _assertSegmentoAcao(info, acao.Segmento);
+  if (b.AnexoFileId) { try { DriveApp.getFileById(b.AnexoFileId).setTrashed(true); } catch (e) {} }
   getSheet('AcaoBensDoados').deleteRow(findRowIndex('AcaoBensDoados', id));
   return { ok: true };
+}
+
+// Upload do comprovante do bem (NF) — aceita PDF/JPG/PNG. Subpasta Bens/.
+function uploadBemAnexo(bemId, payload, email) {
+  const info = requirePerfil(email, ACAO_WRITERS);
+  const b = sheetRows('AcaoBensDoados').find(x => String(x.ID) === String(bemId));
+  if (!b) throw userError('Bem não encontrado.');
+  const acao = sheetRows('Acoes').find(a => String(a.ID) === String(b.AcaoID));
+  if (!acao) throw userError('Ação não encontrada.');
+  _assertSegmentoAcao(info, acao.Segmento);
+  const bytes = Utilities.base64Decode(payload.base64);
+  if (!_isImageOrPdf(bytes)) throw userError('Arquivo inválido. Envie um PDF, JPG ou PNG.');
+  const fileName = String(payload.fileName || 'anexo').trim() || 'anexo';
+  const mime = payload.mimeType || 'application/octet-stream';
+  const folder = _childFolder(_acaoFolder(acao), 'Bens');
+  const file = folder.createFile(Utilities.newBlob(bytes, mime, fileName));
+  const idx = findRowIndex('AcaoBensDoados', bemId);
+  if (idx !== -1) {
+    const sh = getSheet('AcaoBensDoados');
+    sh.getRange(idx, COL.AcaoBensDoados.AnexoFileId + 1).setValue(file.getId());
+    sh.getRange(idx, COL.AcaoBensDoados.AnexoUrl + 1).setValue(file.getUrl());
+  }
+  return { ok: true, url: file.getUrl() };
 }
 
 // Gera bens a partir das despesas "Material permanente" ainda sem bem vinculado.
@@ -164,7 +201,7 @@ function gerarBensDaDespesa(acaoId, email) {
     sh.appendRow(_bemRow(genId(), {
       acaoId: acaoId, despesaId: d.ID, materialPermanente: d.Descricao, qtd: d.Qtd,
       numDocFiscal: d.NumDocFiscal, descricao: d.Descricao
-    }, nowBR(), email));
+    }, nowBR(), email, {}));
   });
   return { ok: true, gerados: candidatos.length };
 }

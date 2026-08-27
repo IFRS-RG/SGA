@@ -17,6 +17,7 @@ const Acoes = {
   voluntarios: [],
   financeiro: null,
   detailTab: 'dados',
+  finTab: 'plano',
 
   async mount(container, role) {
     this.container = container;
@@ -511,15 +512,21 @@ const Acoes = {
 
   // ── Financeiro estruturado (Plano + Despesas + Documentos) ──
   _financeiroPanel() {
+    const tabs = [['plano', 'Plano de aplicação (Anexo I)'], ['prestacao', 'Prestação de contas (Anexo III)'], ['bens', 'Bens doados (Anexo IV)']];
+    const ft = this.finTab || 'plano';
+    const ftabs = tabs.map(([id, label]) => `<button type="button" class="ftab ${ft === id ? 'active' : ''}" onclick="Acoes.switchFinTab('${id}')">${label}</button>`).join('');
+    const panel = ft === 'prestacao' ? this._finPrestacaoPanel() : ft === 'bens' ? this._finBensPanel() : this._finPlanoPanel();
+    return `<div class="ftabs">${ftabs}</div>${panel}`;
+  },
+
+  switchFinTab(t) { this.finTab = t; this.renderDetail(); },
+
+  // Sub-aba: Plano de aplicação (Anexo I) + Alterações de despesa (Anexo II)
+  _finPlanoPanel() {
     const w = this.canWrite();
     const f = this.financeiro || {};
-    const desp = f.despesas || [];
     const dis = w ? '' : 'disabled';
-    const limite = Number(f.limiteOrcamentos) || LIMITE_TRES_ORCAMENTOS;
     const totalPrev = parseMoney(f.custeioPrevisto) + parseMoney(f.capitalPrevisto);
-    const utilizado = Number(f.valorUtilizado) || 0;
-    const saldo = parseMoney(f.valorRecebido) - utilizado;
-
     const plano = `<div class="upload-box">
       <div class="seg-head">Plano de aplicação (Anexo I)</div>
       <div class="form-grid">
@@ -530,6 +537,41 @@ const Acoes = {
         <div class="fg"><label>Capital previsto (R$)</label><input class="input" id="fin-capital" value="${esc(f.capitalPrevisto)}" ${dis}></div>
         <div class="fg"><label>Total previsto</label><input class="input" disabled value="${fmtMoney(totalPrev)}"></div>
       </div>
+      ${w ? `<button class="btn btn-primary" id="fin-plano-btn" onclick="Acoes.savePlano()">Salvar plano</button>` : ''}
+    </div>`;
+
+    const alts = f.alteracoes || [];
+    const amenu = (id) => w ? `<td class="col-actions"><details class="row-menu"><summary class="btn btn-ghost btn-xs">Ações ▾</summary><div class="row-menu-list">
+      <button onclick="Acoes.openAlteracao('${id}')">✏️ Editar</button>
+      <button class="danger" onclick="Acoes.removeAlteracao('${id}')">🗑 Excluir</button>
+    </div></details></td>` : '';
+    const arows = alts.map(a => `<tr>
+      <td>${esc(this._br(a.Data) || '—')}</td>
+      <td>${fmtMoney(a.CusteioOriginal)} → <strong>${fmtMoney(a.CusteioNovo)}</strong></td>
+      <td>${fmtMoney(a.CapitalOriginal)} → <strong>${fmtMoney(a.CapitalNovo)}</strong></td>
+      <td class="cell-sub">${esc(a.Justificativa || '—')}</td>
+      <td><span class="badge ${a.StatusAutorizacao === 'Autorizada' ? 'badge-ok' : 'badge-muted'}">${esc(a.StatusAutorizacao || '—')}</span></td>
+      ${amenu(a.ID)}
+    </tr>`).join('');
+    const aTable = alts.length ? `<div class="table-wrap menus"><table class="data-table">
+      <thead><tr><th>Data</th><th>Custeio (orig → novo)</th><th>Capital (orig → novo)</th><th>Justificativa</th><th>Autorização</th>${w ? '<th class="col-actions"></th>' : ''}</tr></thead>
+      <tbody>${arows}</tbody></table></div>` : emptyState('Nenhuma alteração de despesa registrada.');
+    const altSection = `<div class="seg-head" style="margin-top:18px">Alterações de despesa (Anexo II)</div>
+      <div class="page-actions">${w ? `<button class="btn btn-primary" onclick="Acoes.openAlteracao()">+ Registrar alteração</button>` : ''}</div>
+      ${aTable}`;
+    return plano + altSection;
+  },
+
+  // Sub-aba: Prestação de contas — totais (Anexo III) + Despesas + Documentos
+  _finPrestacaoPanel() {
+    const w = this.canWrite();
+    const f = this.financeiro || {};
+    const desp = f.despesas || [];
+    const dis = w ? '' : 'disabled';
+    const limite = Number(f.limiteOrcamentos) || LIMITE_TRES_ORCAMENTOS;
+    const utilizado = Number(f.valorUtilizado) || 0;
+    const saldo = parseMoney(f.valorRecebido) - utilizado;
+    const totais = `<div class="upload-box">
       <div class="seg-head">Prestação de contas — totais (Anexo III)</div>
       <div class="form-grid">
         <div class="fg"><label>Valor recebido (R$)</label><input class="input" id="fin-recebido" value="${esc(f.valorRecebido)}" ${dis}></div>
@@ -539,8 +581,14 @@ const Acoes = {
         <div class="fg"><label>Valor devolvido (R$)</label><input class="input" id="fin-devolvido" value="${esc(f.valorDevolvido)}" ${dis}></div>
         <div class="fg"><label>Saldo (recebido − utilizado)</label><input class="input" disabled value="${fmtMoney(saldo)}"></div>
       </div>
-      ${w ? `<button class="btn btn-primary" id="fin-plano-btn" onclick="Acoes.savePlano()">Salvar plano/totais</button>` : ''}
+      ${w ? `<button class="btn btn-primary" id="fin-prest-btn" onclick="Acoes.savePrestacao()">Salvar totais</button>` : ''}
     </div>`;
+
+    const receb = parseMoney(f.valorRecebido);
+    const devol = parseMoney(f.valorDevolvido);
+    const avisoDev = (receb > 0 && devol / receb > 0.7)
+      ? this._avisoBox('Devolução acima de 70% do recurso recebido (' + Math.round(devol / receb * 100) + '%): impede solicitar recursos no ano seguinte (Art. 14, §7º da IN).')
+      : '';
 
     const menu = (id) => w ? `<td class="col-actions"><details class="row-menu"><summary class="btn btn-ghost btn-xs">Ações ▾</summary><div class="row-menu-list">
       <button onclick="Acoes.openDespesa('${id}')">✏️ Editar</button>
@@ -566,16 +614,23 @@ const Acoes = {
     const despTable = desp.length ? `<div class="table-wrap menus"><table class="data-table">
       <thead><tr><th>Descrição</th><th>Tipo</th><th>Classif.</th><th>Data</th><th>Fornecedor</th><th>Doc fiscal</th><th>Unit.</th><th>Qtd</th><th>Total</th>${w ? '<th class="col-actions"></th>' : ''}</tr></thead>
       <tbody>${rows}</tbody></table></div>` : emptyState('Nenhuma despesa lançada ainda.');
-
     const avisoOrc = temOrcamento ? this._avisoBox('Há itens com valor unitário acima de ' + fmtMoney(limite) + ' (marcados com ⚠) que podem exigir 3 orçamentos (Art. 7º da IN).') : '';
     const despSection = `<div class="seg-head" style="margin-top:18px">Despesas (Anexo III)</div>
       <div class="page-actions">${w ? `<button class="btn btn-primary" onclick="Acoes.openDespesa()">+ Adicionar despesa</button>` : ''}</div>
       ${avisoOrc}${despTable}`;
 
-    // Bens doados (Anexo IV)
+    const docsSection = `<div class="seg-head" style="margin-top:18px">Documentos financeiros</div>${this._docsPanel('financeiro')}`;
+    return totais + avisoDev + despSection + docsSection;
+  },
+
+  // Sub-aba: Bens doados (Anexo IV) — anexo (PDF/imagem) por linha
+  _finBensPanel() {
+    const w = this.canWrite();
+    const f = this.financeiro || {};
     const bens = f.bens || [];
     const bmenu = (id) => w ? `<td class="col-actions"><details class="row-menu"><summary class="btn btn-ghost btn-xs">Ações ▾</summary><div class="row-menu-list">
       <button onclick="Acoes.openBem('${id}')">✏️ Editar</button>
+      <button onclick="Acoes.pickBemAnexo('${id}')">📎 Anexo (PDF/imagem)</button>
       <button class="danger" onclick="Acoes.removeBem('${id}')">🗑 Excluir</button>
     </div></details></td>` : '';
     const brows = bens.map(b => `<tr>
@@ -585,47 +640,38 @@ const Acoes = {
       <td>${esc(b.Situacao || '—')}</td>
       <td>${esc(b.NumDocFiscal || '—')}</td>
       <td>${esc(b.NumTombamento || '—')}</td>
+      <td>${b.temAnexo ? `<a href="${esc(b.anexoUrl)}" target="_blank" rel="noopener">ver</a>` : '—'}</td>
       ${bmenu(b.ID)}
     </tr>`).join('');
     const bTable = bens.length ? `<div class="table-wrap menus"><table class="data-table">
-      <thead><tr><th>Material permanente</th><th>Qtd</th><th>Marca/modelo</th><th>Situação</th><th>Doc fiscal</th><th>Tombamento</th>${w ? '<th class="col-actions"></th>' : ''}</tr></thead>
+      <thead><tr><th>Material permanente</th><th>Qtd</th><th>Marca/modelo</th><th>Situação</th><th>Doc fiscal</th><th>Tombamento</th><th>Anexo</th>${w ? '<th class="col-actions"></th>' : ''}</tr></thead>
       <tbody>${brows}</tbody></table></div>` : emptyState('Nenhum bem doado cadastrado.');
     const gerarBtn = (w && f.bensPendentes > 0) ? `<button class="btn btn-ghost" onclick="Acoes.gerarBens()">↧ Gerar ${f.bensPendentes} das despesas de capital</button>` : '';
-    const bensSection = `<div class="seg-head" style="margin-top:18px">Bens doados (Anexo IV)</div>
+    return `<div class="seg-head">Bens doados (Anexo IV)</div>
       <div class="page-actions" style="flex-wrap:wrap;gap:8px">${w ? `<button class="btn btn-primary" onclick="Acoes.openBem()">+ Adicionar bem</button>` : ''}${gerarBtn}</div>
       ${bTable}`;
+  },
 
-    // Alterações de despesa (Anexo II)
-    const alts = f.alteracoes || [];
-    const amenu = (id) => w ? `<td class="col-actions"><details class="row-menu"><summary class="btn btn-ghost btn-xs">Ações ▾</summary><div class="row-menu-list">
-      <button onclick="Acoes.openAlteracao('${id}')">✏️ Editar</button>
-      <button class="danger" onclick="Acoes.removeAlteracao('${id}')">🗑 Excluir</button>
-    </div></details></td>` : '';
-    const arows = alts.map(a => `<tr>
-      <td>${esc(this._br(a.Data) || '—')}</td>
-      <td>${fmtMoney(a.CusteioOriginal)} → <strong>${fmtMoney(a.CusteioNovo)}</strong></td>
-      <td>${fmtMoney(a.CapitalOriginal)} → <strong>${fmtMoney(a.CapitalNovo)}</strong></td>
-      <td class="cell-sub">${esc(a.Justificativa || '—')}</td>
-      <td><span class="badge ${a.StatusAutorizacao === 'Autorizada' ? 'badge-ok' : 'badge-muted'}">${esc(a.StatusAutorizacao || '—')}</span></td>
-      ${amenu(a.ID)}
-    </tr>`).join('');
-    const aTable = alts.length ? `<div class="table-wrap menus"><table class="data-table">
-      <thead><tr><th>Data</th><th>Custeio (orig → novo)</th><th>Capital (orig → novo)</th><th>Justificativa</th><th>Autorização</th>${w ? '<th class="col-actions"></th>' : ''}</tr></thead>
-      <tbody>${arows}</tbody></table></div>` : emptyState('Nenhuma alteração de despesa registrada.');
-    const altSection = `<div class="seg-head" style="margin-top:18px">Alterações de despesa (Anexo II)</div>
-      <div class="page-actions">${w ? `<button class="btn btn-primary" onclick="Acoes.openAlteracao()">+ Registrar alteração</button>` : ''}</div>
-      ${aTable}`;
+  pickBemAnexo(id) {
+    let inp = document.getElementById('_bem-anexo-file');
+    if (!inp) { inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png'; inp.id = '_bem-anexo-file'; inp.style.display = 'none'; document.body.appendChild(inp); }
+    inp.value = '';
+    inp.onchange = () => this._doBemAnexo(inp, id);
+    inp.click();
+  },
 
-    const docsSection = `<div class="seg-head" style="margin-top:18px">Documentos financeiros</div>${this._docsPanel('financeiro')}`;
-
-    // Aviso: devolução acima de 70% (Art. 14, §7º).
-    const receb = parseMoney(f.valorRecebido);
-    const devol = parseMoney(f.valorDevolvido);
-    const avisoDev = (receb > 0 && devol / receb > 0.7)
-      ? this._avisoBox('Devolução acima de 70% do recurso recebido (' + Math.round(devol / receb * 100) + '%): impede solicitar recursos no ano seguinte (Art. 14, §7º da IN).')
-      : '';
-
-    return plano + avisoDev + despSection + bensSection + altSection + docsSection;
+  async _doBemAnexo(inp, id) {
+    const file = inp.files && inp.files[0];
+    if (!file) return;
+    if (!/\.(pdf|jpe?g|png)$/i.test(file.name)) { toast('Envie um PDF, JPG ou PNG.', 'error'); return; }
+    toast('Enviando anexo…', 'info');
+    try {
+      const base64 = await fileToBase64(file);
+      await API.uploadBemAnexo(id, { fileName: file.name, mimeType: file.type || '', base64: base64 });
+      toast('Anexo enviado.', 'success');
+      this.financeiro = await API.getAcaoFinanceiro(this.currentId);
+      this.renderDetail();
+    } catch (e) { toast(e.message, 'error'); }
   },
 
   _avisoBox(texto) {
@@ -747,22 +793,37 @@ const Acoes = {
     } catch (e) { toast(e.message, 'error'); }
   },
 
-  async savePlano() {
+  // Salva o cabeçalho financeiro mesclando os campos da sub-aba ativa com o resto (em cache),
+  // já que Plano e Totais vivem em sub-abas diferentes (só uma está no DOM por vez).
+  async _saveFin(campos, btnId, restaura) {
+    const f = this.financeiro || {};
     const p = {
-      unidadeExecucao: val('fin-unidade'),
-      custeioPrevisto: parseMoney(val('fin-custeio')),
-      capitalPrevisto: parseMoney(val('fin-capital')),
-      valorRecebido: parseMoney(val('fin-recebido')),
-      valorDevolvido: parseMoney(val('fin-devolvido'))
+      unidadeExecucao: campos.unidadeExecucao !== undefined ? campos.unidadeExecucao : (f.unidadeExecucao || ''),
+      custeioPrevisto: campos.custeioPrevisto !== undefined ? campos.custeioPrevisto : parseMoney(f.custeioPrevisto),
+      capitalPrevisto: campos.capitalPrevisto !== undefined ? campos.capitalPrevisto : parseMoney(f.capitalPrevisto),
+      valorRecebido: campos.valorRecebido !== undefined ? campos.valorRecebido : parseMoney(f.valorRecebido),
+      valorDevolvido: campos.valorDevolvido !== undefined ? campos.valorDevolvido : parseMoney(f.valorDevolvido)
     };
-    const btn = document.getElementById('fin-plano-btn');
+    const btn = document.getElementById(btnId);
     if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
     try {
       await API.saveAcaoFinanceiro(this.currentId, p);
-      toast('Plano/totais salvos.', 'success');
+      toast('Salvo.', 'success');
       this.financeiro = await API.getAcaoFinanceiro(this.currentId);
       this.renderDetail();
-    } catch (e) { toast(e.message, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Salvar plano/totais'; } }
+    } catch (e) { toast(e.message, 'error'); if (btn) { btn.disabled = false; btn.textContent = restaura; } }
+  },
+
+  savePlano() {
+    return this._saveFin({
+      unidadeExecucao: val('fin-unidade'), custeioPrevisto: parseMoney(val('fin-custeio')), capitalPrevisto: parseMoney(val('fin-capital'))
+    }, 'fin-plano-btn', 'Salvar plano');
+  },
+
+  savePrestacao() {
+    return this._saveFin({
+      valorRecebido: parseMoney(val('fin-recebido')), valorDevolvido: parseMoney(val('fin-devolvido'))
+    }, 'fin-prest-btn', 'Salvar totais');
   },
 
   openDespesa(id) {
