@@ -163,7 +163,12 @@ const COL = {
     Justificativa: 6, StatusAutorizacao: 7, Observacao: 8, Data: 9, CriadoEm: 10, CriadoPor: 11
   },
   // Parâmetros ajustáveis pela gestão (chave/valor).
-  Parametros: { Chave: 0, Valor: 1 }
+  Parametros: { Chave: 0, Valor: 1 },
+  // Certificados (upload de PDF; arquivo em {Segmento}/Certificados + atalho na ação).
+  Certificados: {
+    ID: 0, NomeDocumento: 1, Categoria: 2, EditalID: 3, AcaoID: 4, Papel: 5, PessoaTipo: 6, PessoaID: 7,
+    NomeCivil: 8, NomeSocial: 9, CPF: 10, ArquivoFileId: 11, ArquivoUrl: 12, CriadoEm: 13, CriadoPor: 14
+  }
 };
 
 // Valor padrão do limite dos 3 orçamentos (Art. 7º) — 5% do teto do Art. 75, II da Lei 14.133.
@@ -205,7 +210,9 @@ const HEADERS = {
                    'NumDocFiscal', 'NumTombamento', 'Descricao', 'AnexoFileId', 'AnexoUrl', 'CriadoEm', 'CriadoPor'],
   AcaoAlteracoes: ['ID', 'AcaoID', 'CusteioOriginal', 'CapitalOriginal', 'CusteioNovo', 'CapitalNovo',
                    'Justificativa', 'StatusAutorizacao', 'Observacao', 'Data', 'CriadoEm', 'CriadoPor'],
-  Parametros: ['Chave', 'Valor']
+  Parametros: ['Chave', 'Valor'],
+  Certificados: ['ID', 'NomeDocumento', 'Categoria', 'EditalID', 'AcaoID', 'Papel', 'PessoaTipo', 'PessoaID',
+                 'NomeCivil', 'NomeSocial', 'CPF', 'ArquivoFileId', 'ArquivoUrl', 'CriadoEm', 'CriadoPor']
 };
 
 // ── Helpers genéricos ────────────────────────────────────────

@@ -11,7 +11,7 @@ const App = {
     { id: 'editais',      label: 'Editais',      icon: '📄', roles: ['Admin', 'Gestor', 'Visualizador'], module: 'Editais' },
     { id: 'participantes',label: 'Participantes', icon: '👥', roles: ['Admin', 'Gestor', 'Visualizador', 'Financeiro'], module: 'Participantes' },
     { id: 'acoes',        label: 'Ações',        icon: '🎯', roles: ['Admin', 'Gestor', 'Visualizador', 'Financeiro'], module: 'Acoes' },
-    { id: 'certificados', label: 'Certificados', icon: '📜', roles: ['Admin', 'Gestor', 'Visualizador'], soon: true },
+    { id: 'certificados', label: 'Certificados', icon: '📜', roles: ['Admin', 'Gestor'], module: 'Certificados' },
     { id: 'processos',    label: 'Processos',    icon: '🗂️', roles: ['Admin', 'Gestor', 'Visualizador'], soon: true },
     { id: 'admin',        label: 'Admin',        icon: '⚙️', roles: ['Admin'], module: 'Admin' }
   ],

@@ -22,7 +22,8 @@ const WRITE_ACTIONS = ['addEdital', 'updateEdital', 'deleteEdital', 'cloneEdital
   'saveAcaoFinanceiro', 'addDespesa', 'updateDespesa', 'deleteDespesa',
   'addBem', 'updateBem', 'deleteBem', 'gerarBensDaDespesa', 'uploadBemAnexo',
   'addAlteracao', 'updateAlteracao', 'deleteAlteracao',
-  'setParametros'];
+  'setParametros',
+  'addCertificado', 'deleteCertificado'];
 
 function doPost(e) {
   let lock = null;
@@ -168,6 +169,16 @@ function doPost(e) {
         return respond(updateAlteracao(data.id, data.payload, userEmail));
       case 'deleteAlteracao':
         return respond(deleteAlteracao(data.id, userEmail));
+
+      // ── Certificados ──
+      case 'getCertificados':
+        return respond(getCertificados(userEmail));
+      case 'getPessoasDaAcao':
+        return respond(getPessoasDaAcao(data.acaoId, userEmail));
+      case 'addCertificado':
+        return respond(addCertificado(data.payload, userEmail, data.reqId));
+      case 'deleteCertificado':
+        return respond(deleteCertificado(data.id, userEmail));
 
       // ── Parâmetros (só Admin) ──
       case 'getParametros':

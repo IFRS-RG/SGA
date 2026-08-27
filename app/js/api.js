@@ -108,6 +108,12 @@ const API = {
   revealFinanceiro: (tipo, refId)          => gasCall('revealFinanceiro', { tipo, refId }),
   saveFinanceiro:   (tipo, refId, payload) => gasCall('saveFinanceiro', { tipo, refId, payload }),
 
+  // Certificados
+  getCertificados:  ()               => gasCall('getCertificados'),
+  getPessoasDaAcao: (acaoId)         => gasCall('getPessoasDaAcao', { acaoId }),
+  addCertificado:   (payload, reqId) => gasCall('addCertificado', { payload, reqId }),
+  deleteCertificado:(id)             => gasCall('deleteCertificado', { id }),
+
   // Parâmetros (gestão)
   getParametros: ()        => gasCall('getParametros'),
   setParametros: (payload) => gasCall('setParametros', { payload }),
