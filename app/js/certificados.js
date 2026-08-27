@@ -9,6 +9,8 @@ const Certificados = {
   certs: [], editais: [], acoes: [],
   tab: 'equipe',          // 'equipe' | 'publico'
   filter: '',
+  _buscaRaw: '',          // texto digitado (sem lowercase) p/ o input não perder o que foi digitado
+  _cpfSel: '',            // CPF completo da pessoa selecionada no formulário
   pessoas: [],            // equipe da ação selecionada (no formulário)
 
   async mount(container, role) {
@@ -28,11 +30,36 @@ const Certificados = {
   canWrite() { return this.role === 'Admin' || this.role === 'Gestor'; },
   _reqId() { return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); },
   editalLabel(e) { return `${e.Numero || ''}/${e.Ano || ''} — ${e.Titulo || ''}`.trim(); },
-  onSearch(v) { this.filter = String(v || '').toLowerCase(); this.render(); },
-  switchTab(t) { if (this.tab === t) return; this.tab = t; this.filter = ''; this.render(); },
+  // Só atualiza a LISTA (não recria o input de busca → não perde o foco a cada tecla).
+  onSearch(v) { this._buscaRaw = String(v || ''); this.filter = this._buscaRaw.toLowerCase(); this._renderList(); },
+  switchTab(t) { if (this.tab === t) return; this.tab = t; this.filter = ''; this._buscaRaw = ''; this.render(); },
   _acoesDoEdital(editalId) { return this.acoes.filter(a => String(a.EditalID) === String(editalId)); },
 
+  _maskCpf(cpf) { const d = String(cpf || '').replace(/\D/g, ''); return d ? ('•••.•••.•••-' + (d.length >= 2 ? d.slice(-2) : d)) : ''; },
+  verCpf(btn) {
+    const span = btn.parentNode.querySelector('.cpf-cell');
+    if (!span) return;
+    const full = span.getAttribute('data-cpf');
+    if (span.dataset.on === '1') { span.textContent = this._maskCpf(full); span.dataset.on = '0'; btn.textContent = '👁'; }
+    else { span.textContent = maskCPF(full); span.dataset.on = '1'; btn.textContent = '🙈'; }
+  },
+
   render() {
+    const isEq = this.tab === 'equipe';
+    const w = this.canWrite();
+    this.container.innerHTML = `
+      <div class="ftabs">
+        <button type="button" class="ftab ${isEq ? 'active' : ''}" onclick="Certificados.switchTab('equipe')">👥 Equipe da ação</button>
+        <button type="button" class="ftab ${!isEq ? 'active' : ''}" onclick="Certificados.switchTab('publico')">🎯 Público-alvo</button>
+      </div>
+      <div class="page-actions">${w ? `<button class="btn btn-primary" onclick="Certificados.openForm()">+ Registrar certificado</button>` : ''}</div>
+      <div class="page-toolbar"><input class="input search" id="cert-busca" placeholder="Buscar por nome, CPF ou ação…" value="${esc(this._buscaRaw || '')}" oninput="Certificados.onSearch(this.value)"></div>
+      <div class="toolbar-count" id="cert-count"></div>
+      <div id="cert-list"></div>`;
+    this._renderList();
+  },
+
+  _renderList() {
     const isEq = this.tab === 'equipe';
     const w = this.canWrite();
     const list = this.certs.filter(c => c.Categoria === (isEq ? 'Equipe' : 'Público'));
@@ -46,7 +73,7 @@ const Certificados = {
     const body = rows.map(c => `<tr>
       <td class="cell-sub">${esc(c.NomeDocumento || '')}</td>
       <td><strong>${esc(c.NomeSocial || c.NomeCivil || '—')}</strong>${c.NomeSocial && c.NomeSocial !== c.NomeCivil ? `<div class="cell-sub">civil: ${esc(c.NomeCivil)}</div>` : ''}</td>
-      <td>${c.CPF ? esc(maskCPF(String(c.CPF))) : '—'}</td>
+      <td>${c.CPF ? `<span class="cpf-cell" data-cpf="${esc(String(c.CPF))}">${esc(this._maskCpf(c.CPF))}</span> <button type="button" class="btn btn-ghost btn-xs" onclick="Certificados.verCpf(this)">👁</button>` : '—'}</td>
       ${isEq ? `<td>${esc(c.Papel || '—')}</td>` : ''}
       <td class="cell-sub">${esc(c.editalLabel || '—')}</td>
       <td>${esc(c.acaoTitulo || '—')}</td>
@@ -55,16 +82,8 @@ const Certificados = {
     </tr>`).join('');
     const head = `<tr><th>Documento</th><th>Nome</th><th>CPF</th>${isEq ? '<th>Papel</th>' : ''}<th>Edital</th><th>Ação</th><th>Arquivo</th>${w ? '<th class="col-actions"></th>' : ''}</tr>`;
     const table = rows.length ? `<div class="table-wrap"><table class="data-table"><thead>${head}</thead><tbody>${body}</tbody></table></div>` : emptyState('Nenhum certificado registrado nesta aba.');
-
-    this.container.innerHTML = `
-      <div class="ftabs">
-        <button type="button" class="ftab ${isEq ? 'active' : ''}" onclick="Certificados.switchTab('equipe')">👥 Equipe da ação</button>
-        <button type="button" class="ftab ${!isEq ? 'active' : ''}" onclick="Certificados.switchTab('publico')">🎯 Público-alvo</button>
-      </div>
-      <div class="page-actions">${w ? `<button class="btn btn-primary" onclick="Certificados.openForm()">+ Registrar certificado</button>` : ''}</div>
-      <div class="page-toolbar"><input class="input search" placeholder="Buscar por nome, CPF ou ação…" value="${esc(this.filter)}" oninput="Certificados.onSearch(this.value)"></div>
-      <div class="toolbar-count">${rows.length} de ${list.length} certificado(s)</div>
-      ${table}`;
+    const cnt = document.getElementById('cert-count'); if (cnt) cnt.textContent = `${rows.length} de ${list.length} certificado(s)`;
+    const box = document.getElementById('cert-list'); if (box) box.innerHTML = table;
   },
 
   openForm() {
@@ -79,7 +98,11 @@ const Certificados = {
       ${isEq ? `
       <div class="fg"><label>Nome (equipe da ação) *</label><select class="input" id="ce-pessoa" onchange="Certificados.onPessoa()"><option value="">— Selecione a ação —</option></select></div>
       <div class="form-grid">
-        <div class="fg"><label>CPF</label><input class="input" id="ce-cpf" disabled></div>
+        <div class="fg"><label>CPF</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input class="input" id="ce-cpf" disabled style="flex:1">
+            <button type="button" class="btn btn-ghost btn-xs" id="ce-cpf-ver" data-on="0" onclick="Certificados.revealCpfForm()">👁 Ver</button>
+          </div></div>
         <div class="fg"><label>Papel</label><input class="input" id="ce-papel" disabled></div>
       </div>` : `
       <div class="fg"><label>Nome completo *</label><input class="input" id="ce-nome"></div>
@@ -114,9 +137,19 @@ const Certificados = {
   onPessoa() {
     const i = val('ce-pessoa');
     const p = (i !== '' && this.pessoas[Number(i)]) ? this.pessoas[Number(i)] : null;
+    this._cpfSel = p ? String(p.cpf || '') : '';
     const cpf = document.getElementById('ce-cpf'); const pap = document.getElementById('ce-papel');
-    if (cpf) cpf.value = p ? maskCPF(String(p.cpf || '')) : '';
+    const btn = document.getElementById('ce-cpf-ver');
+    if (cpf) cpf.value = p ? this._maskCpf(this._cpfSel) : '';
     if (pap) pap.value = p ? p.papel : '';
+    if (btn) { btn.dataset.on = '0'; btn.textContent = '👁 Ver'; }
+  },
+
+  revealCpfForm() {
+    const cpf = document.getElementById('ce-cpf'); const btn = document.getElementById('ce-cpf-ver');
+    if (!cpf || !btn) return;
+    if (btn.dataset.on === '1') { cpf.value = this._maskCpf(this._cpfSel); btn.dataset.on = '0'; btn.textContent = '👁 Ver'; }
+    else { cpf.value = maskCPF(this._cpfSel); btn.dataset.on = '1'; btn.textContent = '🙈 Ocultar'; }
   },
 
   async save() {

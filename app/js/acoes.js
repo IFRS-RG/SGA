@@ -925,7 +925,11 @@ const Acoes = {
       <div id="ct-eq">
         <div class="fg"><label>Nome (equipe) *</label><select class="input" id="ct-pessoa" onchange="Acoes.onCertPessoa()">${pessoaOpts}</select></div>
         <div class="form-grid">
-          <div class="fg"><label>CPF</label><input class="input" id="ct-cpf" disabled></div>
+          <div class="fg"><label>CPF</label>
+            <div style="display:flex;gap:6px;align-items:center">
+              <input class="input" id="ct-cpf" disabled style="flex:1">
+              <button type="button" class="btn btn-ghost btn-xs" id="ct-cpf-ver" data-on="0" onclick="Acoes.revealCtCpf()">👁 Ver</button>
+            </div></div>
           <div class="fg"><label>Papel</label><input class="input" id="ct-papel" disabled></div>
         </div>
       </div>
@@ -943,12 +947,22 @@ const Acoes = {
     if (eq) eq.style.display = cat === 'Equipe' ? 'block' : 'none';
     if (pu) pu.style.display = cat === 'Público' ? 'block' : 'none';
   },
+  _maskCpf(cpf) { const d = String(cpf || '').replace(/\D/g, ''); return d ? ('•••.•••.•••-' + (d.length >= 2 ? d.slice(-2) : d)) : ''; },
   onCertPessoa() {
     const i = val('ct-pessoa');
     const p = (i !== '' && this.certPessoas[Number(i)]) ? this.certPessoas[Number(i)] : null;
+    this._ctCpfSel = p ? String(p.cpf || '') : '';
     const cpf = document.getElementById('ct-cpf'); const pap = document.getElementById('ct-papel');
-    if (cpf) cpf.value = p ? maskCPF(String(p.cpf || '')) : '';
+    const btn = document.getElementById('ct-cpf-ver');
+    if (cpf) cpf.value = p ? this._maskCpf(this._ctCpfSel) : '';
     if (pap) pap.value = p ? p.papel : '';
+    if (btn) { btn.dataset.on = '0'; btn.textContent = '👁 Ver'; }
+  },
+  revealCtCpf() {
+    const cpf = document.getElementById('ct-cpf'); const btn = document.getElementById('ct-cpf-ver');
+    if (!cpf || !btn) return;
+    if (btn.dataset.on === '1') { cpf.value = this._maskCpf(this._ctCpfSel); btn.dataset.on = '0'; btn.textContent = '👁 Ver'; }
+    else { cpf.value = maskCPF(this._ctCpfSel); btn.dataset.on = '1'; btn.textContent = '🙈 Ocultar'; }
   },
 
   async saveCert() {
