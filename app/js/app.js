@@ -12,6 +12,7 @@ const App = {
     { id: 'participantes',label: 'Participantes', icon: '👥', roles: ['Admin', 'Gestor', 'Visualizador', 'Financeiro'], module: 'Participantes' },
     { id: 'acoes',        label: 'Ações',        icon: '🎯', roles: ['Admin', 'Gestor', 'Visualizador', 'Financeiro'], module: 'Acoes' },
     { id: 'certificados', label: 'Certificados', icon: '📜', roles: ['Admin', 'Gestor'], module: 'Certificados' },
+    { id: 'assiduidade',  label: 'Assiduidade',  icon: '🗓️', roles: ['Admin', 'Gestor', 'Visualizador'], soon: true },
     { id: 'processos',    label: 'Processos',    icon: '🗂️', roles: ['Admin', 'Gestor', 'Visualizador'], soon: true },
     { id: 'admin',        label: 'Admin',        icon: '⚙️', roles: ['Admin'], module: 'Admin' }
   ],
