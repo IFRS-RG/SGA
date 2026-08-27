@@ -9,6 +9,7 @@ const Admin = {
   cursos: [],
   auditoria: null,
   _audLoaded: false,
+  parametros: null,
   tab: 'perfis',
 
   async mount(container, role) {
@@ -21,6 +22,7 @@ const Admin = {
     try {
       this.data = await API.getPerfis();
       try { this.cursos = await API.getCursos() || []; } catch (e) { this.cursos = []; }
+      try { this.parametros = await API.getParametros() || {}; } catch (e) { this.parametros = {}; }
       this.render();
     } catch (e) {
       this.container.innerHTML = emptyState('Erro ao carregar perfis: ' + (e && e.message ? e.message : e));
@@ -30,11 +32,13 @@ const Admin = {
   render() {
     const panel = this.tab === 'cursos' ? this.cursosSection()
                 : this.tab === 'auditoria' ? this.auditoriaSection()
+                : this.tab === 'parametros' ? this.parametrosSection()
                 : this.perfisSection();
     this.container.innerHTML = `
       <div class="ftabs">
         <button type="button" class="ftab ${this.tab === 'perfis' ? 'active' : ''}" onclick="Admin.switchTab('perfis')">🔑 Perfis de acesso</button>
         <button type="button" class="ftab ${this.tab === 'cursos' ? 'active' : ''}" onclick="Admin.switchTab('cursos')">🎓 Cursos</button>
+        <button type="button" class="ftab ${this.tab === 'parametros' ? 'active' : ''}" onclick="Admin.switchTab('parametros')">⚙️ Parâmetros</button>
         <button type="button" class="ftab ${this.tab === 'auditoria' ? 'active' : ''}" onclick="Admin.switchTab('auditoria')">📋 Auditoria</button>
       </div>
       <div id="admin-panel">${panel}</div>`;
@@ -189,6 +193,35 @@ const Admin = {
       try { await API.deleteCurso(id); toast('Curso removido.', 'success'); await this.reload(); }
       catch (e) { toast(e.message, 'error'); }
     }, 'Remover');
+  },
+
+  parametrosSection() {
+    const p = this.parametros || {};
+    const lim = p.limiteOrcamentos != null ? p.limiteOrcamentos : '';
+    return `
+      <section class="admin-section">
+        <div class="section-head"><div>
+          <h2>Parâmetros</h2>
+          <p class="section-sub">Valores ajustáveis pela gestão.</p>
+        </div></div>
+        <div class="upload-box" style="max-width:480px">
+          <div class="fg"><label>Limite para exigir 3 orçamentos (R$)</label>
+            <input class="input" id="par-limite" value="${esc(lim)}">
+            <span class="field-hint">Art. 7º da IN — 5% do teto do Art. 75, II da Lei 14.133 (atualmente R$ 3.274,60). Despesas com valor unitário acima disso são sinalizadas com ⚠ nas ações.</span></div>
+          <button class="btn btn-primary" id="par-btn" onclick="Admin.saveParametros()">Salvar</button>
+        </div>
+      </section>`;
+  },
+
+  async saveParametros() {
+    const btn = document.getElementById('par-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
+    try {
+      await API.setParametros({ limiteOrcamentos: parseMoney(val('par-limite')) });
+      toast('Parâmetros salvos.', 'success');
+      this.parametros = await API.getParametros() || {};
+      this.render();
+    } catch (e) { toast(e.message, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; } }
   },
 
   perfilLabel(p) { return p === 'Gestor' ? 'Gestor de Segmento' : p; },

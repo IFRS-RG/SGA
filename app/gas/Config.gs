@@ -75,7 +75,9 @@ const TIPO_ACAO = ['Projeto', 'Programa', 'Evento', 'Prestação institucional d
 const STATUS_ACAO = ['Ativa', 'Encerrada', 'Suspensa'];
 // Documentos da ação (aba Documentos) e da aba Financeiro (aberto, sem LGPD).
 const TIPOS_DOC_ACAO = ['Ação (SIGAA)', 'Relatório final da ação', 'Demais'];
-const TIPOS_FIN_ACAO = ['Plano de aplicação de recursos', 'Prestação de contas'];
+const TIPOS_FIN_ACAO = ['Plano de aplicação de recursos', 'Prestação de contas',
+                        'Relatório de execução (Anexo V)', 'Orçamentos',
+                        'Comprovante de devolução (Pag Tesouro)', 'Documentos comprobatórios/fiscais'];
 // Despesas (Anexo III). Classificação custeio/capital (Art. 3º da IN).
 const TIPO_DESPESA = ['Material de consumo', 'Material permanente', 'Serviços de terceiros (PF)',
                       'Serviços de terceiros (PJ)', 'Hospedagem', 'Passagens', 'Alimentação de estudantes'];
@@ -159,8 +161,13 @@ const COL = {
   AcaoAlteracoes: {
     ID: 0, AcaoID: 1, CusteioOriginal: 2, CapitalOriginal: 3, CusteioNovo: 4, CapitalNovo: 5,
     Justificativa: 6, StatusAutorizacao: 7, Observacao: 8, Data: 9, CriadoEm: 10, CriadoPor: 11
-  }
+  },
+  // Parâmetros ajustáveis pela gestão (chave/valor).
+  Parametros: { Chave: 0, Valor: 1 }
 };
+
+// Valor padrão do limite dos 3 orçamentos (Art. 7º) — 5% do teto do Art. 75, II da Lei 14.133.
+const LIMITE_ORCAMENTOS_PADRAO = 3274.60;
 
 const HEADERS = {
   Editais: ['ID', 'Numero', 'Ano', 'Titulo', 'Resumo', 'Segmento', 'Origem',
@@ -197,7 +204,8 @@ const HEADERS = {
   AcaoBensDoados: ['ID', 'AcaoID', 'DespesaID', 'MaterialPermanente', 'Qtd', 'MarcaModelo', 'Situacao',
                    'NumDocFiscal', 'NumTombamento', 'Descricao', 'CriadoEm', 'CriadoPor'],
   AcaoAlteracoes: ['ID', 'AcaoID', 'CusteioOriginal', 'CapitalOriginal', 'CusteioNovo', 'CapitalNovo',
-                   'Justificativa', 'StatusAutorizacao', 'Observacao', 'Data', 'CriadoEm', 'CriadoPor']
+                   'Justificativa', 'StatusAutorizacao', 'Observacao', 'Data', 'CriadoEm', 'CriadoPor'],
+  Parametros: ['Chave', 'Valor']
 };
 
 // ── Helpers genéricos ────────────────────────────────────────

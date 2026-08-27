@@ -107,6 +107,10 @@ const API = {
   revealFinanceiro: (tipo, refId)          => gasCall('revealFinanceiro', { tipo, refId }),
   saveFinanceiro:   (tipo, refId, payload) => gasCall('saveFinanceiro', { tipo, refId, payload }),
 
+  // Parâmetros (gestão)
+  getParametros: ()        => gasCall('getParametros'),
+  setParametros: (payload) => gasCall('setParametros', { payload }),
+
   // Auditoria
   getAuditoria: () => gasCall('getAuditoria'),
 

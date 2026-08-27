@@ -44,7 +44,8 @@ function getAcaoFinanceiro(acaoId, email) {
     despesas: despesas,
     bens: bens,
     bensPendentes: bensPendentes,
-    alteracoes: alteracoes
+    alteracoes: alteracoes,
+    limiteOrcamentos: _paramNum('LIMITE_TRES_ORCAMENTOS', LIMITE_ORCAMENTOS_PADRAO)
   };
 }
 

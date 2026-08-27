@@ -43,7 +43,12 @@ const STATUS_PARTICIPANTE = ['Ativo', 'Inativo'];
 const TIPO_ACAO = ['Projeto', 'Programa', 'Evento', 'Prestação institucional de Serviços', 'Curso FIC', 'Curso MOOC'];
 const STATUS_ACAO = ['Ativa', 'Encerrada', 'Suspensa'];
 const TIPOS_DOC_ACAO = ['Ação (SIGAA)', 'Relatório final da ação', 'Demais'];
-const TIPOS_FIN_ACAO = ['Plano de aplicação de recursos', 'Prestação de contas'];
+const TIPOS_FIN_ACAO = ['Plano de aplicação de recursos', 'Prestação de contas',
+                        'Relatório de execução (Anexo V)', 'Orçamentos',
+                        'Comprovante de devolução (Pag Tesouro)', 'Documentos comprobatórios/fiscais'];
+// Fallback do limite dos 3 orçamentos (Art. 7º) — o valor vigente vem da gestão
+// (Admin › Parâmetros) via getAcaoFinanceiro.limiteOrcamentos. Padrão: R$ 3.274,60.
+const LIMITE_TRES_ORCAMENTOS = 3274.60;
 const CH_BOLSA = ['4', '8', '12', '16'];
 const STATUS_VINCULO = ['Ativo', 'Desligado', 'Concluído'];
 const STATUS_SIGAA = ['Cadastrado', 'Não cadastrado', 'Cadastro incorreto'];

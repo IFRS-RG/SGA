@@ -515,6 +515,7 @@ const Acoes = {
     const f = this.financeiro || {};
     const desp = f.despesas || [];
     const dis = w ? '' : 'disabled';
+    const limite = Number(f.limiteOrcamentos) || LIMITE_TRES_ORCAMENTOS;
     const totalPrev = parseMoney(f.custeioPrevisto) + parseMoney(f.capitalPrevisto);
     const utilizado = Number(f.valorUtilizado) || 0;
     const saldo = parseMoney(f.valorRecebido) - utilizado;
@@ -545,8 +546,12 @@ const Acoes = {
       <button onclick="Acoes.openDespesa('${id}')">✏️ Editar</button>
       <button class="danger" onclick="Acoes.removeDespesa('${id}')">🗑 Excluir</button>
     </div></details></td>` : '';
-    const rows = desp.map(d => `<tr>
-      <td>${esc(d.Descricao)}</td>
+    let temOrcamento = false;
+    const rows = desp.map(d => {
+      const over = parseMoney(d.ValorUnitario) > limite;
+      if (over) temOrcamento = true;
+      return `<tr>
+      <td>${over ? '<span title="Item pode exigir 3 orçamentos (Art. 7º)">⚠ </span>' : ''}${esc(d.Descricao)}</td>
       <td>${esc(d.Tipo || '—')}</td>
       <td>${esc(d.Classificacao || '—')}</td>
       <td>${esc(this._br(d.DataCompra) || '—')}</td>
@@ -556,14 +561,16 @@ const Acoes = {
       <td>${esc(String(d.Qtd || ''))}</td>
       <td><strong>${d.ValorTotal !== '' && d.ValorTotal != null ? fmtMoney(d.ValorTotal) : '—'}</strong></td>
       ${menu(d.ID)}
-    </tr>`).join('');
+    </tr>`;
+    }).join('');
     const despTable = desp.length ? `<div class="table-wrap menus"><table class="data-table">
       <thead><tr><th>Descrição</th><th>Tipo</th><th>Classif.</th><th>Data</th><th>Fornecedor</th><th>Doc fiscal</th><th>Unit.</th><th>Qtd</th><th>Total</th>${w ? '<th class="col-actions"></th>' : ''}</tr></thead>
       <tbody>${rows}</tbody></table></div>` : emptyState('Nenhuma despesa lançada ainda.');
 
+    const avisoOrc = temOrcamento ? this._avisoBox('Há itens com valor unitário acima de ' + fmtMoney(limite) + ' (marcados com ⚠) que podem exigir 3 orçamentos (Art. 7º da IN).') : '';
     const despSection = `<div class="seg-head" style="margin-top:18px">Despesas (Anexo III)</div>
       <div class="page-actions">${w ? `<button class="btn btn-primary" onclick="Acoes.openDespesa()">+ Adicionar despesa</button>` : ''}</div>
-      ${despTable}`;
+      ${avisoOrc}${despTable}`;
 
     // Bens doados (Anexo IV)
     const bens = f.bens || [];
@@ -611,7 +618,18 @@ const Acoes = {
 
     const docsSection = `<div class="seg-head" style="margin-top:18px">Documentos financeiros</div>${this._docsPanel('financeiro')}`;
 
-    return plano + despSection + bensSection + altSection + docsSection;
+    // Aviso: devolução acima de 70% (Art. 14, §7º).
+    const receb = parseMoney(f.valorRecebido);
+    const devol = parseMoney(f.valorDevolvido);
+    const avisoDev = (receb > 0 && devol / receb > 0.7)
+      ? this._avisoBox('Devolução acima de 70% do recurso recebido (' + Math.round(devol / receb * 100) + '%): impede solicitar recursos no ano seguinte (Art. 14, §7º da IN).')
+      : '';
+
+    return plano + avisoDev + despSection + bensSection + altSection + docsSection;
+  },
+
+  _avisoBox(texto) {
+    return `<div style="background:#fff7e6;border:1px solid #f0c36d;border-radius:8px;padding:8px 12px;margin:10px 0;font-size:13px;color:#7a5b12">⚠ ${esc(texto)}</div>`;
   },
 
   openAlteracao(id) {
