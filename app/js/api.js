@@ -89,6 +89,11 @@ const API = {
   updateVoluntario: (id, payload)    => gasCall('updateVoluntario', { id, payload }),
   deleteVoluntario: (id)             => gasCall('deleteVoluntario', { id }),
   uploadVoluntarioRelatorio: (id, payload) => gasCall('uploadVoluntarioRelatorio', { id, payload }),
+  getColaboradores:   (acaoId)          => gasCall('getColaboradores', { acaoId }),
+  addColaborador:     (payload, reqId)  => gasCall('addColaborador', { payload, reqId }),
+  updateColaborador:  (id, payload)     => gasCall('updateColaborador', { id, payload }),
+  deleteColaborador:  (id)              => gasCall('deleteColaborador', { id }),
+
   getAcaoFinanceiro:  (acaoId)          => gasCall('getAcaoFinanceiro', { acaoId }),
   saveAcaoFinanceiro: (acaoId, payload) => gasCall('saveAcaoFinanceiro', { acaoId, payload }),
   addDespesa:    (payload, reqId) => gasCall('addDespesa', { payload, reqId }),

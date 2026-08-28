@@ -15,6 +15,7 @@ const Acoes = {
   docs: [],
   bolsistas: [],
   voluntarios: [],
+  colaboradores: [],
   financeiro: null,
   certificados: [],
   certPessoas: [],
@@ -111,8 +112,8 @@ const Acoes = {
   async openDetail(id) {
     this.container.innerHTML = '<div class="loading-page"><div class="spinner"></div><p>Carregando…</p></div>';
     try {
-      const [rec, docs, bols, vols, fin, certs] = await Promise.all([API.getAcao(id), API.getAcaoDocs(id), API.getBolsistas(id), API.getVoluntarios(id), API.getAcaoFinanceiro(id), API.getCertificadosDaAcao(id)]);
-      this.detail = rec; this.docs = docs || []; this.bolsistas = bols || []; this.voluntarios = vols || []; this.financeiro = fin || {}; this.certificados = certs || []; this.currentId = id; this.detailTab = 'dados'; this.view = 'detail';
+      const [rec, docs, bols, vols, fin, certs, colabs] = await Promise.all([API.getAcao(id), API.getAcaoDocs(id), API.getBolsistas(id), API.getVoluntarios(id), API.getAcaoFinanceiro(id), API.getCertificadosDaAcao(id), API.getColaboradores(id)]);
+      this.detail = rec; this.docs = docs || []; this.bolsistas = bols || []; this.voluntarios = vols || []; this.financeiro = fin || {}; this.certificados = certs || []; this.colaboradores = colabs || []; this.currentId = id; this.detailTab = 'dados'; this.view = 'detail';
     } catch (e) { toast(e.message, 'error'); this.view = 'list'; this.renderList(); return; }
     this.renderDetail();
   },
@@ -127,7 +128,7 @@ const Acoes = {
 
   renderDetail() {
     const d = this.detail;
-    const tabs = [['dados', '📋 Dados'], ['documentos', '📎 Documentos'], ['bolsistas', '🎓 Bolsistas'], ['voluntarios', '🙌 Voluntários'], ['financeiro', '💰 Financeiro'], ['certificados', '📜 Certificados']];
+    const tabs = [['dados', '📋 Dados'], ['colaboradores', '🤝 Colaboradores'], ['bolsistas', '🎓 Bolsistas'], ['voluntarios', '🙌 Voluntários'], ['documentos', '📎 Documentos'], ['financeiro', '💰 Financeiro'], ['certificados', '📜 Certificados']];
     const ftabs = tabs.map(([id, label]) => `<button type="button" class="ftab ${this.detailTab === id ? 'active' : ''}" onclick="Acoes.switchDetailTab('${id}')">${label}</button>`).join('');
     this.container.innerHTML = `
       <div class="page-actions"><button class="btn btn-ghost" onclick="Acoes.back()">← Voltar</button></div>
@@ -141,6 +142,7 @@ const Acoes = {
     switch (this.detailTab) {
       case 'documentos': return this._docsPanel('documentos');
       case 'financeiro': return this._financeiroPanel();
+      case 'colaboradores': return this._colaboradoresPanel();
       case 'bolsistas':  return this._bolsistasPanel();
       case 'voluntarios': return this._voluntariosPanel();
       case 'certificados': return this._certificadosPanel();
@@ -152,7 +154,6 @@ const Acoes = {
     const d = this.detail;
     const w = this.canWrite();
     const cell = (k, v) => `<div><span class="dk">${esc(k)}</span><span class="dv">${v}</span></div>`;
-    const colabs = (d.colaboradores || []).map(c => (c.tipo === 'aluno' ? '🎓 ' : '👤 ') + esc(this._pessoaNome(c.tipo, c.id) || c.id)).join(', ') || '—';
     return `
       ${w ? `<div class="page-actions"><button class="btn btn-ghost btn-xs" onclick="Acoes.openForm('${d.ID}')">✏️ Editar dados</button></div>` : ''}
       <div class="detail-grid">
@@ -165,8 +166,7 @@ const Acoes = {
         ${cell('Coordenador', esc(this._pessoaNome('servidor', d.coordenadorId) || '—'))}
         ${cell('Coorientador', esc(this._pessoaNome('servidor', d.coorientadorId) || '—'))}
         ${cell('Período', esc((this._br(d.dataInicio) || '?') + ' a ' + (this._br(d.dataFim) || '?')))}
-      </div>
-      <div style="margin-top:12px"><span class="dk">Colaboradores</span><div class="dv">${colabs}</div></div>`;
+      </div>`;
   },
 
   // group define o conjunto de tipos e é lido pelo upload para saber o Tipo.
@@ -893,6 +893,66 @@ const Acoes = {
     })();
   },
 
+  // ── Colaboradores ───────────────────────────────────────────
+  _colaboradoresPanel() {
+    const w = this.canWrite();
+    const cs = this.colaboradores || [];
+    const menu = (id) => w ? `<td class="col-actions"><details class="row-menu"><summary class="btn btn-ghost btn-xs">Ações ▾</summary><div class="row-menu-list">
+      <button onclick="Acoes.openColab('${id}')">✏️ Editar</button>
+      <button class="danger" onclick="Acoes.removeColab('${id}')">🗑 Excluir</button>
+    </div></details></td>` : '';
+    const rows = cs.map(c => `<tr>
+      <td><strong>${esc(c.nome || '—')}</strong> <span class="cell-sub">${c.PessoaTipo === 'aluno' ? '🎓 aluno' : '👤 servidor'}</span></td>
+      <td>${esc(c.Funcao || '—')}</td>
+      <td>${c.CHTotal !== '' && c.CHTotal != null ? esc(String(c.CHTotal)) + 'h' : '—'}</td>
+      ${menu(c.ID)}
+    </tr>`).join('');
+    const table = cs.length ? `<div class="table-wrap menus"><table class="data-table">
+      <thead><tr><th>Nome</th><th>Função</th><th>CH total</th>${w ? '<th class="col-actions">Ações</th>' : ''}</tr></thead>
+      <tbody>${rows}</tbody></table></div>` : emptyState('Nenhum colaborador cadastrado.');
+    return `<div class="page-actions">${w ? `<button class="btn btn-primary" onclick="Acoes.openColab()">+ Adicionar colaborador</button>` : ''}</div>${table}`;
+  },
+
+  openColab(id) {
+    if (!this.canWrite()) return;
+    const c = id ? (this.colaboradores || []).find(x => String(x.ID) === String(id)) : null;
+    const pessoaOpts = ['<option value="">— Selecione —</option>']
+      .concat(this.servidores.map(s => `<option value="servidor|${esc(s.ID)}" ${c && c.PessoaTipo === 'servidor' && String(c.PessoaID) === String(s.ID) ? 'selected' : ''}>👤 ${esc(s.Nome)}</option>`))
+      .concat(this.alunos.map(a => `<option value="aluno|${esc(a.ID)}" ${c && c.PessoaTipo === 'aluno' && String(c.PessoaID) === String(a.ID) ? 'selected' : ''}>🎓 ${esc(a.Nome)}</option>`)).join('');
+    const funcaoOpts = ['<option value="">—</option>'].concat(FUNCAO_COLABORADOR.map(f => `<option ${c && c.Funcao === f ? 'selected' : ''}>${esc(f)}</option>`)).join('');
+    const body = `
+      <div class="fg"><label>Pessoa *</label><select class="input" id="co-pessoa">${pessoaOpts}</select></div>
+      <div class="form-grid">
+        <div class="fg"><label>Função</label><select class="input" id="co-funcao">${funcaoOpts}</select></div>
+        <div class="fg"><label>CH total</label><input class="input" id="co-ch" value="${esc(c ? c.CHTotal : '')}"></div>
+      </div>`;
+    openModal((id ? 'Editar ' : 'Novo ') + 'colaborador', body, async () => { await this.saveColab(id); }, { confirmLabel: id ? 'Salvar' : 'Adicionar' });
+  },
+
+  async saveColab(id) {
+    const pv = val('co-pessoa');
+    if (!pv) { toast('Selecione a pessoa.', 'error'); return; }
+    const parts = pv.split('|');
+    const p = { pessoaTipo: parts[0], pessoaId: parts[1], funcao: val('co-funcao'), chTotal: val('co-ch') };
+    setBusy(true);
+    try {
+      if (id) await API.updateColaborador(id, p);
+      else { p.acaoId = this.currentId; await API.addColaborador(p, this._reqId()); }
+      toast(id ? 'Colaborador atualizado.' : 'Colaborador adicionado.', 'success');
+      closeModal();
+      this.colaboradores = await API.getColaboradores(this.currentId) || [];
+      this.renderDetail();
+    } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
+  },
+
+  removeColab(id) {
+    if (!window.confirm('Excluir este colaborador?')) return;
+    (async () => {
+      try { await API.deleteColaborador(id); toast('Colaborador excluído.', 'success'); this.colaboradores = await API.getColaboradores(this.currentId) || []; this.renderDetail(); }
+      catch (e) { toast(e.message, 'error'); }
+    })();
+  },
+
   // ── Certificados da ação ────────────────────────────────────
   _certificadosPanel() {
     const w = this.canWrite();
@@ -1019,11 +1079,6 @@ const Acoes = {
     const servOpt = (sel) => ['<option value="">—</option>'].concat(this.servidores.map(s => `<option value="${esc(s.ID)}" ${String(sel || '') === String(s.ID) ? 'selected' : ''}>${esc(s.Nome)}</option>`)).join('');
     const statusOpts = optSel(STATUS_ACAO, r ? r.status : 'Ativa');
 
-    const colabSel = (r && r.colaboradores) || [];
-    const isColab = (tipo, id) => colabSel.some(c => c.tipo === tipo && String(c.id) === String(id));
-    const colabServ = this.servidores.map(s => `<label class="chk-item"><input type="checkbox" class="ac-colab" value="servidor|${esc(s.ID)}" ${isColab('servidor', s.ID) ? 'checked' : ''}><span>👤 ${esc(s.Nome)}</span></label>`).join('');
-    const colabAlun = this.alunos.map(a => `<label class="chk-item"><input type="checkbox" class="ac-colab" value="aluno|${esc(a.ID)}" ${isColab('aluno', a.ID) ? 'checked' : ''}><span>🎓 ${esc(a.Nome)}</span></label>`).join('');
-
     return `
       <div class="form-grid">
         <div class="fg"><label>Tipo de ação</label><select class="input" id="ac-tipo">${tipoOpts}</select></div>
@@ -1046,8 +1101,7 @@ const Acoes = {
         <div class="fg"><label>Data de início</label><input class="input" type="date" id="ac-inicio" value="${esc(r ? r.dataInicio : '')}"></div>
         <div class="fg"><label>Data de fim</label><input class="input" type="date" id="ac-fim" value="${esc(r ? r.dataFim : '')}"></div>
       </div>
-      <div class="fg"><label>Colaboradores <span class="field-hint" style="display:inline">(servidores e alunos)</span></label>
-        <div class="chk-list">${(colabServ + colabAlun) || '<span class="line-empty">Nenhum servidor/aluno cadastrado.</span>'}</div></div>`;
+      <p class="section-sub">Colaboradores agora são gerenciados na aba <strong>🤝 Colaboradores</strong>.</p>`;
   },
 
   onEditalChange() {
@@ -1057,15 +1111,10 @@ const Acoes = {
   },
 
   _harvest() {
-    const colaboradores = Array.from(document.querySelectorAll('.ac-colab:checked')).map(el => {
-      const parts = el.value.split('|');
-      return { tipo: parts[0], id: parts[1] };
-    });
     return {
       titulo: val('ac-titulo'), tipoAcao: val('ac-tipo'), modalidade: val('ac-modalidade'),
       anoExecucao: val('ac-ano'), segmento: val('ac-segmento'), editalId: val('ac-edital'),
       coordenadorId: val('ac-coord'), coorientadorId: val('ac-coorient'),
-      colaboradores: colaboradores,
       dataInicio: val('ac-inicio'), dataFim: val('ac-fim'), status: val('ac-status')
     };
   },

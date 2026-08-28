@@ -42,6 +42,9 @@ const STATUS_PARTICIPANTE = ['Ativo', 'Inativo'];
 // Ações.
 const TIPO_ACAO = ['Projeto', 'Programa', 'Evento', 'Prestação institucional de Serviços', 'Curso FIC', 'Curso MOOC'];
 const STATUS_ACAO = ['Ativa', 'Encerrada', 'Suspensa'];
+const FUNCAO_COLABORADOR = ['Apresentador de trabalho', 'Bolsista', 'Colaborador', 'Coordenador da ação',
+  'Coordenador pedagógico', 'Expositor', 'Membro da comissão organizadora', 'Ministrante', 'Orientador',
+  'Ouvinte', 'Palestrante/conferencista', 'Presidente da comissão organizadora', 'Voluntário'];
 const TIPOS_DOC_ACAO = ['Ação (SIGAA)', 'Relatório final da ação', 'Demais'];
 const TIPOS_FIN_ACAO = ['Plano de aplicação de recursos', 'Prestação de contas',
                         'Relatório de execução (Anexo V)', 'Orçamentos',

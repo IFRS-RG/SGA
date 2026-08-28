@@ -39,7 +39,8 @@ function getPessoasDaAcao(acaoId, email) {
 
   push('servidor', acao.CoordenadorID, 'Coordenador');
   push('servidor', acao.CoorientadorID, 'Coorientador');
-  _acaoColabs(acao.ColaboradoresJSON).forEach(c => push(c.tipo, c.id, 'Colaborador'));
+  sheetRows('AcaoColaboradores').filter(c => String(c.AcaoID) === String(acaoId))
+    .forEach(c => push(c.PessoaTipo, c.PessoaID, c.Funcao || 'Colaborador'));
   sheetRows('AcaoBolsistas').filter(b => String(b.AcaoID) === String(acaoId)).forEach(b => push('aluno', b.AlunoID, 'Bolsista'));
   sheetRows('AcaoVoluntarios').filter(v => String(v.AcaoID) === String(acaoId)).forEach(v => push('aluno', v.AlunoID, 'Voluntário'));
 

@@ -73,6 +73,10 @@ const PIX_TIPO   = ['CPF', 'E-mail', 'Telefone', 'Aleatória'];
 // Ações.
 const TIPO_ACAO = ['Projeto', 'Programa', 'Evento', 'Prestação institucional de Serviços', 'Curso FIC', 'Curso MOOC'];
 const STATUS_ACAO = ['Ativa', 'Encerrada', 'Suspensa'];
+// Função do colaborador na ação.
+const FUNCAO_COLABORADOR = ['Apresentador de trabalho', 'Bolsista', 'Colaborador', 'Coordenador da ação',
+  'Coordenador pedagógico', 'Expositor', 'Membro da comissão organizadora', 'Ministrante', 'Orientador',
+  'Ouvinte', 'Palestrante/conferencista', 'Presidente da comissão organizadora', 'Voluntário'];
 // Documentos da ação (aba Documentos) e da aba Financeiro (aberto, sem LGPD).
 const TIPOS_DOC_ACAO = ['Ação (SIGAA)', 'Relatório final da ação', 'Demais'];
 const TIPOS_FIN_ACAO = ['Plano de aplicação de recursos', 'Prestação de contas',
@@ -164,6 +168,10 @@ const COL = {
   },
   // Parâmetros ajustáveis pela gestão (chave/valor).
   Parametros: { Chave: 0, Valor: 1 },
+  // Colaboradores da ação (pessoa + função + CH total).
+  AcaoColaboradores: {
+    ID: 0, AcaoID: 1, PessoaTipo: 2, PessoaID: 3, Funcao: 4, CHTotal: 5, CriadoEm: 6, CriadoPor: 7
+  },
   // Certificados (upload de PDF; arquivo em {Segmento}/Certificados + atalho na ação).
   Certificados: {
     ID: 0, NomeDocumento: 1, Categoria: 2, EditalID: 3, AcaoID: 4, Papel: 5, PessoaTipo: 6, PessoaID: 7,
@@ -212,7 +220,8 @@ const HEADERS = {
                    'Justificativa', 'StatusAutorizacao', 'Observacao', 'Data', 'CriadoEm', 'CriadoPor'],
   Parametros: ['Chave', 'Valor'],
   Certificados: ['ID', 'NomeDocumento', 'Categoria', 'EditalID', 'AcaoID', 'Papel', 'PessoaTipo', 'PessoaID',
-                 'NomeCivil', 'NomeSocial', 'CPF', 'ArquivoFileId', 'ArquivoUrl', 'CriadoEm', 'CriadoPor']
+                 'NomeCivil', 'NomeSocial', 'CPF', 'ArquivoFileId', 'ArquivoUrl', 'CriadoEm', 'CriadoPor'],
+  AcaoColaboradores: ['ID', 'AcaoID', 'PessoaTipo', 'PessoaID', 'Funcao', 'CHTotal', 'CriadoEm', 'CriadoPor']
 };
 
 // ── Helpers genéricos ────────────────────────────────────────
