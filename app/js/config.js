@@ -53,6 +53,12 @@ const TIPOS_FIN_ACAO = ['Plano de aplicação de recursos', 'Prestação de cont
 // (Admin › Parâmetros) via getAcaoFinanceiro.limiteOrcamentos. Padrão: R$ 3.274,60.
 const LIMITE_TRES_ORCAMENTOS = 3274.60;
 const CH_BOLSA = ['4', '8', '12', '16'];
+// Seleção de bolsistas (vagas).
+const TIPO_VAGA = ['Bolsista', 'Voluntário'];
+const STATUS_VAGA = ['Aberta', 'Encerrada'];
+const MODALIDADE_VAGA = ['Integrado', 'Subsequente', 'Superior'];
+const CATEGORIA_CRITERIO = ['Entrevista', 'Análise documental', 'Conhecimentos e competências',
+  'Experiência e trajetória', 'Formação complementar', 'Disponibilidade', 'Avaliação prática', 'Outros'];
 const STATUS_VINCULO = ['Ativo', 'Desligado', 'Concluído'];
 const STATUS_SIGAA = ['Cadastrado', 'Não cadastrado', 'Cadastro incorreto'];
 const STATUS_RELATORIO = ['Não entregue', 'Entregue', 'Em análise', 'Aprovado', 'Reprovado'];

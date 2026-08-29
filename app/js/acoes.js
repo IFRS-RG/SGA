@@ -16,11 +16,14 @@ const Acoes = {
   bolsistas: [],
   voluntarios: [],
   colaboradores: [],
+  vagas: [],
+  cursos: [],
   financeiro: null,
   certificados: [],
   certPessoas: [],
   detailTab: 'dados',
   finTab: 'plano',
+  selTab: 'requisitos',
 
   async mount(container, role) {
     this.container = container;
@@ -28,10 +31,10 @@ const Acoes = {
     this.view = 'list';
     this.container.innerHTML = '<div class="loading-page"><div class="spinner"></div><p>Carregando…</p></div>';
     try {
-      const [ac, ed, sv, al] = await Promise.all([
-        API.getAcoes(), API.getEditais(), API.getServidores(), API.getAlunos()
+      const [ac, ed, sv, al, cu] = await Promise.all([
+        API.getAcoes(), API.getEditais(), API.getServidores(), API.getAlunos(), API.getCursos()
       ]);
-      this.acoes = ac || []; this.editais = ed || []; this.servidores = sv || []; this.alunos = al || [];
+      this.acoes = ac || []; this.editais = ed || []; this.servidores = sv || []; this.alunos = al || []; this.cursos = cu || [];
     } catch (e) {
       this.container.innerHTML = emptyState('Erro ao carregar: ' + (e && e.message ? e.message : e));
       return;
@@ -112,8 +115,8 @@ const Acoes = {
   async openDetail(id) {
     this.container.innerHTML = '<div class="loading-page"><div class="spinner"></div><p>Carregando…</p></div>';
     try {
-      const [rec, docs, bols, vols, fin, certs, colabs] = await Promise.all([API.getAcao(id), API.getAcaoDocs(id), API.getBolsistas(id), API.getVoluntarios(id), API.getAcaoFinanceiro(id), API.getCertificadosDaAcao(id), API.getColaboradores(id)]);
-      this.detail = rec; this.docs = docs || []; this.bolsistas = bols || []; this.voluntarios = vols || []; this.financeiro = fin || {}; this.certificados = certs || []; this.colaboradores = colabs || []; this.currentId = id; this.detailTab = 'dados'; this.view = 'detail';
+      const [rec, docs, bols, vols, fin, certs, colabs, vagas] = await Promise.all([API.getAcao(id), API.getAcaoDocs(id), API.getBolsistas(id), API.getVoluntarios(id), API.getAcaoFinanceiro(id), API.getCertificadosDaAcao(id), API.getColaboradores(id), API.getVagas(id)]);
+      this.detail = rec; this.docs = docs || []; this.bolsistas = bols || []; this.voluntarios = vols || []; this.financeiro = fin || {}; this.certificados = certs || []; this.colaboradores = colabs || []; this.vagas = vagas || []; this.currentId = id; this.detailTab = 'dados'; this.selTab = 'requisitos'; this.view = 'detail';
     } catch (e) { toast(e.message, 'error'); this.view = 'list'; this.renderList(); return; }
     this.renderDetail();
   },
@@ -128,7 +131,7 @@ const Acoes = {
 
   renderDetail() {
     const d = this.detail;
-    const tabs = [['dados', '📋 Dados'], ['colaboradores', '🤝 Colaboradores'], ['bolsistas', '🎓 Bolsistas'], ['voluntarios', '🙌 Voluntários'], ['documentos', '📎 Documentos'], ['financeiro', '💰 Financeiro'], ['certificados', '📜 Certificados']];
+    const tabs = [['dados', '📋 Dados'], ['colaboradores', '🤝 Colaboradores'], ['selecao', '🎯 Seleção de bolsistas'], ['bolsistas', '🎓 Bolsistas'], ['voluntarios', '🙌 Voluntários'], ['documentos', '📎 Documentos'], ['financeiro', '💰 Financeiro'], ['certificados', '📜 Certificados']];
     const ftabs = tabs.map(([id, label]) => `<button type="button" class="ftab ${this.detailTab === id ? 'active' : ''}" onclick="Acoes.switchDetailTab('${id}')">${label}</button>`).join('');
     this.container.innerHTML = `
       <div class="page-actions"><button class="btn btn-ghost" onclick="Acoes.back()">← Voltar</button></div>
@@ -143,6 +146,7 @@ const Acoes = {
       case 'documentos': return this._docsPanel('documentos');
       case 'financeiro': return this._financeiroPanel();
       case 'colaboradores': return this._colaboradoresPanel();
+      case 'selecao': return this._selecaoPanel();
       case 'bolsistas':  return this._bolsistasPanel();
       case 'voluntarios': return this._voluntariosPanel();
       case 'certificados': return this._certificadosPanel();
@@ -949,6 +953,203 @@ const Acoes = {
     if (!window.confirm('Excluir este colaborador?')) return;
     (async () => {
       try { await API.deleteColaborador(id); toast('Colaborador excluído.', 'success'); this.colaboradores = await API.getColaboradores(this.currentId) || []; this.renderDetail(); }
+      catch (e) { toast(e.message, 'error'); }
+    })();
+  },
+
+  // ── Seleção de bolsistas (VAGAS) ────────────────────────────
+  _selecaoPanel() {
+    const tabs = [['requisitos', 'Requisitos e critérios'], ['selecao', 'Seleção']];
+    const st = this.selTab || 'requisitos';
+    const ftabs = tabs.map(([id, label]) => `<button type="button" class="ftab ${st === id ? 'active' : ''}" onclick="Acoes.switchSelTab('${id}')">${label}</button>`).join('');
+    const panel = st === 'selecao' ? this._selCandPanel() : this._selReqPanel();
+    return `<div class="ftabs">${ftabs}</div>${panel}`;
+  },
+
+  switchSelTab(t) { this.selTab = t; this.renderDetail(); },
+
+  _cursoNome(id) { const c = (this.cursos || []).find(x => String(x.ID) === String(id)); return c ? c.Nome : id; },
+
+  // Resumo legível dos requisitos de uma vaga.
+  _reqResumo(r) {
+    r = r || {};
+    const parts = [];
+    if (r.modalidade && r.modalidade.length) parts.push('Modalidade: ' + r.modalidade.join(', '));
+    if (r.cursos === 'todos') parts.push('Cursos: todos');
+    else if (Array.isArray(r.cursos) && r.cursos.length) parts.push('Cursos: ' + r.cursos.map(id => this._cursoNome(id)).join(', '));
+    if (r.periodoMin) parts.push('Período/semestre mín.: ' + r.periodoMin);
+    if (r.situacao) parts.push('Situação: ' + r.situacao);
+    if (r.assistencia) parts.push('Beneficiário de assistência estudantil');
+    if (r.condicoesOutros) parts.push('Condições: ' + r.condicoesOutros);
+    if (r.outrosFormais) parts.push('Outros: ' + r.outrosFormais);
+    return parts;
+  },
+
+  // Sub-aba: Requisitos e critérios = criação/edição das VAGAS.
+  _selReqPanel() {
+    const w = this.canWrite();
+    const vs = this.vagas || [];
+    const chLabel = (v) => v.Tipo === 'Bolsista' ? (v.CH + 'h/sem') : (v.CH ? v.CH + 'h' : '—');
+    const cards = vs.map(v => {
+      const req = this._reqResumo(v.requisitos);
+      const crit = (v.criterios || []);
+      const critRows = crit.length ? `<table class="data-table"><thead><tr><th>Categoria</th><th>Critério</th><th>Forma de avaliação</th><th>Peso</th></tr></thead>
+        <tbody>${crit.map(c => `<tr><td>${esc(c.categoria)}</td><td>${esc(c.criterio || '—')}</td><td>${esc(c.forma || '—')}</td><td>${esc(String(c.peso ?? ''))}</td></tr>`).join('')}</tbody></table>`
+        : '<p class="field-hint">Nenhum critério classificatório definido.</p>';
+      const reqHtml = req.length ? '<ul style="margin:4px 0 0 18px">' + req.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>'
+        : '<p class="field-hint">Sem requisitos eliminatórios definidos.</p>';
+      return `<div class="upload-box" style="margin-bottom:12px">
+        <div class="seg-head" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <span>${v.Tipo === 'Bolsista' ? '🎓' : '🙌'} ${esc(v.Titulo)}
+            <span class="badge ${v.Status === 'Aberta' ? 'badge-ok' : 'badge-muted'}">${esc(v.Status)}</span></span>
+          ${w ? `<span style="white-space:nowrap">
+            <button class="btn btn-ghost btn-xs" onclick="Acoes.openVaga('${v.ID}')">✏️ Editar</button>
+            <button class="btn btn-ghost btn-xs danger" onclick="Acoes.removeVaga('${v.ID}')">🗑</button></span>` : ''}
+        </div>
+        <p class="section-sub" style="margin:4px 0">${esc(v.Tipo)} · CH ${esc(chLabel(v))} · ${esc(String(v.Quantidade))} vaga(s)</p>
+        <details><summary style="cursor:pointer">Requisitos eliminatórios</summary>${reqHtml}</details>
+        <details style="margin-top:6px"><summary style="cursor:pointer">Critérios classificatórios (com peso)</summary><div class="table-wrap">${critRows}</div></details>
+      </div>`;
+    }).join('');
+    const list = vs.length ? cards : emptyState('Nenhuma vaga criada. Cada vaga tem seus próprios requisitos e critérios.');
+    return `<p class="field-hint" style="margin:2px 0 10px">Crie as vagas do processo seletivo. Cada vaga carrega seus <strong>requisitos</strong> (eliminatórios, sem pontuação) e seus <strong>critérios</strong> (classificatórios, com peso).</p>
+      <div class="page-actions">${w ? `<button class="btn btn-primary" onclick="Acoes.openVaga()">+ Adicionar vaga</button>` : ''}</div>${list}`;
+  },
+
+  // Sub-aba: Seleção = avaliação dos candidatos (etapa posterior).
+  _selCandPanel() {
+    const vs = this.vagas || [];
+    const resumo = vs.length ? `<div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Vaga</th><th>Tipo</th><th>Vagas</th><th>Candidatos</th></tr></thead>
+      <tbody>${vs.map(v => `<tr><td><strong>${esc(v.Titulo)}</strong></td><td>${esc(v.Tipo)}</td><td>${esc(String(v.Quantidade))}</td><td class="cell-sub">— aguardando importação —</td></tr>`).join('')}</tbody></table></div>`
+      : emptyState('Crie ao menos uma vaga na aba "Requisitos e critérios".');
+    return `<div class="upload-box"><div class="seg-head">Seleção de candidatos</div>
+      <p class="field-hint">A lista de candidatos será <strong>importada automaticamente</strong> de outra planilha. Aqui será feita a avaliação por critério (soma ponderada), com o sistema <strong>indicando</strong> os classificados — a decisão final permanece com o coordenador. Etapa em construção.</p></div>
+      ${resumo}`;
+  },
+
+  _vagaTipoChange(tipo) {
+    const bols = document.getElementById('vg-ch-bolsista');
+    const vol = document.getElementById('vg-ch-voluntario');
+    if (bols) bols.style.display = tipo === 'Bolsista' ? '' : 'none';
+    if (vol) vol.style.display = tipo === 'Voluntário' ? '' : 'none';
+  },
+
+  _vagaCursosToggle(todos) {
+    const box = document.getElementById('vg-cursos-list');
+    if (box) { box.style.opacity = todos ? '0.4' : '1'; box.querySelectorAll('input').forEach(i => { i.disabled = todos; }); }
+  },
+
+  _critRowHtml(c) {
+    c = c || {};
+    const opts = CATEGORIA_CRITERIO.map(o => `<option ${c.categoria === o ? 'selected' : ''}>${esc(o)}</option>`).join('');
+    return `<tr class="crit-row">
+      <td><select class="input crit-cat">${opts}</select></td>
+      <td><input class="input crit-desc" value="${esc(c.criterio || '')}" placeholder="descrição"></td>
+      <td><input class="input crit-forma" value="${esc(c.forma || '')}" placeholder="ex.: entrevista, análise"></td>
+      <td style="width:80px"><input class="input crit-peso" type="number" min="0" step="0.5" value="${esc(c.peso != null ? String(c.peso) : '')}"></td>
+      <td style="width:36px"><button type="button" class="btn btn-ghost btn-xs danger" onclick="this.closest('tr').remove()">✕</button></td>
+    </tr>`;
+  },
+
+  addCritRow() {
+    const tb = document.getElementById('vg-crits');
+    if (tb) tb.insertAdjacentHTML('beforeend', this._critRowHtml());
+  },
+
+  openVaga(id) {
+    if (!this.canWrite()) return;
+    const v = id ? (this.vagas || []).find(x => String(x.ID) === String(id)) : null;
+    const req = (v && v.requisitos) || {};
+    const tipo = v ? v.Tipo : 'Bolsista';
+    const tipoOpts = TIPO_VAGA.map(t => `<option ${tipo === t ? 'selected' : ''}>${esc(t)}</option>`).join('');
+    const chBolOpts = CH_BOLSA.map(h => `<option value="${h}" ${v && tipo === 'Bolsista' && String(v.CH) === h ? 'selected' : ''}>${h}h/semana</option>`).join('');
+    const statusOpts = STATUS_VAGA.map(s => `<option ${v && v.Status === s ? 'selected' : ''}>${esc(s)}</option>`).join('');
+    const modalChk = MODALIDADE_VAGA.map(m => `<label class="chk-item"><input type="checkbox" class="vg-modal" value="${esc(m)}" ${req.modalidade && req.modalidade.indexOf(m) !== -1 ? 'checked' : ''}> ${esc(m)}</label>`).join('');
+    const todos = req.cursos === 'todos';
+    const cursosChk = (this.cursos || []).filter(c => c.Status !== 'Inativo').map(c =>
+      `<label class="chk-item"><input type="checkbox" class="vg-curso" value="${esc(c.ID)}" ${!todos && Array.isArray(req.cursos) && req.cursos.map(String).indexOf(String(c.ID)) !== -1 ? 'checked' : ''} ${todos ? 'disabled' : ''}> ${esc(c.Nome)}</label>`).join('') || '<span class="field-hint">Nenhum curso cadastrado.</span>';
+    const crits = (v && v.criterios && v.criterios.length ? v.criterios : [{}]).map(c => this._critRowHtml(c)).join('');
+
+    const body = `
+      <div class="form-grid">
+        <div class="fg"><label>Tipo *</label><select class="input" id="vg-tipo" onchange="Acoes._vagaTipoChange(this.value)">${tipoOpts}</select></div>
+        <div class="fg"><label>Status</label><select class="input" id="vg-status">${statusOpts}</select></div>
+      </div>
+      <div class="fg"><label>Título da vaga *</label><input class="input" id="vg-titulo" value="${esc(v ? v.Titulo : '')}" placeholder="ex.: Bolsista de desenvolvimento web"></div>
+      <div class="form-grid">
+        <div class="fg" id="vg-ch-bolsista" style="${tipo === 'Bolsista' ? '' : 'display:none'}"><label>CH (bolsa)</label><select class="input" id="vg-ch-bol">${chBolOpts}</select></div>
+        <div class="fg" id="vg-ch-voluntario" style="${tipo === 'Voluntário' ? '' : 'display:none'}"><label>CH (horas)</label><input class="input" id="vg-ch-vol" type="number" min="0" value="${esc(v && tipo === 'Voluntário' ? String(v.CH || '') : '')}"></div>
+        <div class="fg"><label>Quantidade de vagas *</label><input class="input" id="vg-qtd" type="number" min="1" value="${esc(v ? String(v.Quantidade) : '1')}"></div>
+      </div>
+
+      <div class="seg-head" style="margin-top:12px">Requisitos de participação <span class="field-hint">(eliminatórios — não pontuam)</span></div>
+      <div class="fg"><label>Modalidade / nível de ensino</label><div class="chk-list">${modalChk}</div></div>
+      <div class="fg"><label><input type="checkbox" id="vg-cursos-todos" onchange="Acoes._vagaCursosToggle(this.checked)" ${todos ? 'checked' : ''}> Todos os cursos</label>
+        <div class="chk-list" id="vg-cursos-list" style="${todos ? 'opacity:0.4' : ''}">${cursosChk}</div></div>
+      <div class="form-grid">
+        <div class="fg"><label>Período / semestre mínimo</label><input class="input" id="vg-periodo" value="${esc(req.periodoMin || '')}" placeholder="opcional"></div>
+        <div class="fg"><label>Situação acadêmica</label><input class="input" id="vg-situacao" value="${esc(req.situacao || '')}" placeholder="ex.: Matrícula ativa"></div>
+      </div>
+      <div class="fg"><label class="chk-item"><input type="checkbox" id="vg-assist" ${req.assistencia ? 'checked' : ''}> Beneficiário(a) de programa de assistência estudantil</label></div>
+      <div class="fg"><label>Outras condições institucionais</label><input class="input" id="vg-cond" value="${esc(req.condicoesOutros || '')}" placeholder="previstas pela modalidade da bolsa ou edital"></div>
+      <div class="fg"><label>Outros requisitos formais</label><textarea class="input" id="vg-formais" rows="2" placeholder="apenas condições objetivas e formalmente exigíveis">${esc(req.outrosFormais || '')}</textarea></div>
+
+      <div class="seg-head" style="margin-top:12px">Critérios de seleção e classificação <span class="field-hint">(classificatórios — com peso)</span></div>
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>Categoria</th><th>Critério</th><th>Forma de avaliação</th><th>Peso</th><th></th></tr></thead>
+        <tbody id="vg-crits">${crits}</tbody></table></div>
+      <div class="page-actions"><button type="button" class="btn btn-ghost btn-xs" onclick="Acoes.addCritRow()">+ Adicionar critério</button></div>`;
+
+    openModal((id ? 'Editar ' : 'Nova ') + 'vaga', body, async () => { await this.saveVaga(id); }, { confirmLabel: id ? 'Salvar' : 'Adicionar' });
+  },
+
+  _harvestVaga() {
+    const tipo = val('vg-tipo');
+    const modalidade = Array.from(document.querySelectorAll('.vg-modal:checked')).map(i => i.value);
+    const todos = document.getElementById('vg-cursos-todos') && document.getElementById('vg-cursos-todos').checked;
+    const cursos = todos ? 'todos' : Array.from(document.querySelectorAll('.vg-curso:checked')).map(i => i.value);
+    const criterios = Array.from(document.querySelectorAll('#vg-crits .crit-row')).map(tr => ({
+      categoria: tr.querySelector('.crit-cat').value,
+      criterio: tr.querySelector('.crit-desc').value.trim(),
+      forma: tr.querySelector('.crit-forma').value.trim(),
+      peso: parseFloat(tr.querySelector('.crit-peso').value) || 0
+    })).filter(c => c.criterio || c.forma || c.peso);
+    return {
+      tipo: tipo,
+      titulo: val('vg-titulo'),
+      ch: tipo === 'Bolsista' ? val('vg-ch-bol') : val('vg-ch-vol'),
+      quantidade: val('vg-qtd'),
+      status: val('vg-status'),
+      requisitos: {
+        modalidade: modalidade, cursos: cursos,
+        periodoMin: val('vg-periodo'), situacao: val('vg-situacao'),
+        assistencia: document.getElementById('vg-assist') && document.getElementById('vg-assist').checked,
+        condicoesOutros: val('vg-cond'), outrosFormais: val('vg-formais')
+      },
+      criterios: criterios
+    };
+  },
+
+  async saveVaga(id) {
+    const p = this._harvestVaga();
+    if (!p.titulo.trim()) { toast('Informe o título da vaga.', 'error'); return; }
+    if (!(Number(p.quantidade) >= 1)) { toast('Quantidade de vagas deve ser ao menos 1.', 'error'); return; }
+    if (p.tipo === 'Bolsista' && CH_BOLSA.indexOf(String(p.ch)) === -1) { toast('Selecione a CH da bolsa.', 'error'); return; }
+    setBusy(true);
+    try {
+      if (id) await API.updateVaga(id, p);
+      else { p.acaoId = this.currentId; await API.addVaga(p, this._reqId()); }
+      toast(id ? 'Vaga atualizada.' : 'Vaga adicionada.', 'success');
+      closeModal();
+      this.vagas = await API.getVagas(this.currentId) || [];
+      this.renderDetail();
+    } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
+  },
+
+  removeVaga(id) {
+    if (!window.confirm('Excluir esta vaga?')) return;
+    (async () => {
+      try { await API.deleteVaga(id); toast('Vaga excluída.', 'success'); this.vagas = await API.getVagas(this.currentId) || []; this.renderDetail(); }
       catch (e) { toast(e.message, 'error'); }
     })();
   },

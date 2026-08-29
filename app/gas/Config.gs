@@ -94,6 +94,15 @@ const STATUS_VINCULO = ['Ativo', 'Desligado', 'Concluído'];   // bolsista/volun
 const STATUS_SIGAA = ['Cadastrado', 'Não cadastrado', 'Cadastro incorreto'];
 const STATUS_RELATORIO = ['Não entregue', 'Entregue', 'Em análise', 'Aprovado', 'Reprovado'];
 
+// ── Seleção de bolsistas (processo seletivo por VAGA) ────────
+const TIPO_VAGA = ['Bolsista', 'Voluntário'];
+const STATUS_VAGA = ['Aberta', 'Encerrada'];
+// Modalidade/nível exigível como requisito de vínculo acadêmico.
+const MODALIDADE_VAGA = ['Integrado', 'Subsequente', 'Superior'];
+// Categorias sugeridas para os critérios classificatórios (com peso).
+const CATEGORIA_CRITERIO = ['Entrevista', 'Análise documental', 'Conhecimentos e competências',
+  'Experiência e trajetória', 'Formação complementar', 'Disponibilidade', 'Avaliação prática', 'Outros'];
+
 // ── Índices de coluna (0-based) ──────────────────────────────
 const COL = {
   Editais: {
@@ -172,6 +181,11 @@ const COL = {
   AcaoColaboradores: {
     ID: 0, AcaoID: 1, PessoaTipo: 2, PessoaID: 3, Funcao: 4, CHTotal: 5, CriadoEm: 6, CriadoPor: 7
   },
+  // Vagas do processo seletivo (requisitos eliminatórios + critérios classificatórios).
+  SelVagas: {
+    ID: 0, AcaoID: 1, Tipo: 2, Titulo: 3, CH: 4, Quantidade: 5,
+    RequisitosJSON: 6, CriteriosJSON: 7, Status: 8, CriadoEm: 9, CriadoPor: 10
+  },
   // Certificados (upload de PDF; arquivo em {Segmento}/Certificados + atalho na ação).
   Certificados: {
     ID: 0, NomeDocumento: 1, Categoria: 2, EditalID: 3, AcaoID: 4, Papel: 5, PessoaTipo: 6, PessoaID: 7,
@@ -221,7 +235,9 @@ const HEADERS = {
   Parametros: ['Chave', 'Valor'],
   Certificados: ['ID', 'NomeDocumento', 'Categoria', 'EditalID', 'AcaoID', 'Papel', 'PessoaTipo', 'PessoaID',
                  'NomeCivil', 'NomeSocial', 'CPF', 'ArquivoFileId', 'ArquivoUrl', 'CriadoEm', 'CriadoPor'],
-  AcaoColaboradores: ['ID', 'AcaoID', 'PessoaTipo', 'PessoaID', 'Funcao', 'CHTotal', 'CriadoEm', 'CriadoPor']
+  AcaoColaboradores: ['ID', 'AcaoID', 'PessoaTipo', 'PessoaID', 'Funcao', 'CHTotal', 'CriadoEm', 'CriadoPor'],
+  SelVagas: ['ID', 'AcaoID', 'Tipo', 'Titulo', 'CH', 'Quantidade',
+             'RequisitosJSON', 'CriteriosJSON', 'Status', 'CriadoEm', 'CriadoPor']
 };
 
 // ── Helpers genéricos ────────────────────────────────────────

@@ -93,6 +93,10 @@ const API = {
   addColaborador:     (payload, reqId)  => gasCall('addColaborador', { payload, reqId }),
   updateColaborador:  (id, payload)     => gasCall('updateColaborador', { id, payload }),
   deleteColaborador:  (id)              => gasCall('deleteColaborador', { id }),
+  getVagas:    (acaoId)          => gasCall('getVagas', { acaoId }),
+  addVaga:     (payload, reqId)  => gasCall('addVaga', { payload, reqId }),
+  updateVaga:  (id, payload)     => gasCall('updateVaga', { id, payload }),
+  deleteVaga:  (id)              => gasCall('deleteVaga', { id }),
 
   getAcaoFinanceiro:  (acaoId)          => gasCall('getAcaoFinanceiro', { acaoId }),
   saveAcaoFinanceiro: (acaoId, payload) => gasCall('saveAcaoFinanceiro', { acaoId, payload }),
