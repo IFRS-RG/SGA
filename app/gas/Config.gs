@@ -102,6 +102,11 @@ const MODALIDADE_VAGA = ['Integrado', 'Subsequente', 'Superior'];
 // Categorias sugeridas para os critérios classificatórios (com peso).
 const CATEGORIA_CRITERIO = ['Entrevista', 'Análise documental', 'Conhecimentos e competências',
   'Experiência e trajetória', 'Formação complementar', 'Disponibilidade', 'Avaliação prática', 'Outros'];
+const PESO_MAXIMO_CRITERIOS = 10.0;   // somatório dos pesos dos critérios de uma vaga
+
+// ── Comissões ────────────────────────────────────────────────
+const COMISSAO_TIPOS = ['CGAE', 'CAGPPI', 'CAGE', 'CIEP'];
+const CATEGORIA_MEMBRO = ['Docente', 'TAE', 'Discente'];
 
 // ── Índices de coluna (0-based) ──────────────────────────────
 const COL = {
@@ -185,8 +190,15 @@ const COL = {
   // Vagas do processo seletivo (requisitos eliminatórios + critérios classificatórios).
   SelVagas: {
     ID: 0, AcaoID: 1, Tipo: 2, Titulo: 3, CH: 4, Quantidade: 5,
-    RequisitosJSON: 6, CriteriosJSON: 7, Status: 8, CriadoEm: 9, CriadoPor: 10
+    RequisitosJSON: 6, CriteriosJSON: 7, Status: 8, CriadoEm: 9, CriadoPor: 10, FaixasJSON: 11
   },
+  // Comissões (CGAE/CAGPPI/CAGE/CIEP): portaria + membros + câmaras.
+  Comissoes: {
+    ID: 0, Tipo: 1, PortariaFileId: 2, PortariaUrl: 3, DataInicio: 4, DataFim: 5,
+    MembrosJSON: 6, CamarasJSON: 7, CriadoEm: 8, CriadoPor: 9
+  },
+  // Seleções (processo seletivo): edital + ação + vagas escolhidas.
+  Selecoes: { ID: 0, EditalID: 1, AcaoID: 2, VagasJSON: 3, Status: 4, CriadoEm: 5, CriadoPor: 6 },
   // Certificados (upload de PDF; arquivo em {Segmento}/Certificados + atalho na ação).
   Certificados: {
     ID: 0, NomeDocumento: 1, Categoria: 2, EditalID: 3, AcaoID: 4, Papel: 5, PessoaTipo: 6, PessoaID: 7,
@@ -238,7 +250,10 @@ const HEADERS = {
                  'NomeCivil', 'NomeSocial', 'CPF', 'ArquivoFileId', 'ArquivoUrl', 'CriadoEm', 'CriadoPor'],
   AcaoColaboradores: ['ID', 'AcaoID', 'PessoaTipo', 'PessoaID', 'Funcao', 'CHTotal', 'CriadoEm', 'CriadoPor'],
   SelVagas: ['ID', 'AcaoID', 'Tipo', 'Titulo', 'CH', 'Quantidade',
-             'RequisitosJSON', 'CriteriosJSON', 'Status', 'CriadoEm', 'CriadoPor']
+             'RequisitosJSON', 'CriteriosJSON', 'Status', 'CriadoEm', 'CriadoPor', 'FaixasJSON'],
+  Comissoes: ['ID', 'Tipo', 'PortariaFileId', 'PortariaUrl', 'DataInicio', 'DataFim',
+              'MembrosJSON', 'CamarasJSON', 'CriadoEm', 'CriadoPor'],
+  Selecoes: ['ID', 'EditalID', 'AcaoID', 'VagasJSON', 'Status', 'CriadoEm', 'CriadoPor']
 };
 
 // ── Helpers genéricos ────────────────────────────────────────

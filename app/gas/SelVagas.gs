@@ -37,13 +37,24 @@ function _selCriterios(list) {
   })).filter(c => c.criterio || c.forma || c.peso);
 }
 
+// Faixas de CH/quantidade da vaga (uma vaga pode ofertar 4h e 8h, por ex.).
+function _selFaixas(list, tipo) {
+  return (Array.isArray(list) ? list : []).map(f => {
+    let ch = tipo === 'Bolsista' ? String(f.ch) : (Number(f.ch) || 0);
+    if (tipo === 'Bolsista' && CH_BOLSA_VAGA.indexOf(ch) === -1) ch = '';
+    return { ch: ch, quantidade: Number(f.quantidade) || 0 };
+  }).filter(f => f.quantidade >= 1 && f.ch !== '' && f.ch !== 0);
+}
+
 function _vagaOut(v) {
-  let req = {}, crit = [];
+  let req = {}, crit = [], faixas = [];
   try { req = JSON.parse(v.RequisitosJSON || '{}'); } catch (e) {}
   try { crit = JSON.parse(v.CriteriosJSON || '[]'); } catch (e) {}
+  try { faixas = JSON.parse(v.FaixasJSON || '[]'); } catch (e) {}
+  if (!faixas.length && v.CH !== '' && v.CH != null) faixas = [{ ch: v.CH, quantidade: Number(v.Quantidade) || 0 }];
   return {
     ID: v.ID, Tipo: v.Tipo, Titulo: v.Titulo, CH: v.CH, Quantidade: v.Quantidade,
-    Status: v.Status, requisitos: req, criterios: crit
+    Status: v.Status, requisitos: req, criterios: crit, faixas: faixas
   };
 }
 
@@ -55,18 +66,24 @@ function getVagas(acaoId, email) {
 function _validaVaga(p) {
   if (TIPO_VAGA.indexOf(p.tipo) === -1) throw userError('Tipo de vaga inválido.');
   if (!String(p.titulo || '').trim()) throw userError('Informe o título da vaga.');
-  if (p.tipo === 'Bolsista' && CH_BOLSA_VAGA.indexOf(String(p.ch)) === -1) {
-    throw userError('Para bolsista, a CH deve ser 4, 8, 12 ou 16.');
+  const faixas = _selFaixas(p.faixas, p.tipo);
+  if (!faixas.length) throw userError(p.tipo === 'Bolsista'
+    ? 'Adicione ao menos uma faixa (CH 4/8/12/16 + quantidade).'
+    : 'Adicione ao menos uma faixa (horas + quantidade).');
+  const soma = _selCriterios(p.criterios).reduce((s, c) => s + (Number(c.peso) || 0), 0);
+  if (soma > PESO_MAXIMO_CRITERIOS + 0.0001) {
+    throw userError('O somatório dos pesos dos critérios não pode passar de ' + PESO_MAXIMO_CRITERIOS.toFixed(1).replace('.', ',') + '.');
   }
-  const qtd = Number(p.quantidade);
-  if (!(qtd >= 1)) throw userError('Quantidade de vagas deve ser ao menos 1.');
 }
 
 function _vagaRow(id, p, criadoEm, criadoPor) {
-  const ch = p.tipo === 'Bolsista' ? String(p.ch) : (Number(p.ch) || 0);
-  return [id, p.acaoId, p.tipo, String(p.titulo).trim(), ch, Number(p.quantidade) || 0,
+  const faixas = _selFaixas(p.faixas, p.tipo);
+  const chLegacy = faixas.length ? faixas[0].ch : '';
+  const qtdTotal = faixas.reduce((s, f) => s + f.quantidade, 0);
+  return [id, p.acaoId, p.tipo, String(p.titulo).trim(), chLegacy, qtdTotal,
     JSON.stringify(_selRequisitos(p.requisitos)), JSON.stringify(_selCriterios(p.criterios)),
-    STATUS_VAGA.indexOf(p.status) !== -1 ? p.status : 'Aberta', criadoEm, criadoPor];
+    STATUS_VAGA.indexOf(p.status) !== -1 ? p.status : 'Aberta', criadoEm, criadoPor,
+    JSON.stringify(faixas)];
 }
 
 function addVaga(p, email, reqId) {

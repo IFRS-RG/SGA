@@ -25,7 +25,9 @@ const WRITE_ACTIONS = ['addEdital', 'updateEdital', 'deleteEdital', 'cloneEdital
   'setParametros',
   'addCertificado', 'deleteCertificado',
   'addColaborador', 'updateColaborador', 'deleteColaborador',
-  'addVaga', 'updateVaga', 'deleteVaga'];
+  'addVaga', 'updateVaga', 'deleteVaga',
+  'addSelecao', 'deleteSelecao',
+  'addComissao', 'updateComissao', 'deleteComissao', 'setComissaoCamaras'];
 
 function doPost(e) {
   let lock = null;
@@ -165,6 +167,28 @@ function doPost(e) {
         return respond(updateVaga(data.id, data.payload, userEmail));
       case 'deleteVaga':
         return respond(deleteVaga(data.id, userEmail));
+
+      // ── Seleção (processo seletivo) ──
+      case 'getAcoesComVagas':
+        return respond(getAcoesComVagas(data.editalId, userEmail));
+      case 'getSelecoes':
+        return respond(getSelecoes(userEmail));
+      case 'addSelecao':
+        return respond(addSelecao(data.payload, userEmail, data.reqId));
+      case 'deleteSelecao':
+        return respond(deleteSelecao(data.id, userEmail));
+
+      // ── Comissões (CGAE/CAGPPI/CAGE/CIEP) ──
+      case 'getComissoes':
+        return respond(getComissoes(userEmail));
+      case 'addComissao':
+        return respond(addComissao(data.payload, userEmail, data.reqId));
+      case 'updateComissao':
+        return respond(updateComissao(data.id, data.payload, userEmail));
+      case 'deleteComissao':
+        return respond(deleteComissao(data.id, userEmail));
+      case 'setComissaoCamaras':
+        return respond(setComissaoCamaras(data.id, data.camaras, userEmail));
 
       case 'getAcaoFinanceiro':
         return respond(getAcaoFinanceiro(data.acaoId, userEmail));

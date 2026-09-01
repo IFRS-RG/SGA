@@ -99,6 +99,19 @@ const API = {
   updateVaga:  (id, payload)     => gasCall('updateVaga', { id, payload }),
   deleteVaga:  (id)              => gasCall('deleteVaga', { id }),
 
+  // Seleção (processo seletivo)
+  getAcoesComVagas: (editalId)      => gasCall('getAcoesComVagas', { editalId }),
+  getSelecoes:      ()              => gasCall('getSelecoes'),
+  addSelecao:       (payload, reqId) => gasCall('addSelecao', { payload, reqId }),
+  deleteSelecao:    (id)            => gasCall('deleteSelecao', { id }),
+
+  // Comissões
+  getComissoes:      ()               => gasCall('getComissoes'),
+  addComissao:       (payload, reqId) => gasCall('addComissao', { payload, reqId }),
+  updateComissao:    (id, payload)    => gasCall('updateComissao', { id, payload }),
+  deleteComissao:    (id)             => gasCall('deleteComissao', { id }),
+  setComissaoCamaras:(id, camaras)    => gasCall('setComissaoCamaras', { id, camaras }),
+
   getAcaoFinanceiro:  (acaoId)          => gasCall('getAcaoFinanceiro', { acaoId }),
   saveAcaoFinanceiro: (acaoId, payload) => gasCall('saveAcaoFinanceiro', { acaoId, payload }),
   addDespesa:    (payload, reqId) => gasCall('addDespesa', { payload, reqId }),
