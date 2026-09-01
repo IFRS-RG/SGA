@@ -100,10 +100,11 @@ const API = {
   deleteVaga:  (id)              => gasCall('deleteVaga', { id }),
 
   // Seleção (processo seletivo)
-  getAcoesComVagas: (editalId)      => gasCall('getAcoesComVagas', { editalId }),
-  getSelecoes:      ()              => gasCall('getSelecoes'),
-  addSelecao:       (payload, reqId) => gasCall('addSelecao', { payload, reqId }),
-  deleteSelecao:    (id)            => gasCall('deleteSelecao', { id }),
+  getVagasAtivas: (exceptId)       => gasCall('getVagasAtivas', { exceptId }),
+  getSelecoes:    ()               => gasCall('getSelecoes'),
+  addSelecao:     (payload, reqId) => gasCall('addSelecao', { payload, reqId }),
+  updateSelecao:  (id, payload)    => gasCall('updateSelecao', { id, payload }),
+  deleteSelecao:  (id)             => gasCall('deleteSelecao', { id }),
 
   // Comissões
   getComissoes:      ()               => gasCall('getComissoes'),

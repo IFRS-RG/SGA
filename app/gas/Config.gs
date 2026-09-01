@@ -197,8 +197,8 @@ const COL = {
     ID: 0, Tipo: 1, PortariaFileId: 2, PortariaUrl: 3, DataInicio: 4, DataFim: 5,
     MembrosJSON: 6, CamarasJSON: 7, CriadoEm: 8, CriadoPor: 9
   },
-  // Seleções (processo seletivo): edital + ação + vagas escolhidas.
-  Selecoes: { ID: 0, EditalID: 1, AcaoID: 2, VagasJSON: 3, Status: 4, CriadoEm: 5, CriadoPor: 6 },
+  // Seleções (processo seletivo nomeado): agrega vagas de qualquer ação.
+  Selecoes: { ID: 0, Nome: 1, VagasJSON: 2, Status: 3, CriadoEm: 4, CriadoPor: 5 },
   // Certificados (upload de PDF; arquivo em {Segmento}/Certificados + atalho na ação).
   Certificados: {
     ID: 0, NomeDocumento: 1, Categoria: 2, EditalID: 3, AcaoID: 4, Papel: 5, PessoaTipo: 6, PessoaID: 7,
@@ -253,7 +253,7 @@ const HEADERS = {
              'RequisitosJSON', 'CriteriosJSON', 'Status', 'CriadoEm', 'CriadoPor', 'FaixasJSON'],
   Comissoes: ['ID', 'Tipo', 'PortariaFileId', 'PortariaUrl', 'DataInicio', 'DataFim',
               'MembrosJSON', 'CamarasJSON', 'CriadoEm', 'CriadoPor'],
-  Selecoes: ['ID', 'EditalID', 'AcaoID', 'VagasJSON', 'Status', 'CriadoEm', 'CriadoPor']
+  Selecoes: ['ID', 'Nome', 'VagasJSON', 'Status', 'CriadoEm', 'CriadoPor']
 };
 
 // ── Helpers genéricos ────────────────────────────────────────

@@ -26,7 +26,7 @@ const WRITE_ACTIONS = ['addEdital', 'updateEdital', 'deleteEdital', 'cloneEdital
   'addCertificado', 'deleteCertificado',
   'addColaborador', 'updateColaborador', 'deleteColaborador',
   'addVaga', 'updateVaga', 'deleteVaga',
-  'addSelecao', 'deleteSelecao',
+  'addSelecao', 'updateSelecao', 'deleteSelecao',
   'addComissao', 'updateComissao', 'deleteComissao', 'setComissaoCamaras'];
 
 function doPost(e) {
@@ -169,12 +169,14 @@ function doPost(e) {
         return respond(deleteVaga(data.id, userEmail));
 
       // ── Seleção (processo seletivo) ──
-      case 'getAcoesComVagas':
-        return respond(getAcoesComVagas(data.editalId, userEmail));
+      case 'getVagasAtivas':
+        return respond(getVagasAtivas(data.exceptId, userEmail));
       case 'getSelecoes':
         return respond(getSelecoes(userEmail));
       case 'addSelecao':
         return respond(addSelecao(data.payload, userEmail, data.reqId));
+      case 'updateSelecao':
+        return respond(updateSelecao(data.id, data.payload, userEmail));
       case 'deleteSelecao':
         return respond(deleteSelecao(data.id, userEmail));
 
