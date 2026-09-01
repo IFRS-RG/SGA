@@ -16,7 +16,7 @@ const WRITE_ACTIONS = ['addEdital', 'updateEdital', 'deleteEdital', 'cloneEdital
   'addCurso', 'updateCurso', 'deleteCurso',
   'saveFinanceiro',
   'addAcao', 'updateAcao', 'deleteAcao',
-  'uploadAcaoDoc', 'deleteAcaoDoc', 'renameAcaoDoc',
+  'uploadAcaoDoc', 'deleteAcaoDoc', 'renameAcaoDoc', 'uploadAcaoLogo',
   'addBolsista', 'updateBolsista', 'deleteBolsista', 'uploadBolsistaRelatorio',
   'addVoluntario', 'updateVoluntario', 'deleteVoluntario', 'uploadVoluntarioRelatorio',
   'saveAcaoFinanceiro', 'addDespesa', 'updateDespesa', 'deleteDespesa',
@@ -125,6 +125,8 @@ function doPost(e) {
         return respond(deleteAcaoDoc(data.docId, userEmail));
       case 'renameAcaoDoc':
         return respond(renameAcaoDoc(data.docId, data.nome, userEmail));
+      case 'uploadAcaoLogo':
+        return respond(uploadAcaoLogo(data.id, data.payload, userEmail));
       case 'getBolsistas':
         return respond(getBolsistas(data.acaoId, userEmail));
       case 'addBolsista':

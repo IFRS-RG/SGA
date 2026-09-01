@@ -20,7 +20,7 @@ function _acaoColabs(v) {
   catch (e) { return []; }
 }
 
-function _acaoRow(id, p, criadoEm, criadoPor, driveFolderId) {
+function _acaoRow(id, p, criadoEm, criadoPor, driveFolderId, logoFileId, logoUrl) {
   return [
     id,
     String(p.titulo || '').trim(),
@@ -36,7 +36,10 @@ function _acaoRow(id, p, criadoEm, criadoPor, driveFolderId) {
     _dateStr(p.dataFim),
     p.status || 'Ativa',
     driveFolderId || '',
-    criadoEm, criadoPor
+    criadoEm, criadoPor,
+    String(p.resumo || '').trim(),
+    logoFileId || '',
+    logoUrl || ''
   ];
 }
 
@@ -70,7 +73,8 @@ function getAcao(id, email) {
     coordenadorId: a.CoordenadorID, coorientadorId: a.CoorientadorID,
     colaboradores: _acaoColabs(a.ColaboradoresJSON),
     dataInicio: _dateStr(a.DataInicio), dataFim: _dateStr(a.DataFim),
-    status: a.Status
+    status: a.Status,
+    resumo: a.Resumo || '', logoUrl: a.LogoUrl || '', logoFileId: a.LogoFileId || ''
   };
 }
 
@@ -102,7 +106,7 @@ function addAcao(p, email, reqId) {
   if (dup) return { ok: true, id: dup, duplicate: true };
   const id = genId();
   const folderId = _criarPastaAcao(p.editalId, p.titulo);
-  getSheet('Acoes').appendRow(_acaoRow(id, p, nowBR(), email, folderId));
+  getSheet('Acoes').appendRow(_acaoRow(id, p, nowBR(), email, folderId, '', ''));
   _idempotentStore(reqId, id);
   return { ok: true, id: id };
 }
@@ -117,7 +121,8 @@ function updateAcao(id, p, email) {
   const old = sh.getRange(idx, 1, 1, HEADERS.Acoes.length).getValues()[0];
   let folderId = old[COL.Acoes.DriveFolderId];
   if (!folderId && p.editalId) folderId = _criarPastaAcao(p.editalId, p.titulo);
-  const row = _acaoRow(id, p, old[COL.Acoes.CriadoEm], old[COL.Acoes.CriadoPor], folderId);
+  const row = _acaoRow(id, p, old[COL.Acoes.CriadoEm], old[COL.Acoes.CriadoPor], folderId,
+    old[COL.Acoes.LogoFileId], old[COL.Acoes.LogoUrl]);
   sh.getRange(idx, 1, 1, row.length).setValues([row]);
   return { ok: true };
 }
@@ -215,4 +220,46 @@ function renameAcaoDoc(docId, novoNome, email) {
   const idx = findRowIndex('AcaoDocumentos', docId);
   if (idx !== -1) getSheet('AcaoDocumentos').getRange(idx, COL.AcaoDocumentos.NomeArquivo + 1).setValue(nome);
   return { ok: true, nome: nome };
+}
+
+// ── Imagem/logo do projeto (aba Dados) ──────────────────────
+// Só imagem (PNG/JPEG) por magic bytes.
+function _isImage(bytes) {
+  if (!bytes || bytes.length < 4) return false;
+  if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return true;                      // JPEG
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return true; // PNG
+  return false;
+}
+
+// payload: { fileName, base64 } para enviar/trocar, ou { remove: true } para excluir.
+function uploadAcaoLogo(id, payload, email) {
+  const info = requirePerfil(email, ACAO_WRITERS);
+  const acao = sheetRows('Acoes').find(a => String(a.ID) === String(id));
+  if (!acao) throw userError('Ação não encontrada.');
+  _assertSegmentoAcao(info, acao.Segmento);
+  const idx = findRowIndex('Acoes', id);
+  if (idx === -1) throw userError('Ação não encontrada.');
+  const sh = getSheet('Acoes');
+
+  // Remove a imagem anterior (se houver), tanto para trocar quanto para excluir.
+  if (acao.LogoFileId) { try { DriveApp.getFileById(acao.LogoFileId).setTrashed(true); } catch (e) {} }
+
+  if (payload && payload.remove) {
+    sh.getRange(idx, COL.Acoes.LogoFileId + 1, 1, 2).setValues([['', '']]);
+    return { ok: true, removed: true };
+  }
+
+  const bytes = Utilities.base64Decode(payload.base64);
+  if (!_isImage(bytes)) throw userError('Envie uma imagem PNG ou JPG válida.');
+  const isPng = bytes[0] === 0x89;
+  const mime = isPng ? 'image/png' : 'image/jpeg';
+  const fileName = 'logo' + (isPng ? '.png' : '.jpg');
+
+  const folder = _acaoFolder(acao);
+  const file = folder.createFile(Utilities.newBlob(bytes, mime, fileName));
+  // Logo não é dado sensível; precisa ser público p/ renderizar em <img>.
+  try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+  const url = 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w800';
+  sh.getRange(idx, COL.Acoes.LogoFileId + 1, 1, 2).setValues([[file.getId(), url]]);
+  return { ok: true, url: url };
 }

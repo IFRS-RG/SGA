@@ -79,6 +79,7 @@ const API = {
   uploadAcaoDoc: (payload)     => gasCall('uploadAcaoDoc', { payload }),
   deleteAcaoDoc: (docId)       => gasCall('deleteAcaoDoc', { docId }),
   renameAcaoDoc: (docId, nome) => gasCall('renameAcaoDoc', { docId, nome }),
+  uploadAcaoLogo: (id, payload) => gasCall('uploadAcaoLogo', { id, payload }),
   getBolsistas:   (acaoId)        => gasCall('getBolsistas', { acaoId }),
   addBolsista:    (payload, reqId) => gasCall('addBolsista', { payload, reqId }),
   updateBolsista: (id, payload)    => gasCall('updateBolsista', { id, payload }),

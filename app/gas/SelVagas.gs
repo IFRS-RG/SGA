@@ -14,14 +14,16 @@ function _selRequisitos(r) {
     .filter(m => MODALIDADE_VAGA.indexOf(m) !== -1);
   let cursos = r.cursos;
   if (cursos !== 'todos') cursos = (Array.isArray(cursos) ? cursos.map(String) : []);
+  const demais = (Array.isArray(r.demais) ? r.demais : []).map(d => ({
+    requisito: String(d.requisito || '').trim(),
+    comprovacao: String(d.comprovacao || '').trim()
+  })).filter(d => d.requisito || d.comprovacao);
   return {
     modalidade: modal,
     cursos: cursos,                                   // 'todos' | ['id', ...]
     periodoMin: String(r.periodoMin || '').trim(),
-    situacao: String(r.situacao || '').trim(),
     assistencia: !!r.assistencia,
-    condicoesOutros: String(r.condicoesOutros || '').trim(),
-    outrosFormais: String(r.outrosFormais || '').trim()
+    demais: demais
   };
 }
 

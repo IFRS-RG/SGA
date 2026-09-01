@@ -158,6 +158,16 @@ const Acoes = {
     const d = this.detail;
     const w = this.canWrite();
     const cell = (k, v) => `<div><span class="dk">${esc(k)}</span><span class="dv">${v}</span></div>`;
+    const resumo = d.resumo ? `<div class="upload-box" style="margin-top:12px"><div class="seg-head">Resumo da ação</div>
+      <p style="white-space:pre-wrap;margin:6px 0 0">${esc(d.resumo)}</p></div>` : '';
+    const logoImg = d.logoUrl
+      ? `<img src="${esc(d.logoUrl)}" alt="Logo do projeto" style="max-width:220px;max-height:160px;border-radius:8px;display:block;margin:6px 0">`
+      : '<p class="field-hint">Nenhuma imagem/logo enviada.</p>';
+    const logoBox = `<div class="upload-box" style="margin-top:12px"><div class="seg-head">Imagem / logo do projeto</div>
+      ${logoImg}
+      ${w ? `<input type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" class="input" id="ac-logo-file" onchange="Acoes.uploadLogo()">
+        <span class="field-hint">PNG ou JPG.</span>
+        ${d.logoUrl ? `<div class="page-actions"><button class="btn btn-ghost btn-xs danger" onclick="Acoes.removeLogo()">Remover imagem</button></div>` : ''}` : ''}</div>`;
     return `
       ${w ? `<div class="page-actions"><button class="btn btn-ghost btn-xs" onclick="Acoes.openForm('${d.ID}')">✏️ Editar dados</button></div>` : ''}
       <div class="detail-grid">
@@ -168,9 +178,39 @@ const Acoes = {
         ${cell('Edital', esc(this._editalNome(d.editalId)))}
         ${cell('Status', esc(d.status || '—'))}
         ${cell('Coordenador', esc(this._pessoaNome('servidor', d.coordenadorId) || '—'))}
-        ${cell('Coorientador', esc(this._pessoaNome('servidor', d.coorientadorId) || '—'))}
+        ${cell('Orientador adjunto', esc(this._pessoaNome('servidor', d.coorientadorId) || '—'))}
         ${cell('Período', esc((this._br(d.dataInicio) || '?') + ' a ' + (this._br(d.dataFim) || '?')))}
-      </div>`;
+      </div>
+      ${resumo}${logoBox}`;
+  },
+
+  async uploadLogo() {
+    const fileEl = document.getElementById('ac-logo-file');
+    const file = fileEl && fileEl.files[0];
+    if (!file) return;
+    if (!/\.(png|jpe?g)$/i.test(file.name) || (file.type && !/image\/(png|jpe?g)/i.test(file.type))) {
+      toast('Envie uma imagem PNG ou JPG.', 'error'); return;
+    }
+    toast('Enviando imagem…', 'info');
+    try {
+      const base64 = await fileToBase64(file);
+      await API.uploadAcaoLogo(this.currentId, { fileName: file.name, base64: base64 });
+      toast('Imagem enviada.', 'success');
+      this.detail = await API.getAcao(this.currentId);
+      this.renderDetail();
+    } catch (e) { toast(e.message, 'error'); }
+  },
+
+  removeLogo() {
+    if (!window.confirm('Remover a imagem/logo desta ação?')) return;
+    (async () => {
+      try {
+        await API.uploadAcaoLogo(this.currentId, { remove: true });
+        toast('Imagem removida.', 'success');
+        this.detail = await API.getAcao(this.currentId);
+        this.renderDetail();
+      } catch (e) { toast(e.message, 'error'); }
+    })();
   },
 
   // group define o conjunto de tipos e é lido pelo upload para saber o Tipo.
@@ -978,10 +1018,10 @@ const Acoes = {
     if (r.cursos === 'todos') parts.push('Cursos: todos');
     else if (Array.isArray(r.cursos) && r.cursos.length) parts.push('Cursos: ' + r.cursos.map(id => this._cursoNome(id)).join(', '));
     if (r.periodoMin) parts.push('Período/semestre mín.: ' + r.periodoMin);
-    if (r.situacao) parts.push('Situação: ' + r.situacao);
     if (r.assistencia) parts.push('Beneficiário de assistência estudantil');
-    if (r.condicoesOutros) parts.push('Condições: ' + r.condicoesOutros);
-    if (r.outrosFormais) parts.push('Outros: ' + r.outrosFormais);
+    (r.demais || []).forEach(d => {
+      if (d.requisito || d.comprovacao) parts.push((d.requisito || '—') + (d.comprovacao ? ' (comprovação: ' + d.comprovacao + ')' : ''));
+    });
     return parts;
   },
 
@@ -1006,7 +1046,7 @@ const Acoes = {
             <button class="btn btn-ghost btn-xs" onclick="Acoes.openVaga('${v.ID}')">✏️ Editar</button>
             <button class="btn btn-ghost btn-xs danger" onclick="Acoes.removeVaga('${v.ID}')">🗑</button></span>` : ''}
         </div>
-        <p class="section-sub" style="margin:4px 0">${esc(v.Tipo)} · CH ${esc(chLabel(v))} · ${esc(String(v.Quantidade))} vaga(s)</p>
+        <p class="section-sub" style="margin:4px 0">${esc(v.Tipo)} · CH ${esc(chLabel(v))}${v.Tipo === 'Bolsista' && this._valorBolsaDoEdital(this.detail.editalId, v.CH) !== '' ? ' · ' + fmtMoney(this._valorBolsaDoEdital(this.detail.editalId, v.CH)) : ''} · ${esc(String(v.Quantidade))} vaga(s)</p>
         <details><summary style="cursor:pointer">Requisitos eliminatórios</summary>${reqHtml}</details>
         <details style="margin-top:6px"><summary style="cursor:pointer">Critérios classificatórios (com peso)</summary><div class="table-wrap">${critRows}</div></details>
       </div>`;
@@ -1028,11 +1068,31 @@ const Acoes = {
       ${resumo}`;
   },
 
+  switchVagaTab(t) {
+    const req = document.getElementById('vg-pane-req'), crit = document.getElementById('vg-pane-crit');
+    if (req) req.style.display = t === 'crit' ? 'none' : '';
+    if (crit) crit.style.display = t === 'crit' ? '' : 'none';
+    const br = document.getElementById('vg-tabbtn-req'), bc = document.getElementById('vg-tabbtn-crit');
+    if (br) br.classList.toggle('active', t !== 'crit');
+    if (bc) bc.classList.toggle('active', t === 'crit');
+  },
+
   _vagaTipoChange(tipo) {
     const bols = document.getElementById('vg-ch-bolsista');
     const vol = document.getElementById('vg-ch-voluntario');
+    const valor = document.getElementById('vg-valor-wrap');
     if (bols) bols.style.display = tipo === 'Bolsista' ? '' : 'none';
     if (vol) vol.style.display = tipo === 'Voluntário' ? '' : 'none';
+    if (valor) valor.style.display = tipo === 'Bolsista' ? '' : 'none';
+    if (tipo === 'Bolsista') this._vagaChChange();
+  },
+
+  // Puxa o valor da bolsa do edital vinculado à ação, conforme a CH escolhida.
+  _vagaChChange() {
+    const el = document.getElementById('vg-valor');
+    if (!el) return;
+    const v = this._valorBolsaDoEdital(this.detail ? this.detail.editalId : '', val('vg-ch-bol'));
+    el.value = (v !== '' && v != null) ? fmtMoney(v) : '';
   },
 
   _vagaCursosToggle(todos) {
@@ -1047,14 +1107,36 @@ const Acoes = {
       <td><select class="input crit-cat">${opts}</select></td>
       <td><input class="input crit-desc" value="${esc(c.criterio || '')}" placeholder="descrição"></td>
       <td><input class="input crit-forma" value="${esc(c.forma || '')}" placeholder="ex.: entrevista, análise"></td>
-      <td style="width:80px"><input class="input crit-peso" type="number" min="0" step="0.5" value="${esc(c.peso != null ? String(c.peso) : '')}"></td>
-      <td style="width:36px"><button type="button" class="btn btn-ghost btn-xs danger" onclick="this.closest('tr').remove()">✕</button></td>
+      <td style="width:80px"><input class="input crit-peso" type="number" min="0" step="0.5" value="${esc(c.peso != null ? String(c.peso) : '')}" oninput="Acoes._updateCritSum()"></td>
+      <td style="width:36px"><button type="button" class="btn btn-ghost btn-xs danger" onclick="this.closest('tr').remove();Acoes._updateCritSum()">✕</button></td>
     </tr>`;
   },
 
   addCritRow() {
     const tb = document.getElementById('vg-crits');
-    if (tb) tb.insertAdjacentHTML('beforeend', this._critRowHtml());
+    if (tb) { tb.insertAdjacentHTML('beforeend', this._critRowHtml()); this._updateCritSum(); }
+  },
+
+  _updateCritSum() {
+    const el = document.getElementById('vg-crit-sum');
+    if (!el) return;
+    let s = 0;
+    document.querySelectorAll('#vg-crits .crit-peso').forEach(i => { s += parseFloat(i.value) || 0; });
+    el.textContent = (Math.round(s * 100) / 100).toString().replace('.', ',');
+  },
+
+  _demaisRowHtml(d) {
+    d = d || {};
+    return `<tr class="dem-row">
+      <td><input class="input dem-req" value="${esc(d.requisito || '')}" placeholder="Requisito"></td>
+      <td><input class="input dem-comp" value="${esc(d.comprovacao || '')}" placeholder="Forma de comprovação"></td>
+      <td style="width:36px"><button type="button" class="btn btn-ghost btn-xs danger" onclick="this.closest('tr').remove()">✕</button></td>
+    </tr>`;
+  },
+
+  addDemaisRow() {
+    const tb = document.getElementById('vg-demais');
+    if (tb) tb.insertAdjacentHTML('beforeend', this._demaisRowHtml());
   },
 
   openVaga(id) {
@@ -1070,37 +1152,55 @@ const Acoes = {
     const cursosChk = (this.cursos || []).filter(c => c.Status !== 'Inativo').map(c =>
       `<label class="chk-item"><input type="checkbox" class="vg-curso" value="${esc(c.ID)}" ${!todos && Array.isArray(req.cursos) && req.cursos.map(String).indexOf(String(c.ID)) !== -1 ? 'checked' : ''} ${todos ? 'disabled' : ''}> ${esc(c.Nome)}</label>`).join('') || '<span class="field-hint">Nenhum curso cadastrado.</span>';
     const crits = (v && v.criterios && v.criterios.length ? v.criterios : [{}]).map(c => this._critRowHtml(c)).join('');
+    const demais = (req.demais && req.demais.length ? req.demais : [{}]).map(d => this._demaisRowHtml(d)).join('');
+    const periodoOpts = ['<option value="">— sem exigência —</option>']
+      .concat(PERIODO_MINIMO.map(pp => `<option ${req.periodoMin === pp ? 'selected' : ''}>${esc(pp)}</option>`)).join('');
+    const valorIni = tipo === 'Bolsista' ? this._valorBolsaDoEdital(this.detail ? this.detail.editalId : '', v ? v.CH : (CH_BOLSA[0])) : '';
 
     const body = `
-      <div class="form-grid">
-        <div class="fg"><label>Tipo *</label><select class="input" id="vg-tipo" onchange="Acoes._vagaTipoChange(this.value)">${tipoOpts}</select></div>
-        <div class="fg"><label>Status</label><select class="input" id="vg-status">${statusOpts}</select></div>
-      </div>
-      <div class="fg"><label>Título da vaga *</label><input class="input" id="vg-titulo" value="${esc(v ? v.Titulo : '')}" placeholder="ex.: Bolsista de desenvolvimento web"></div>
-      <div class="form-grid">
-        <div class="fg" id="vg-ch-bolsista" style="${tipo === 'Bolsista' ? '' : 'display:none'}"><label>CH (bolsa)</label><select class="input" id="vg-ch-bol">${chBolOpts}</select></div>
-        <div class="fg" id="vg-ch-voluntario" style="${tipo === 'Voluntário' ? '' : 'display:none'}"><label>CH (horas)</label><input class="input" id="vg-ch-vol" type="number" min="0" value="${esc(v && tipo === 'Voluntário' ? String(v.CH || '') : '')}"></div>
-        <div class="fg"><label>Quantidade de vagas *</label><input class="input" id="vg-qtd" type="number" min="1" value="${esc(v ? String(v.Quantidade) : '1')}"></div>
+      <div class="ftabs" style="margin-bottom:12px">
+        <button type="button" class="ftab active" id="vg-tabbtn-req" onclick="Acoes.switchVagaTab('req')">Requisitos</button>
+        <button type="button" class="ftab" id="vg-tabbtn-crit" onclick="Acoes.switchVagaTab('crit')">Critérios</button>
       </div>
 
-      <div class="seg-head" style="margin-top:12px">Requisitos de participação <span class="field-hint">(eliminatórios — não pontuam)</span></div>
-      <div class="fg"><label>Modalidade / nível de ensino</label><div class="chk-list">${modalChk}</div></div>
-      <div class="fg"><label><input type="checkbox" id="vg-cursos-todos" onchange="Acoes._vagaCursosToggle(this.checked)" ${todos ? 'checked' : ''}> Todos os cursos</label>
-        <div class="chk-list" id="vg-cursos-list" style="${todos ? 'opacity:0.4' : ''}">${cursosChk}</div></div>
-      <div class="form-grid">
-        <div class="fg"><label>Período / semestre mínimo</label><input class="input" id="vg-periodo" value="${esc(req.periodoMin || '')}" placeholder="opcional"></div>
-        <div class="fg"><label>Situação acadêmica</label><input class="input" id="vg-situacao" value="${esc(req.situacao || '')}" placeholder="ex.: Matrícula ativa"></div>
-      </div>
-      <div class="fg"><label class="chk-item"><input type="checkbox" id="vg-assist" ${req.assistencia ? 'checked' : ''}> Beneficiário(a) de programa de assistência estudantil</label></div>
-      <div class="fg"><label>Outras condições institucionais</label><input class="input" id="vg-cond" value="${esc(req.condicoesOutros || '')}" placeholder="previstas pela modalidade da bolsa ou edital"></div>
-      <div class="fg"><label>Outros requisitos formais</label><textarea class="input" id="vg-formais" rows="2" placeholder="apenas condições objetivas e formalmente exigíveis">${esc(req.outrosFormais || '')}</textarea></div>
+      <div id="vg-pane-req">
+        <div class="form-grid">
+          <div class="fg"><label>Tipo *</label><select class="input" id="vg-tipo" onchange="Acoes._vagaTipoChange(this.value)">${tipoOpts}</select></div>
+          <div class="fg"><label>Status</label><select class="input" id="vg-status">${statusOpts}</select></div>
+        </div>
+        <div class="fg"><label>Título da vaga *</label><input class="input" id="vg-titulo" value="${esc(v ? v.Titulo : '')}" placeholder="ex.: Bolsista de desenvolvimento web"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <div class="fg" id="vg-ch-bolsista" style="flex:1 1 130px;${tipo === 'Bolsista' ? '' : 'display:none'}"><label>CH (bolsa)</label><select class="input" id="vg-ch-bol" onchange="Acoes._vagaChChange()">${chBolOpts}</select></div>
+          <div class="fg" id="vg-ch-voluntario" style="flex:1 1 130px;${tipo === 'Voluntário' ? '' : 'display:none'}"><label>CH (horas)</label><input class="input" id="vg-ch-vol" type="number" min="0" value="${esc(v && tipo === 'Voluntário' ? String(v.CH || '') : '')}"></div>
+          <div class="fg" id="vg-valor-wrap" style="flex:1 1 130px;${tipo === 'Bolsista' ? '' : 'display:none'}"><label>Valor da bolsa</label><input class="input" id="vg-valor" value="${esc(valorIni !== '' && valorIni != null ? fmtMoney(valorIni) : '')}" readonly title="Puxado do edital pela CH"></div>
+          <div class="fg" style="flex:0 0 92px"><label>Vagas *</label><input class="input" id="vg-qtd" type="number" min="1" value="${esc(v ? String(v.Quantidade) : '1')}"></div>
+        </div>
 
-      <div class="seg-head" style="margin-top:12px">Critérios de seleção e classificação <span class="field-hint">(classificatórios — com peso)</span></div>
-      <div class="table-wrap"><table class="data-table"><thead><tr><th>Categoria</th><th>Critério</th><th>Forma de avaliação</th><th>Peso</th><th></th></tr></thead>
-        <tbody id="vg-crits">${crits}</tbody></table></div>
-      <div class="page-actions"><button type="button" class="btn btn-ghost btn-xs" onclick="Acoes.addCritRow()">+ Adicionar critério</button></div>`;
+        <div class="seg-head" style="margin-top:12px">Requisitos de participação <span class="field-hint">(eliminatórios — não pontuam)</span></div>
+        <div class="fg"><label>Modalidade / nível de ensino</label><div class="chk-list">${modalChk}</div></div>
+        <div class="fg"><label><input type="checkbox" id="vg-cursos-todos" onchange="Acoes._vagaCursosToggle(this.checked)" ${todos ? 'checked' : ''}> Todos os cursos</label>
+          <div class="chk-list" id="vg-cursos-list" style="${todos ? 'opacity:0.4' : ''}">${cursosChk}</div></div>
+        <div class="form-grid">
+          <div class="fg"><label>Período / semestre mínimo</label><select class="input" id="vg-periodo">${periodoOpts}</select></div>
+          <div class="fg" style="display:flex;align-items:flex-end"><label class="chk-item"><input type="checkbox" id="vg-assist" ${req.assistencia ? 'checked' : ''}> Beneficiário(a) de assistência estudantil</label></div>
+        </div>
+
+        <div class="seg-head" style="margin-top:12px">Demais requisitos</div>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Requisito</th><th>Forma de comprovação</th><th></th></tr></thead>
+          <tbody id="vg-demais">${demais}</tbody></table></div>
+        <div class="page-actions"><button type="button" class="btn btn-ghost btn-xs" onclick="Acoes.addDemaisRow()">+ Adicionar requisito</button></div>
+      </div>
+
+      <div id="vg-pane-crit" style="display:none">
+        <div class="seg-head">Critérios de seleção e classificação <span class="field-hint">(classificatórios — com peso)</span></div>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Categoria</th><th>Critério</th><th>Forma de avaliação</th><th>Peso</th><th></th></tr></thead>
+          <tbody id="vg-crits">${crits}</tbody>
+          <tfoot><tr><td colspan="3" style="text-align:right"><strong>Somatório dos pesos</strong></td><td colspan="2"><strong id="vg-crit-sum">0</strong></td></tr></tfoot></table></div>
+        <div class="page-actions"><button type="button" class="btn btn-ghost btn-xs" onclick="Acoes.addCritRow()">+ Adicionar critério</button></div>
+      </div>`;
 
     openModal((id ? 'Editar ' : 'Nova ') + 'vaga', body, async () => { await this.saveVaga(id); }, { confirmLabel: id ? 'Salvar' : 'Adicionar' });
+    setTimeout(() => this._updateCritSum(), 60);
   },
 
   _harvestVaga() {
@@ -1114,6 +1214,10 @@ const Acoes = {
       forma: tr.querySelector('.crit-forma').value.trim(),
       peso: parseFloat(tr.querySelector('.crit-peso').value) || 0
     })).filter(c => c.criterio || c.forma || c.peso);
+    const demais = Array.from(document.querySelectorAll('#vg-demais .dem-row')).map(tr => ({
+      requisito: tr.querySelector('.dem-req').value.trim(),
+      comprovacao: tr.querySelector('.dem-comp').value.trim()
+    })).filter(d => d.requisito || d.comprovacao);
     return {
       tipo: tipo,
       titulo: val('vg-titulo'),
@@ -1122,9 +1226,9 @@ const Acoes = {
       status: val('vg-status'),
       requisitos: {
         modalidade: modalidade, cursos: cursos,
-        periodoMin: val('vg-periodo'), situacao: val('vg-situacao'),
+        periodoMin: val('vg-periodo'),
         assistencia: document.getElementById('vg-assist') && document.getElementById('vg-assist').checked,
-        condicoesOutros: val('vg-cond'), outrosFormais: val('vg-formais')
+        demais: demais
       },
       criterios: criterios
     };
@@ -1296,13 +1400,14 @@ const Acoes = {
       </div>
       <div class="form-grid">
         <div class="fg"><label>Coordenador</label><select class="input" id="ac-coord">${servOpt(r ? r.coordenadorId : '')}</select></div>
-        <div class="fg"><label>Coorientador</label><select class="input" id="ac-coorient">${servOpt(r ? r.coorientadorId : '')}</select></div>
+        <div class="fg"><label>Orientador adjunto</label><select class="input" id="ac-coorient">${servOpt(r ? r.coorientadorId : '')}</select></div>
       </div>
       <div class="form-grid">
         <div class="fg"><label>Data de início</label><input class="input" type="date" id="ac-inicio" value="${esc(r ? r.dataInicio : '')}"></div>
         <div class="fg"><label>Data de fim</label><input class="input" type="date" id="ac-fim" value="${esc(r ? r.dataFim : '')}"></div>
       </div>
-      <p class="section-sub">Colaboradores agora são gerenciados na aba <strong>🤝 Colaboradores</strong>.</p>`;
+      <div class="fg"><label>Resumo da ação</label><textarea class="input" id="ac-resumo" rows="4" placeholder="Descrição/resumo do projeto">${esc(r ? (r.resumo || '') : '')}</textarea></div>
+      <p class="section-sub">A imagem/logo do projeto é enviada na aba <strong>📋 Dados</strong> após salvar. Colaboradores são gerenciados na aba <strong>🤝 Colaboradores</strong>.</p>`;
   },
 
   onEditalChange() {
@@ -1316,7 +1421,8 @@ const Acoes = {
       titulo: val('ac-titulo'), tipoAcao: val('ac-tipo'), modalidade: val('ac-modalidade'),
       anoExecucao: val('ac-ano'), segmento: val('ac-segmento'), editalId: val('ac-edital'),
       coordenadorId: val('ac-coord'), coorientadorId: val('ac-coorient'),
-      dataInicio: val('ac-inicio'), dataFim: val('ac-fim'), status: val('ac-status')
+      dataInicio: val('ac-inicio'), dataFim: val('ac-fim'), status: val('ac-status'),
+      resumo: val('ac-resumo')
     };
   },
 
