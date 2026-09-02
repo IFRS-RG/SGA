@@ -8,10 +8,13 @@ const Selecao = {
   container: null,
   role: null,
   selecoes: [],
+  view: 'list',       // 'list' | 'detail'
+  detail: null,
 
   async mount(container, role) {
     this.container = container;
     this.role = role;
+    this.view = 'list';
     this.container.innerHTML = '<div class="loading-page"><div class="spinner"></div><p>Carregando…</p></div>';
     try { this.selecoes = await API.getSelecoes() || []; }
     catch (e) { this.container.innerHTML = emptyState('Erro ao carregar: ' + (e && e.message ? e.message : e)); return; }
@@ -21,18 +24,21 @@ const Selecao = {
   canWrite() { return this.role === 'Admin' || this.role === 'Gestor'; },
   _reqId() { return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); },
   _suggestNome() { const d = new Date(); return 'Seleção ' + d.getFullYear() + '/' + (d.getMonth() < 6 ? 1 : 2); },
+  _br(iso) { if (!iso) return ''; const p = String(iso).slice(0, 10).split('-'); return p[2] ? `${p[2]}/${p[1]}/${p[0]}` : iso; },
 
-  render() {
+  render() { if (this.view === 'detail') this.renderDetail(); else this.renderList(); },
+
+  renderList() {
     const w = this.canWrite();
     const rows = (this.selecoes || []).map(s => {
       const acoes = (s.acoes || []).map(esc).join(', ') || '—';
       const menu = w ? `<td class="col-actions"><details class="row-menu"><summary class="btn btn-ghost btn-xs">Ações ▾</summary><div class="row-menu-list">
-        <button onclick="Selecao.view('${s.ID}')">👁 Ver</button>
+        <button onclick="Selecao.openDetail('${s.ID}')">👁 Ver</button>
         <button onclick="Selecao.openSelecao('${s.ID}')">✏️ Editar</button>
         <button class="danger" onclick="Selecao.remove('${s.ID}')">🗑 Excluir</button>
       </div></details></td>` : '';
       return `<tr>
-        <td><a href="#" onclick="Selecao.view('${s.ID}');return false;"><strong>${esc(s.Nome || '—')}</strong></a></td>
+        <td><a href="#" onclick="Selecao.openDetail('${s.ID}');return false;"><strong>${esc(s.Nome || '—')}</strong></a></td>
         <td class="cell-sub">${acoes}</td>
         <td>${(s.vagas || []).length} vaga(s)</td>
         <td><span class="badge ${s.Status === 'Aberta' ? 'badge-ok' : 'badge-muted'}">${esc(s.Status || '—')}</span></td>
@@ -123,16 +129,115 @@ const Selecao = {
     } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
   },
 
-  view(id) {
-    const s = (this.selecoes || []).find(x => String(x.ID) === String(id));
-    if (!s) return;
+  // ── Detalhe em tela cheia (portfólio de vagas + inscritos) ──
+  async openDetail(id) {
+    this.container.innerHTML = '<div class="loading-page"><div class="spinner"></div><p>Carregando…</p></div>';
+    try { this.detail = await API.getSelecao(id); this.view = 'detail'; }
+    catch (e) { toast(e.message, 'error'); this.view = 'list'; this.renderList(); return; }
+    this.renderDetail();
+  },
+
+  back() { this.view = 'list'; this.renderList(); },
+
+  _situBadge(s) {
+    const ok = { 'Selecionado': 'badge-ok', 'Classificado': 'badge-ok' };
+    return `<span class="badge ${ok[s] || 'badge-muted'}">${esc(s || 'Inscrito')}</span>`;
+  },
+
+  _reqResumo(req, cursosNomes) {
+    req = req || {};
+    const parts = [];
+    if (req.modalidade && req.modalidade.length) parts.push('Modalidade: ' + req.modalidade.join(', '));
+    if (req.cursos === 'todos') parts.push('Cursos: todos');
+    else if (cursosNomes && cursosNomes.length) parts.push('Cursos: ' + cursosNomes.join(', '));
+    if (req.periodoMin) parts.push('Período/semestre mín.: ' + req.periodoMin);
+    if (req.assistencia) parts.push('Beneficiário de assistência estudantil');
+    (req.demais || []).forEach(d => { if (d.requisito || d.comprovacao) parts.push((d.requisito || '—') + (d.comprovacao ? ' (comprovação: ' + d.comprovacao + ')' : '')); });
+    return parts;
+  },
+
+  _faixasTable(v) {
+    const fx = v.faixas || [];
+    if (!fx.length) return '<p class="field-hint">Sem faixas.</p>';
+    return `<div class="table-wrap"><table class="data-table">
+      <thead><tr><th>CH</th><th>${v.Tipo === 'Bolsista' ? 'Valor da bolsa' : 'Horas'}</th><th>Vagas</th></tr></thead>
+      <tbody>${fx.map(f => `<tr><td>${esc(String(f.ch))}h</td><td>${v.Tipo === 'Bolsista' && f.valor !== '' && f.valor != null ? fmtMoney(f.valor) : '—'}</td><td>${esc(String(f.quantidade))}</td></tr>`).join('')}</tbody></table></div>`;
+  },
+
+  _inscritosTable(v) {
+    const ins = v.inscritos || [];
+    if (!ins.length) return `<p class="field-hint">Nenhum inscrito ainda. <em>As inscrições serão importadas.</em></p>`;
+    return `<div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Nome</th><th>Matrícula</th><th>Curso</th><th>E-mail</th><th>Faixa</th><th>Nota</th><th>Situação</th></tr></thead>
+      <tbody>${ins.map(c => `<tr>
+        <td><strong>${esc(c.nome || '—')}</strong></td>
+        <td>${esc(c.matricula || '—')}</td>
+        <td>${esc(c.curso || '—')}</td>
+        <td class="cell-sub">${esc(c.email || '—')}</td>
+        <td>${c.faixaCH ? esc(String(c.faixaCH)) + 'h' : '—'}</td>
+        <td>${c.notaFinal !== '' && c.notaFinal != null ? esc(String(c.notaFinal)) : '—'}</td>
+        <td>${this._situBadge(c.situacao)}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+  },
+
+  _vagaCard(v) {
+    const req = this._reqResumo(v.requisitos, v.cursosNomes);
+    const reqHtml = req.length ? '<ul style="margin:4px 0 0 18px">' + req.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>'
+      : '<p class="field-hint">Sem requisitos eliminatórios.</p>';
+    const crit = v.criterios || [];
+    const critHtml = crit.length ? `<div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Categoria</th><th>Critério</th><th>Forma</th><th>Peso</th></tr></thead>
+      <tbody>${crit.map(c => `<tr><td>${esc(c.categoria)}</td><td>${esc(c.criterio || '—')}</td><td>${esc(c.forma || '—')}</td><td>${esc(String(c.peso))}</td></tr>`).join('')}</tbody></table></div>`
+      : '<p class="field-hint">Sem critérios classificatórios.</p>';
+    const nIns = (v.inscritos || []).length;
+    const totalVagas = (v.faixas || []).reduce((s, f) => s + (Number(f.quantidade) || 0), 0);
+    return `<details class="upload-box" style="margin-bottom:12px">
+      <summary style="cursor:pointer;list-style:none">
+        <div class="seg-head" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0">
+          <span>${v.Tipo === 'Bolsista' ? '🎓' : '🙌'} <strong>${esc(v.Titulo)}</strong>
+            <span class="badge ${v.Status === 'Aberta' ? 'badge-ok' : 'badge-muted'}">${esc(v.Status)}</span></span>
+          <span class="cell-sub">${totalVagas} vaga(s) · <strong>${nIns}</strong> inscrito(s) ▾</span>
+        </div>
+        <p class="section-sub" style="margin:4px 0 0">${esc(v.Tipo)} · ${esc(v.acaoTitulo || '')}${v.editalLabel ? ' · ' + esc(v.editalLabel) : ''}</p>
+      </summary>
+      <div style="margin-top:10px">
+        <div class="seg-head">Faixas ofertadas</div>${this._faixasTable(v)}
+        <div class="seg-head" style="margin-top:10px">Requisitos de participação</div>${reqHtml}
+        <div class="seg-head" style="margin-top:10px">Critérios de seleção e classificação</div>${critHtml}
+        <div class="seg-head" style="margin-top:10px">Inscritos <span class="badge badge-muted">${nIns}</span></div>${this._inscritosTable(v)}
+      </div>
+    </details>`;
+  },
+
+  renderDetail() {
+    const d = this.detail;
+    const w = this.canWrite();
+    const vagas = d.vagas || [];
+    const totalVagas = vagas.reduce((s, v) => s + (v.faixas || []).reduce((a, f) => a + (Number(f.quantidade) || 0), 0), 0);
+    // Resumo por situação (visão do gestor).
+    const porSitu = {};
+    vagas.forEach(v => (v.inscritos || []).forEach(c => { const k = c.situacao || 'Inscrito'; porSitu[k] = (porSitu[k] || 0) + 1; }));
+    const situChips = SITUACAO_INSCRICAO.filter(s => porSitu[s]).map(s => `<span class="badge badge-muted">${esc(s)}: ${porSitu[s]}</span>`).join(' ')
+      || '<span class="cell-sub">sem inscritos</span>';
+    // Agrupa vagas por ação.
     const byAcao = {};
-    (s.vagas || []).forEach(v => { (byAcao[v.acaoTitulo || '(sem ação)'] = byAcao[v.acaoTitulo || '(sem ação)'] || []).push(v); });
-    const blocks = Object.keys(byAcao).map(ak => `<div class="seg-head" style="margin-top:8px">${esc(ak)}</div>
-      <ul style="margin:4px 0 0 18px">${byAcao[ak].map(v => `<li>${v.Tipo === 'Bolsista' ? '🎓' : '🙌'} ${esc(v.Titulo)}</li>`).join('')}</ul>`).join('')
-      || '<p class="field-hint">Sem vagas.</p>';
-    openModal(s.Nome, `<p class="section-sub"><span class="badge ${s.Status === 'Aberta' ? 'badge-ok' : 'badge-muted'}">${esc(s.Status)}</span> · ${(s.vagas || []).length} vaga(s)</p>${blocks}`,
-      null, { hideConfirm: true, cancelLabel: 'Fechar' });
+    vagas.forEach(v => { (byAcao[v.acaoTitulo || '(sem ação)'] = byAcao[v.acaoTitulo || '(sem ação)'] || []).push(v); });
+    const grupos = Object.keys(byAcao).map(ak =>
+      `<h3 style="margin:14px 0 6px">${esc(ak)}</h3>${byAcao[ak].map(v => this._vagaCard(v)).join('')}`).join('')
+      || emptyState('Este processo não tem vagas.');
+
+    this.container.innerHTML = `
+      <div class="page-actions">
+        <button class="btn btn-ghost" onclick="Selecao.back()">← Voltar</button>
+        ${w ? `<button class="btn btn-ghost btn-xs" onclick="Selecao.openSelecao('${d.ID}')">✏️ Editar processo</button>` : ''}
+      </div>
+      <h2 style="margin:6px 0 2px">${esc(d.Nome)} <span class="badge ${d.Status === 'Aberta' ? 'badge-ok' : 'badge-muted'}">${esc(d.Status)}</span></h2>
+      <div class="detail-grid" style="margin:8px 0 12px">
+        <div><span class="dk">Vagas ofertadas</span><span class="dv">${vagas.length} vaga(s) · ${totalVagas} posição(ões)</span></div>
+        <div><span class="dk">Inscritos</span><span class="dv">${d.totalInscritos || 0}</span></div>
+        <div><span class="dk">Situação dos inscritos</span><span class="dv">${situChips}</span></div>
+      </div>
+      ${grupos}`;
   },
 
   remove(id) {

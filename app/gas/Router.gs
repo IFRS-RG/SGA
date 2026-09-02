@@ -173,6 +173,8 @@ function doPost(e) {
         return respond(getVagasAtivas(data.exceptId, userEmail));
       case 'getSelecoes':
         return respond(getSelecoes(userEmail));
+      case 'getSelecao':
+        return respond(getSelecao(data.id, userEmail));
       case 'addSelecao':
         return respond(addSelecao(data.payload, userEmail, data.reqId));
       case 'updateSelecao':

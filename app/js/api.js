@@ -102,6 +102,7 @@ const API = {
   // Seleção (processo seletivo)
   getVagasAtivas: (exceptId)       => gasCall('getVagasAtivas', { exceptId }),
   getSelecoes:    ()               => gasCall('getSelecoes'),
+  getSelecao:     (id)             => gasCall('getSelecao', { id }),
   addSelecao:     (payload, reqId) => gasCall('addSelecao', { payload, reqId }),
   updateSelecao:  (id, payload)    => gasCall('updateSelecao', { id, payload }),
   deleteSelecao:  (id)             => gasCall('deleteSelecao', { id }),

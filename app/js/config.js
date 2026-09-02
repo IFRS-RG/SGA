@@ -61,6 +61,8 @@ const MODALIDADE_VAGA = ['Integrado', 'Subsequente', 'Superior'];
 const PERIODO_MINIMO = ['1º', '2º', '3º', '4º', '5º', '6º', '7º', '8º', '9º', '10º'];
 const CATEGORIA_CRITERIO = ['Entrevista', 'Análise documental', 'Conhecimentos e competências',
   'Experiência e trajetória', 'Formação complementar', 'Disponibilidade', 'Avaliação prática', 'Outros'];
+// Situação de um candidato inscrito (avaliação/classificação vem depois).
+const SITUACAO_INSCRICAO = ['Inscrito', 'Classificado', 'Selecionado', 'Suplente', 'Desclassificado'];
 const STATUS_VINCULO = ['Ativo', 'Desligado', 'Concluído'];
 const STATUS_SIGAA = ['Cadastrado', 'Não cadastrado', 'Cadastro incorreto'];
 const STATUS_RELATORIO = ['Não entregue', 'Entregue', 'Em análise', 'Aprovado', 'Reprovado'];

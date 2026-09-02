@@ -103,6 +103,8 @@ const MODALIDADE_VAGA = ['Integrado', 'Subsequente', 'Superior'];
 const CATEGORIA_CRITERIO = ['Entrevista', 'Análise documental', 'Conhecimentos e competências',
   'Experiência e trajetória', 'Formação complementar', 'Disponibilidade', 'Avaliação prática', 'Outros'];
 const PESO_MAXIMO_CRITERIOS = 10.0;   // somatório dos pesos dos critérios de uma vaga
+// Situação de um candidato inscrito (avaliação/classificação vem depois).
+const SITUACAO_INSCRICAO = ['Inscrito', 'Classificado', 'Selecionado', 'Suplente', 'Desclassificado'];
 
 // ── Comissões ────────────────────────────────────────────────
 const COMISSAO_TIPOS = ['CGAE', 'CAGPPI', 'CAGE', 'CIEP'];
@@ -199,6 +201,11 @@ const COL = {
   },
   // Seleções (processo seletivo nomeado): agrega vagas de qualquer ação.
   Selecoes: { ID: 0, Nome: 1, VagasJSON: 2, Status: 3, CriadoEm: 4, CriadoPor: 5 },
+  // Inscrições (candidatos por vaga+faixa). Import vem de fora; avaliação = notas.
+  Inscricoes: {
+    ID: 0, SelecaoID: 1, VagaID: 2, FaixaCH: 3, CandidatoNome: 4, Matricula: 5, Curso: 6,
+    Email: 7, DataInscricao: 8, NotasJSON: 9, NotaFinal: 10, Situacao: 11
+  },
   // Certificados (upload de PDF; arquivo em {Segmento}/Certificados + atalho na ação).
   Certificados: {
     ID: 0, NomeDocumento: 1, Categoria: 2, EditalID: 3, AcaoID: 4, Papel: 5, PessoaTipo: 6, PessoaID: 7,
@@ -253,7 +260,9 @@ const HEADERS = {
              'RequisitosJSON', 'CriteriosJSON', 'Status', 'CriadoEm', 'CriadoPor', 'FaixasJSON'],
   Comissoes: ['ID', 'Tipo', 'PortariaFileId', 'PortariaUrl', 'DataInicio', 'DataFim',
               'MembrosJSON', 'CamarasJSON', 'CriadoEm', 'CriadoPor'],
-  Selecoes: ['ID', 'Nome', 'VagasJSON', 'Status', 'CriadoEm', 'CriadoPor']
+  Selecoes: ['ID', 'Nome', 'VagasJSON', 'Status', 'CriadoEm', 'CriadoPor'],
+  Inscricoes: ['ID', 'SelecaoID', 'VagaID', 'FaixaCH', 'CandidatoNome', 'Matricula', 'Curso',
+               'Email', 'DataInscricao', 'NotasJSON', 'NotaFinal', 'Situacao']
 };
 
 // ── Helpers genéricos ────────────────────────────────────────
