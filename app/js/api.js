@@ -106,6 +106,10 @@ const API = {
   addSelecao:     (payload, reqId) => gasCall('addSelecao', { payload, reqId }),
   updateSelecao:  (id, payload)    => gasCall('updateSelecao', { id, payload }),
   deleteSelecao:  (id)             => gasCall('deleteSelecao', { id }),
+  prepararPortal:       ()   => gasCall('prepararPortal'),
+  publicarSelecao:      (id) => gasCall('publicarSelecao', { id }),
+  despublicarSelecao:   (id) => gasCall('despublicarSelecao', { id }),
+  sincronizarInscricoes:()   => gasCall('sincronizarInscricoes'),
 
   // Comissões
   getComissoes:      ()               => gasCall('getComissoes'),

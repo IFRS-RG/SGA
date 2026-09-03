@@ -198,17 +198,29 @@ const Admin = {
   parametrosSection() {
     const p = this.parametros || {};
     const lim = p.limiteOrcamentos != null ? p.limiteOrcamentos : '';
+    const portalId = p.portalSheetId != null ? p.portalSheetId : '';
     return `
       <section class="admin-section">
         <div class="section-head"><div>
           <h2>Parâmetros</h2>
           <p class="section-sub">Valores ajustáveis pela gestão.</p>
         </div></div>
-        <div class="upload-box" style="max-width:480px">
+        <div class="upload-box" style="max-width:520px">
           <div class="fg"><label>Limite para exigir 3 orçamentos (R$)</label>
             <input class="input" id="par-limite" value="${esc(lim)}">
             <span class="field-hint">Art. 7º da IN — 5% do teto do Art. 75, II da Lei 14.133 (atualmente R$ 3.274,60). Despesas com valor unitário acima disso são sinalizadas com ⚠ nas ações.</span></div>
           <button class="btn btn-primary" id="par-btn" onclick="Admin.saveParametros()">Salvar</button>
+        </div>
+        <div class="upload-box" style="max-width:520px;margin-top:12px">
+          <div class="seg-head">Portal do aluno</div>
+          <div class="fg"><label>ID da planilha do portal</label>
+            <input class="input" id="par-portal" value="${esc(portalId)}">
+            <span class="field-hint">É o código da URL da planilha do portal (entre <code>/d/</code> e <code>/edit</code>). O SGA publica as vagas e lê as inscrições dessa planilha.</span></div>
+          <div class="page-actions">
+            <button class="btn btn-primary" id="par-portal-btn" onclick="Admin.savePortalId()">Salvar ID</button>
+            <button class="btn btn-ghost" id="par-prep-btn" onclick="Admin.prepararPortal()">Preparar planilha do portal</button>
+          </div>
+          <span class="field-hint">"Preparar" cria as abas (Selecao, Vagas, Inscricoes) na planilha do portal. A sincronização automática roda todo dia ~07:30 (rode <code>instalarGatilhoSync()</code> uma vez no editor para ativar).</span>
         </div>
       </section>`;
   },
@@ -222,6 +234,28 @@ const Admin = {
       this.parametros = await API.getParametros() || {};
       this.render();
     } catch (e) { toast(e.message, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; } }
+  },
+
+  async savePortalId() {
+    const btn = document.getElementById('par-portal-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
+    try {
+      await API.setParametros({ portalSheetId: val('par-portal') });
+      toast('ID do portal salvo.', 'success');
+      this.parametros = await API.getParametros() || {};
+      this.render();
+    } catch (e) { toast(e.message, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Salvar ID'; } }
+  },
+
+  async prepararPortal() {
+    const btn = document.getElementById('par-prep-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Preparando…'; }
+    try {
+      const r = await API.prepararPortal();
+      toast('Planilha do portal preparada.', 'success');
+      if (r && r.url) window.open(r.url, '_blank');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = 'Preparar planilha do portal'; } }
   },
 
   perfilLabel(p) { return p === 'Gestor' ? 'Gestor de Segmento' : p; },

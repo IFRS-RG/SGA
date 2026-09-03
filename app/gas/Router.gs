@@ -27,6 +27,7 @@ const WRITE_ACTIONS = ['addEdital', 'updateEdital', 'deleteEdital', 'cloneEdital
   'addColaborador', 'updateColaborador', 'deleteColaborador',
   'addVaga', 'updateVaga', 'deleteVaga',
   'addSelecao', 'updateSelecao', 'deleteSelecao',
+  'prepararPortal', 'publicarSelecao', 'despublicarSelecao', 'sincronizarInscricoes',
   'addComissao', 'updateComissao', 'deleteComissao', 'setComissaoCamaras'];
 
 function doPost(e) {
@@ -181,6 +182,14 @@ function doPost(e) {
         return respond(updateSelecao(data.id, data.payload, userEmail));
       case 'deleteSelecao':
         return respond(deleteSelecao(data.id, userEmail));
+      case 'prepararPortal':
+        return respond(prepararPortal(userEmail));
+      case 'publicarSelecao':
+        return respond(publicarSelecao(data.id, userEmail));
+      case 'despublicarSelecao':
+        return respond(despublicarSelecao(data.id, userEmail));
+      case 'sincronizarInscricoes':
+        return respond(sincronizarInscricoes(userEmail));
 
       // ── Comissões (CGAE/CAGPPI/CAGE/CIEP) ──
       case 'getComissoes':

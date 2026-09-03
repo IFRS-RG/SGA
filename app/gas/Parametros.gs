@@ -25,13 +25,21 @@ function _setParam(chave, valor) {
 // Só Admin lê/edita os parâmetros.
 function getParametros(email) {
   requirePerfil(email, ['Admin']);
-  return { limiteOrcamentos: _paramNum('LIMITE_TRES_ORCAMENTOS', LIMITE_ORCAMENTOS_PADRAO) };
+  return {
+    limiteOrcamentos: _paramNum('LIMITE_TRES_ORCAMENTOS', LIMITE_ORCAMENTOS_PADRAO),
+    portalSheetId: _param('PORTAL_SHEET_ID', PORTAL_SHEET_ID_DEFAULT)
+  };
 }
 
 function setParametros(payload, email) {
   requirePerfil(email, ['Admin']);
-  const lim = Number(payload.limiteOrcamentos);
-  if (isNaN(lim) || lim < 0) throw userError('Valor do limite inválido.');
-  _setParam('LIMITE_TRES_ORCAMENTOS', lim);
+  if (payload.limiteOrcamentos !== undefined) {
+    const lim = Number(payload.limiteOrcamentos);
+    if (isNaN(lim) || lim < 0) throw userError('Valor do limite inválido.');
+    _setParam('LIMITE_TRES_ORCAMENTOS', lim);
+  }
+  if (payload.portalSheetId !== undefined) {
+    _setParam('PORTAL_SHEET_ID', String(payload.portalSheetId || '').trim());
+  }
   return { ok: true };
 }

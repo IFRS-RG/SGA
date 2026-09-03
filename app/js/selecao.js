@@ -94,11 +94,15 @@ const Selecao = {
     const chosen = s ? (s.vagas || []).map(v => String(v.ID)) : [];
     const nome = s ? s.Nome : this._suggestNome();
     const statusOpts = STATUS_VAGA.map(o => `<option ${s && s.Status === o ? 'selected' : ''}>${esc(o)}</option>`).join('');
+    const maxV = s && s.maxVagasAluno ? s.maxVagasAluno : 1;
     const body = `
       <div class="form-grid">
         <div class="fg"><label>Nome do processo *</label><input class="input" id="sel-nome" value="${esc(nome)}"></div>
         <div class="fg"><label>Status</label><select class="input" id="sel-status">${statusOpts}</select></div>
       </div>
+      <div class="fg" style="max-width:260px"><label>Máx. de vagas por aluno</label>
+        <input class="input" id="sel-maxv" type="number" min="1" value="${esc(String(maxV))}">
+        <span class="field-hint">Quantas vagas deste processo um aluno pode se inscrever.</span></div>
       <div class="fg"><label>Vagas ativas (de qualquer ação) *</label>
         <input class="input" id="sel-busca" placeholder="filtrar por título/ação/edital…" oninput="Selecao.filterVagas(this.value)">
         <div class="chk-list" id="sel-vagas" style="max-height:260px">${this._vagasChecklist(vagas, chosen)}</div></div>`;
@@ -115,13 +119,14 @@ const Selecao = {
   async save(id) {
     const nome = val('sel-nome');
     const status = val('sel-status');
+    const maxVagasAluno = Math.max(1, parseInt(val('sel-maxv'), 10) || 1);
     const vagas = Array.from(document.querySelectorAll('.sel-vaga:checked')).map(i => i.value);
     if (!nome.trim()) { toast('Informe o nome do processo.', 'error'); return; }
     if (!vagas.length) { toast('Escolha ao menos uma vaga.', 'error'); return; }
     setBusy(true);
     try {
-      if (id) await API.updateSelecao(id, { nome: nome, vagas: vagas, status: status });
-      else await API.addSelecao({ nome: nome, vagas: vagas, status: status }, this._reqId());
+      if (id) await API.updateSelecao(id, { nome: nome, vagas: vagas, status: status, maxVagasAluno: maxVagasAluno });
+      else await API.addSelecao({ nome: nome, vagas: vagas, status: status, maxVagasAluno: maxVagasAluno }, this._reqId());
       toast(id ? 'Seleção atualizada.' : 'Seleção criada.', 'success');
       closeModal();
       this.selecoes = await API.getSelecoes() || [];
@@ -226,18 +231,61 @@ const Selecao = {
       `<h3 style="margin:14px 0 6px">${esc(ak)}</h3>${byAcao[ak].map(v => this._vagaCard(v)).join('')}`).join('')
       || emptyState('Este processo não tem vagas.');
 
+    const pub = d.publicadoEm
+      ? `<span class="badge badge-ok">publicado no portal</span> <span class="cell-sub">${esc(this._br(d.publicadoEm) || d.publicadoEm)}</span>`
+      : '<span class="badge badge-muted">não publicado</span>';
     this.container.innerHTML = `
       <div class="page-actions">
         <button class="btn btn-ghost" onclick="Selecao.back()">← Voltar</button>
         ${w ? `<button class="btn btn-ghost btn-xs" onclick="Selecao.openSelecao('${d.ID}')">✏️ Editar processo</button>` : ''}
+        ${w ? `<button class="btn btn-primary btn-xs" id="sel-pub-btn" onclick="Selecao.publicar('${d.ID}')">📤 Publicar no portal</button>` : ''}
+        ${w && d.publicadoEm ? `<button class="btn btn-ghost btn-xs" onclick="Selecao.despublicar('${d.ID}')">Despublicar</button>` : ''}
+        ${w ? `<button class="btn btn-ghost btn-xs" id="sel-sync-btn" onclick="Selecao.sincronizar()">🔄 Sincronizar inscrições</button>` : ''}
       </div>
       <h2 style="margin:6px 0 2px">${esc(d.Nome)} <span class="badge ${d.Status === 'Aberta' ? 'badge-ok' : 'badge-muted'}">${esc(d.Status)}</span></h2>
       <div class="detail-grid" style="margin:8px 0 12px">
         <div><span class="dk">Vagas ofertadas</span><span class="dv">${vagas.length} vaga(s) · ${totalVagas} posição(ões)</span></div>
         <div><span class="dk">Inscritos</span><span class="dv">${d.totalInscritos || 0}</span></div>
+        <div><span class="dk">Máx. por aluno</span><span class="dv">${esc(String(d.maxVagasAluno || 1))}</span></div>
+        <div><span class="dk">Portal</span><span class="dv">${pub}</span></div>
         <div><span class="dk">Situação dos inscritos</span><span class="dv">${situChips}</span></div>
       </div>
       ${grupos}`;
+  },
+
+  publicar(id) {
+    const btn = document.getElementById('sel-pub-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Publicando…'; }
+    (async () => {
+      try {
+        const r = await API.publicarSelecao(id);
+        toast('Publicado no portal (' + (r && r.vagas || 0) + ' vaga(s)).', 'success');
+        this.detail = await API.getSelecao(id);
+        this.renderDetail();
+      } catch (e) { toast(e.message, 'error'); if (btn) { btn.disabled = false; btn.textContent = '📤 Publicar no portal'; } }
+    })();
+  },
+
+  despublicar(id) {
+    if (!window.confirm('Tirar este processo do portal do aluno?')) return;
+    (async () => {
+      try { await API.despublicarSelecao(id); toast('Despublicado.', 'success'); this.detail = await API.getSelecao(id); this.renderDetail(); }
+      catch (e) { toast(e.message, 'error'); }
+    })();
+  },
+
+  sincronizar() {
+    const btn = document.getElementById('sel-sync-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Sincronizando…'; }
+    (async () => {
+      try {
+        const r = await API.sincronizarInscricoes();
+        toast(`Sincronizado: ${r.novos} novo(s), ${r.atualizados} atualizado(s), ${r.cancelados} cancelado(s)` +
+          (r.rejeitados ? `, ${r.rejeitados} rejeitado(s)` : '') + (r.naoCadastrados ? `, ${r.naoCadastrados} sem cadastro` : '') + '.', 'success');
+        if (this.detail) { this.detail = await API.getSelecao(this.detail.ID); this.renderDetail(); }
+      } catch (e) { toast(e.message, 'error'); }
+      finally { if (btn) { btn.disabled = false; btn.textContent = '🔄 Sincronizar inscrições'; } }
+    })();
   },
 
   remove(id) {

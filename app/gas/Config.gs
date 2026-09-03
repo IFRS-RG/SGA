@@ -106,6 +106,16 @@ const PESO_MAXIMO_CRITERIOS = 10.0;   // somatório dos pesos dos critérios de 
 // Situação de um candidato inscrito (avaliação/classificação vem depois).
 const SITUACAO_INSCRICAO = ['Inscrito', 'Classificado', 'Selecionado', 'Suplente', 'Desclassificado'];
 
+// ── Portal do aluno (planilha SEPARADA; troca automática e segura) ──
+// ID padrão da planilha do portal; sobrescrevível em Admin › Parâmetros (PORTAL_SHEET_ID).
+const PORTAL_SHEET_ID_DEFAULT = '1yBRRO9xeM75U2czJYTWFGlP0VujJ4YN4mKJACejYMl4';
+// Abas que o SGA cria/gerencia na planilha do portal.
+const PORTAL_HEADERS = {
+  Selecao: ['SelecaoID', 'Nome', 'Status', 'MaxVagasAluno', 'PublicadoEm'],
+  Vagas: ['SelecaoID', 'VagaID', 'Titulo', 'Tipo', 'Acao', 'Edital', 'FaixasJSON', 'RequisitosJSON', 'CriteriosJSON'],
+  Inscricoes: ['SelecaoID', 'VagaID', 'FaixaCH', 'Nome', 'Matricula', 'Curso', 'Email', 'EmailAluno', 'DataInscricao']
+};
+
 // ── Comissões ────────────────────────────────────────────────
 const COMISSAO_TIPOS = ['CGAE', 'CAGPPI', 'CAGE', 'CIEP'];
 const CATEGORIA_MEMBRO = ['Docente', 'TAE', 'Discente'];
@@ -200,7 +210,7 @@ const COL = {
     MembrosJSON: 6, CamarasJSON: 7, CriadoEm: 8, CriadoPor: 9
   },
   // Seleções (processo seletivo nomeado): agrega vagas de qualquer ação.
-  Selecoes: { ID: 0, Nome: 1, VagasJSON: 2, Status: 3, CriadoEm: 4, CriadoPor: 5 },
+  Selecoes: { ID: 0, Nome: 1, VagasJSON: 2, Status: 3, CriadoEm: 4, CriadoPor: 5, MaxVagasAluno: 6, PublicadoEm: 7 },
   // Inscrições (candidatos por vaga+faixa). Import vem de fora; avaliação = notas.
   Inscricoes: {
     ID: 0, SelecaoID: 1, VagaID: 2, FaixaCH: 3, CandidatoNome: 4, Matricula: 5, Curso: 6,
@@ -260,7 +270,7 @@ const HEADERS = {
              'RequisitosJSON', 'CriteriosJSON', 'Status', 'CriadoEm', 'CriadoPor', 'FaixasJSON'],
   Comissoes: ['ID', 'Tipo', 'PortariaFileId', 'PortariaUrl', 'DataInicio', 'DataFim',
               'MembrosJSON', 'CamarasJSON', 'CriadoEm', 'CriadoPor'],
-  Selecoes: ['ID', 'Nome', 'VagasJSON', 'Status', 'CriadoEm', 'CriadoPor'],
+  Selecoes: ['ID', 'Nome', 'VagasJSON', 'Status', 'CriadoEm', 'CriadoPor', 'MaxVagasAluno', 'PublicadoEm'],
   Inscricoes: ['ID', 'SelecaoID', 'VagaID', 'FaixaCH', 'CandidatoNome', 'Matricula', 'Curso',
                'Email', 'DataInscricao', 'NotasJSON', 'NotaFinal', 'Situacao']
 };

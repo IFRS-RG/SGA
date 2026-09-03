@@ -54,6 +54,7 @@ function getSelecoes(email) {
     const segs = {}; vgs.forEach(v => { if (v.segmento) segs[v.segmento] = true; });
     return {
       ID: s.ID, Nome: s.Nome, Status: s.Status, vagas: vgs,
+      maxVagasAluno: Number(s.MaxVagasAluno) || 1, publicadoEm: s.PublicadoEm || '',
       acoes: Object.keys(acoesDist).map(k => acoesDist[k]), segmentos: Object.keys(segs)
     };
   }).filter(s => info.role === 'Admin' || info.segmento === 'Todos' || s.segmentos.indexOf(info.segmento) !== -1);
@@ -128,7 +129,10 @@ function getSelecao(id, email) {
     throw userError('Você não tem acesso a esta seleção.');
   }
   const totalInscritos = vagas.reduce((t, v) => t + v.inscritos.length, 0);
-  return { ID: s.ID, Nome: s.Nome, Status: s.Status, vagas: vagas, totalInscritos: totalInscritos };
+  return {
+    ID: s.ID, Nome: s.Nome, Status: s.Status, vagas: vagas, totalInscritos: totalInscritos,
+    maxVagasAluno: Number(s.MaxVagasAluno) || 1, publicadoEm: s.PublicadoEm || ''
+  };
 }
 
 function addSelecao(p, email, reqId) {
@@ -141,8 +145,9 @@ function addSelecao(p, email, reqId) {
   const dup = _idempotentId(reqId);
   if (dup) return { ok: true, id: dup, duplicate: true };
   const id = genId();
+  const maxV = Math.max(1, Number(p.maxVagasAluno) || 1);
   getSheet('Selecoes').appendRow([id, nome, JSON.stringify(vagas),
-    STATUS_VAGA.indexOf(p.status) !== -1 ? p.status : 'Aberta', nowBR(), email]);
+    STATUS_VAGA.indexOf(p.status) !== -1 ? p.status : 'Aberta', nowBR(), email, maxV, '']);
   _idempotentStore(reqId, id);
   return { ok: true, id: id };
 }
@@ -158,9 +163,10 @@ function updateSelecao(id, p, email) {
   const vagas = Array.isArray(p.vagas) ? p.vagas.map(String) : [];
   if (!vagas.length) throw userError('Escolha ao menos uma vaga ativa.');
   _assertVagasSelecionaveis(vagas, info, id);
+  const maxV = Math.max(1, Number(p.maxVagasAluno) || Number(old[COL.Selecoes.MaxVagasAluno]) || 1);
   const row = [id, nome, JSON.stringify(vagas),
     STATUS_VAGA.indexOf(p.status) !== -1 ? p.status : old[COL.Selecoes.Status],
-    old[COL.Selecoes.CriadoEm], old[COL.Selecoes.CriadoPor]];
+    old[COL.Selecoes.CriadoEm], old[COL.Selecoes.CriadoPor], maxV, old[COL.Selecoes.PublicadoEm]];
   sh.getRange(idx, 1, 1, row.length).setValues([row]);
   return { ok: true };
 }
