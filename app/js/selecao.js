@@ -206,7 +206,12 @@ const Selecao = {
         <p class="section-sub" style="margin:4px 0 0">${esc(v.Tipo)} · ${esc(v.acaoTitulo || '')}${v.editalLabel ? ' · ' + esc(v.editalLabel) : ''}</p>
       </summary>
       <div style="margin-top:10px">
-        <div class="seg-head">Faixas ofertadas</div>${this._faixasTable(v)}
+        <p class="kv"><span class="dk">Coordenador</span> <span class="dv">${esc(v.coordNome || '—')}${v.coordEmail ? ' · ' + esc(v.coordEmail) : ''}</span></p>
+        ${v.resumo ? `<div class="seg-head">Resumo da ação</div><p style="white-space:pre-wrap;margin:4px 0 0">${esc(v.resumo)}</p>` : ''}
+        <div class="seg-head" style="margin-top:10px">Faixas ofertadas</div>${this._faixasTable(v)}
+        ${(v.habilidades && (v.habilidades.soft || v.habilidades.hard)) ? `<div class="seg-head" style="margin-top:10px">Habilidades desejadas</div>
+          ${v.habilidades.soft ? `<p class="kv"><span class="dk">Soft skills</span> <span class="dv">${esc(v.habilidades.soft)}</span></p>` : ''}
+          ${v.habilidades.hard ? `<p class="kv"><span class="dk">Hard skills</span> <span class="dv">${esc(v.habilidades.hard)}</span></p>` : ''}` : ''}
         <div class="seg-head" style="margin-top:10px">Requisitos de participação</div>${reqHtml}
         <div class="seg-head" style="margin-top:10px">Critérios de seleção e classificação</div>${critHtml}
         <div class="seg-head" style="margin-top:10px">Inscritos <span class="badge badge-muted">${nIns}</span></div>${this._inscritosTable(v)}

@@ -46,15 +46,21 @@ function _selFaixas(list, tipo) {
   }).filter(f => f.quantidade >= 1 && f.ch !== '' && f.ch !== 0);
 }
 
+function _selHabilidades(h) {
+  h = h || {};
+  return { soft: String(h.soft || '').trim(), hard: String(h.hard || '').trim() };
+}
+
 function _vagaOut(v) {
-  let req = {}, crit = [], faixas = [];
+  let req = {}, crit = [], faixas = [], hab = {};
   try { req = JSON.parse(v.RequisitosJSON || '{}'); } catch (e) {}
   try { crit = JSON.parse(v.CriteriosJSON || '[]'); } catch (e) {}
   try { faixas = JSON.parse(v.FaixasJSON || '[]'); } catch (e) {}
+  try { hab = JSON.parse(v.HabilidadesJSON || '{}'); } catch (e) {}
   if (!faixas.length && v.CH !== '' && v.CH != null) faixas = [{ ch: v.CH, quantidade: Number(v.Quantidade) || 0 }];
   return {
     ID: v.ID, Tipo: v.Tipo, Titulo: v.Titulo, CH: v.CH, Quantidade: v.Quantidade,
-    Status: v.Status, requisitos: req, criterios: crit, faixas: faixas
+    Status: v.Status, requisitos: req, criterios: crit, faixas: faixas, habilidades: _selHabilidades(hab)
   };
 }
 
@@ -83,7 +89,7 @@ function _vagaRow(id, p, criadoEm, criadoPor) {
   return [id, p.acaoId, p.tipo, String(p.titulo).trim(), chLegacy, qtdTotal,
     JSON.stringify(_selRequisitos(p.requisitos)), JSON.stringify(_selCriterios(p.criterios)),
     STATUS_VAGA.indexOf(p.status) !== -1 ? p.status : 'Aberta', criadoEm, criadoPor,
-    JSON.stringify(faixas)];
+    JSON.stringify(faixas), JSON.stringify(_selHabilidades(p.habilidades))];
 }
 
 function addVaga(p, email, reqId) {

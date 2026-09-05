@@ -86,7 +86,9 @@ function publicarSelecao(id, email) {
     id, v.ID, v.Titulo, v.Tipo, v.segmento || '', v.acaoTitulo || '', v.editalLabel || '',
     JSON.stringify(v.faixas || []),
     JSON.stringify(Object.assign({}, v.requisitos || {}, { cursosNomes: v.cursosNomes || [] })),
-    JSON.stringify(v.criterios || [])
+    JSON.stringify(v.criterios || []),
+    v.coordNome || '', v.coordEmail || '', v.resumo || '',
+    JSON.stringify(v.habilidades || {})
   ]);
   _portalUpsert(vagasSheet, PORTAL_HEADERS.Vagas, id, rows);
   _publicarCursos(book);

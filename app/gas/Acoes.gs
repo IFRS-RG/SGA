@@ -39,7 +39,8 @@ function _acaoRow(id, p, criadoEm, criadoPor, driveFolderId, logoFileId, logoUrl
     criadoEm, criadoPor,
     String(p.resumo || '').trim(),
     logoFileId || '',
-    logoUrl || ''
+    logoUrl || '',
+    String(p.codigoSIGAA || '').trim()
   ];
 }
 
@@ -73,7 +74,7 @@ function getAcao(id, email) {
     coordenadorId: a.CoordenadorID, coorientadorId: a.CoorientadorID,
     colaboradores: _acaoColabs(a.ColaboradoresJSON),
     dataInicio: _dateStr(a.DataInicio), dataFim: _dateStr(a.DataFim),
-    status: a.Status,
+    status: a.Status, codigoSIGAA: a.CodigoSIGAA || '',
     resumo: a.Resumo || '', logoUrl: a.LogoUrl || '', logoFileId: a.LogoFileId || ''
   };
 }

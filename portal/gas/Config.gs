@@ -15,7 +15,7 @@ const ALUNO_DOMAIN = '@aluno.riogrande.ifrs.edu.br';
 // Abas da planilha do portal (o SGA as cria/alimenta; aqui só usamos).
 const TAB = {
   Selecao: ['SelecaoID', 'Nome', 'Status', 'MaxVagasAluno', 'PublicadoEm'],
-  Vagas: ['SelecaoID', 'VagaID', 'Titulo', 'Tipo', 'Segmento', 'Acao', 'Edital', 'FaixasJSON', 'RequisitosJSON', 'CriteriosJSON'],
+  Vagas: ['SelecaoID', 'VagaID', 'Titulo', 'Tipo', 'Segmento', 'Acao', 'Edital', 'FaixasJSON', 'RequisitosJSON', 'CriteriosJSON', 'CoordNome', 'CoordEmail', 'Resumo', 'HabilidadesJSON'],
   Inscricoes: ['SelecaoID', 'VagaID', 'FaixaCH', 'Nome', 'Matricula', 'Curso', 'Email', 'EmailAluno', 'DataInscricao'],
   Cursos: ['ID', 'Nome']
 };

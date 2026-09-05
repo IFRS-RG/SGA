@@ -116,7 +116,12 @@ const Portal = {
       </div>
       <div class="vg-body" id="body-${proc.selecaoId}-${v.vagaId}" hidden>
         <p class="kv"><b>Ação:</b> ${this.esc(v.acao || '—')}${v.edital ? ' · <b>Edital:</b> ' + this.esc(v.edital) : ''}</p>
+        <p class="kv"><b>Coordenador:</b> ${this.esc(v.coordNome || '—')}${v.coordEmail ? ' · ' + this.esc(v.coordEmail) : ''}</p>
+        ${v.resumo ? `<p class="kv"><b>Resumo:</b> ${this.esc(v.resumo)}</p>` : ''}
         <table class="table"><thead><tr><th>CH</th><th>Valor da bolsa</th><th>Vagas</th></tr></thead><tbody>${faixas || '<tr><td colspan="3">—</td></tr>'}</tbody></table>
+        ${(v.habilidades && (v.habilidades.soft || v.habilidades.hard)) ? `<p class="kv"><b>Habilidades desejadas:</b></p>
+          ${v.habilidades.soft ? `<p class="kv">Soft skills: ${this.esc(v.habilidades.soft)}</p>` : ''}
+          ${v.habilidades.hard ? `<p class="kv">Hard skills: ${this.esc(v.habilidades.hard)}</p>` : ''}` : ''}
         <details><summary>Requisitos</summary>${reqH}</details>
         <details><summary>Critérios de seleção</summary>${critH}</details>
       </div>

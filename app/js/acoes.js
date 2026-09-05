@@ -173,6 +173,7 @@ const Acoes = {
         ${cell('Status', esc(d.status || '—'))}
         ${cell('Coordenador', esc(this._pessoaNome('servidor', d.coordenadorId) || '—'))}
         ${cell('Coordenador adjunto', esc(this._pessoaNome('servidor', d.coorientadorId) || '—'))}
+        ${cell('Código SIGAA', esc(d.codigoSIGAA || '—'))}
         ${cell('Período', esc((this._br(d.dataInicio) || '?') + ' a ' + (this._br(d.dataFim) || '?')))}
       </div>
       ${resumo}${logoBox}`;
@@ -1053,12 +1054,12 @@ const Acoes = {
   },
 
   switchVagaTab(t) {
-    const req = document.getElementById('vg-pane-req'), crit = document.getElementById('vg-pane-crit');
-    if (req) req.style.display = t === 'crit' ? 'none' : '';
-    if (crit) crit.style.display = t === 'crit' ? '' : 'none';
-    const br = document.getElementById('vg-tabbtn-req'), bc = document.getElementById('vg-tabbtn-crit');
-    if (br) br.classList.toggle('active', t !== 'crit');
-    if (bc) bc.classList.toggle('active', t === 'crit');
+    ['req', 'crit', 'hab'].forEach(k => {
+      const pane = document.getElementById('vg-pane-' + k);
+      if (pane) pane.style.display = (k === t) ? '' : 'none';
+      const b = document.getElementById('vg-tabbtn-' + k);
+      if (b) b.classList.toggle('active', k === t);
+    });
   },
 
   // Ao trocar o tipo, reconstrói as faixas preservando as quantidades.
@@ -1179,11 +1180,13 @@ const Acoes = {
     const periodoOpts = ['<option value="">— sem exigência —</option>']
       .concat(PERIODO_MINIMO.map(pp => `<option ${req.periodoMin === pp ? 'selected' : ''}>${esc(pp)}</option>`)).join('');
     const faixasIni = (v && v.faixas && v.faixas.length) ? v.faixas : [{}];
+    const hab = (v && v.habilidades) || {};
 
     const body = `
       <div class="ftabs" style="margin-bottom:12px">
         <button type="button" class="ftab active" id="vg-tabbtn-req" onclick="Acoes.switchVagaTab('req')">Requisitos</button>
         <button type="button" class="ftab" id="vg-tabbtn-crit" onclick="Acoes.switchVagaTab('crit')">Critérios</button>
+        <button type="button" class="ftab" id="vg-tabbtn-hab" onclick="Acoes.switchVagaTab('hab')">Habilidades</button>
       </div>
 
       <div id="vg-pane-req">
@@ -1222,6 +1225,12 @@ const Acoes = {
           <tfoot><tr><td colspan="3" style="text-align:right"><strong>Somatório dos pesos</strong></td><td colspan="2"><strong id="vg-crit-sum">0 / 10,0</strong></td></tr></tfoot></table></div>
         <p class="field-hint" id="vg-crit-warn" style="display:none;color:var(--danger,#c0392b)">O somatório dos pesos não pode passar de 10,0.</p>
         <div class="page-actions"><button type="button" class="btn btn-ghost btn-xs" onclick="Acoes.addCritRow()">+ Adicionar critério</button></div>
+      </div>
+
+      <div id="vg-pane-hab" style="display:none">
+        <div class="seg-head">Habilidades desejadas <span class="field-hint">(informativo — aparece para o aluno)</span></div>
+        <div class="fg"><label>Soft skills desejadas</label><textarea class="input" id="vg-soft" rows="3" placeholder="ex.: comunicação, trabalho em equipe, proatividade">${esc(hab.soft || '')}</textarea></div>
+        <div class="fg"><label>Hard skills desejadas</label><textarea class="input" id="vg-hard" rows="3" placeholder="ex.: HTML/CSS/JS, Python, edição de vídeo">${esc(hab.hard || '')}</textarea></div>
       </div>`;
 
     openModal((id ? 'Editar ' : 'Nova ') + 'vaga', body, async () => { await this.saveVaga(id); }, { confirmLabel: id ? 'Salvar' : 'Adicionar' });
@@ -1285,7 +1294,8 @@ const Acoes = {
         assistencia: document.getElementById('vg-assist') && document.getElementById('vg-assist').checked,
         demais: demais
       },
-      criterios: criterios
+      criterios: criterios,
+      habilidades: { soft: val('vg-soft'), hard: val('vg-hard') }
     };
   },
 
@@ -1462,6 +1472,7 @@ const Acoes = {
         <div class="fg"><label>Data de início</label><input class="input" type="date" id="ac-inicio" value="${esc(r ? r.dataInicio : '')}"></div>
         <div class="fg"><label>Data de fim</label><input class="input" type="date" id="ac-fim" value="${esc(r ? r.dataFim : '')}"></div>
       </div>
+      <div class="fg"><label>Código SIGAA</label><input class="input" id="ac-sigaa" value="${esc(r ? (r.codigoSIGAA || '') : '')}" placeholder="código da ação no SIGAA"></div>
       <div class="fg"><label>Resumo da ação</label><textarea class="input" id="ac-resumo" rows="4" placeholder="Descrição/resumo da ação">${esc(r ? (r.resumo || '') : '')}</textarea></div>
       <div class="fg"><label>Imagem / logo da ação</label>
         ${r && r.logoUrl ? `<img src="${esc(r.logoUrl)}" alt="" style="max-width:160px;max-height:110px;border-radius:8px;display:block;margin:2px 0 6px">
@@ -1483,7 +1494,7 @@ const Acoes = {
       anoExecucao: val('ac-ano'), segmento: val('ac-segmento'), editalId: val('ac-edital'),
       coordenadorId: val('ac-coord'), coorientadorId: val('ac-coorient'),
       dataInicio: val('ac-inicio'), dataFim: val('ac-fim'), status: val('ac-status'),
-      resumo: val('ac-resumo')
+      resumo: val('ac-resumo'), codigoSIGAA: val('ac-sigaa')
     };
   },
 

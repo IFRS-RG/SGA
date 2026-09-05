@@ -8,13 +8,15 @@ function getVagas() {
   const vagas = _objs('Vagas');
   return sels.map(s => {
     const vs = vagas.filter(v => String(v.SelecaoID) === String(s.SelecaoID)).map(v => {
-      let faixas = [], req = {}, crit = [];
+      let faixas = [], req = {}, crit = [], hab = {};
       try { faixas = JSON.parse(v.FaixasJSON || '[]'); } catch (e) {}
       try { req = JSON.parse(v.RequisitosJSON || '{}'); } catch (e) {}
       try { crit = JSON.parse(v.CriteriosJSON || '[]'); } catch (e) {}
+      try { hab = JSON.parse(v.HabilidadesJSON || '{}'); } catch (e) {}
       return {
         vagaId: v.VagaID, titulo: v.Titulo, tipo: v.Tipo, segmento: v.Segmento || '',
-        acao: v.Acao, edital: v.Edital, faixas: faixas, requisitos: req, criterios: crit
+        acao: v.Acao, edital: v.Edital, faixas: faixas, requisitos: req, criterios: crit,
+        coordNome: v.CoordNome || '', coordEmail: v.CoordEmail || '', resumo: v.Resumo || '', habilidades: hab
       };
     });
     return { selecaoId: s.SelecaoID, nome: s.Nome, maxVagasAluno: Number(s.MaxVagasAluno) || 1, vagas: vs };

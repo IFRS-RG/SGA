@@ -112,7 +112,7 @@ const PORTAL_SHEET_ID_DEFAULT = '1yBRRO9xeM75U2czJYTWFGlP0VujJ4YN4mKJACejYMl4';
 // Abas que o SGA cria/gerencia na planilha do portal.
 const PORTAL_HEADERS = {
   Selecao: ['SelecaoID', 'Nome', 'Status', 'MaxVagasAluno', 'PublicadoEm'],
-  Vagas: ['SelecaoID', 'VagaID', 'Titulo', 'Tipo', 'Segmento', 'Acao', 'Edital', 'FaixasJSON', 'RequisitosJSON', 'CriteriosJSON'],
+  Vagas: ['SelecaoID', 'VagaID', 'Titulo', 'Tipo', 'Segmento', 'Acao', 'Edital', 'FaixasJSON', 'RequisitosJSON', 'CriteriosJSON', 'CoordNome', 'CoordEmail', 'Resumo', 'HabilidadesJSON'],
   Inscricoes: ['SelecaoID', 'VagaID', 'FaixaCH', 'Nome', 'Matricula', 'Curso', 'Email', 'EmailAluno', 'DataInscricao'],
   Cursos: ['ID', 'Nome']
 };
@@ -159,7 +159,7 @@ const COL = {
     ID: 0, Titulo: 1, TipoAcao: 2, Modalidade: 3, AnoExecucao: 4, Segmento: 5, EditalID: 6,
     CoordenadorID: 7, CoorientadorID: 8, ColaboradoresJSON: 9, DataInicio: 10, DataFim: 11,
     Status: 12, DriveFolderId: 13, CriadoEm: 14, CriadoPor: 15,
-    Resumo: 16, LogoFileId: 17, LogoUrl: 18
+    Resumo: 16, LogoFileId: 17, LogoUrl: 18, CodigoSIGAA: 19
   },
   AcaoDocumentos: {
     ID: 0, AcaoID: 1, Tipo: 2, NomeArquivo: 3, DriveFileId: 4, DriveUrl: 5, DataUpload: 6, EnviadoPor: 7
@@ -203,7 +203,7 @@ const COL = {
   // Vagas do processo seletivo (requisitos eliminatórios + critérios classificatórios).
   SelVagas: {
     ID: 0, AcaoID: 1, Tipo: 2, Titulo: 3, CH: 4, Quantidade: 5,
-    RequisitosJSON: 6, CriteriosJSON: 7, Status: 8, CriadoEm: 9, CriadoPor: 10, FaixasJSON: 11
+    RequisitosJSON: 6, CriteriosJSON: 7, Status: 8, CriadoEm: 9, CriadoPor: 10, FaixasJSON: 11, HabilidadesJSON: 12
   },
   // Comissões (CGAE/CAGPPI/CAGE/CIEP): portaria + membros + câmaras.
   Comissoes: {
@@ -247,7 +247,7 @@ const HEADERS = {
   Auditoria: ['Timestamp', 'Ator', 'Papel', 'Acao', 'Alvo', 'Detalhe'],
   Acoes: ['ID', 'Titulo', 'TipoAcao', 'Modalidade', 'AnoExecucao', 'Segmento', 'EditalID',
           'CoordenadorID', 'CoorientadorID', 'ColaboradoresJSON', 'DataInicio', 'DataFim',
-          'Status', 'DriveFolderId', 'CriadoEm', 'CriadoPor', 'Resumo', 'LogoFileId', 'LogoUrl'],
+          'Status', 'DriveFolderId', 'CriadoEm', 'CriadoPor', 'Resumo', 'LogoFileId', 'LogoUrl', 'CodigoSIGAA'],
   AcaoDocumentos: ['ID', 'AcaoID', 'Tipo', 'NomeArquivo', 'DriveFileId', 'DriveUrl', 'DataUpload', 'EnviadoPor'],
   AcaoBolsistas: ['ID', 'AcaoID', 'AlunoID', 'EditalBolsaID', 'CHBolsa', 'ValorBolsa', 'DataInicio', 'DataFim',
                   'TotalSemanas', 'CHTotal', 'StatusSIGAA', 'StatusRelatorio', 'RelatorioFileId', 'RelatorioUrl',
@@ -268,7 +268,7 @@ const HEADERS = {
                  'NomeCivil', 'NomeSocial', 'CPF', 'ArquivoFileId', 'ArquivoUrl', 'CriadoEm', 'CriadoPor'],
   AcaoColaboradores: ['ID', 'AcaoID', 'PessoaTipo', 'PessoaID', 'Funcao', 'CHTotal', 'CriadoEm', 'CriadoPor'],
   SelVagas: ['ID', 'AcaoID', 'Tipo', 'Titulo', 'CH', 'Quantidade',
-             'RequisitosJSON', 'CriteriosJSON', 'Status', 'CriadoEm', 'CriadoPor', 'FaixasJSON'],
+             'RequisitosJSON', 'CriteriosJSON', 'Status', 'CriadoEm', 'CriadoPor', 'FaixasJSON', 'HabilidadesJSON'],
   Comissoes: ['ID', 'Tipo', 'PortariaFileId', 'PortariaUrl', 'DataInicio', 'DataFim',
               'MembrosJSON', 'CamarasJSON', 'CriadoEm', 'CriadoPor'],
   Selecoes: ['ID', 'Nome', 'VagasJSON', 'Status', 'CriadoEm', 'CriadoPor', 'MaxVagasAluno', 'PublicadoEm'],

@@ -93,6 +93,7 @@ function getSelecao(id, email) {
   const acoes = sheetRows('Acoes');
   const editais = sheetRows('Editais');
   const cursos = sheetRows('Cursos');
+  const servidores = sheetRows('Servidores');
   const allVagas = sheetRows('SelVagas');
   const inscricoes = sheetRows('Inscricoes');
   const cursoNome = {}; cursos.forEach(c => { cursoNome[String(c.ID)] = c.Nome; });
@@ -107,6 +108,10 @@ function getSelecao(id, email) {
     const e = a ? editais.find(x => String(x.ID) === String(a.EditalID)) : null;
     out.acaoId = vrow.AcaoID; out.acaoTitulo = a ? a.Titulo : '';
     out.segmento = a ? a.Segmento : ''; out.editalLabel = e ? _editalLabel(e) : '';
+    out.resumo = a ? (a.Resumo || '') : '';
+    const coord = a ? servidores.find(s => String(s.ID) === String(a.CoordenadorID)) : null;
+    out.coordNome = coord ? _nomeExib(coord) : '';
+    out.coordEmail = coord ? (coord.Email || '') : '';
     // Valor da bolsa por faixa (só bolsista), puxado do edital pela CH.
     if (out.Tipo === 'Bolsista') {
       (out.faixas || []).forEach(f => { f.valor = _valorBolsaEdital(e, f.ch, out.segmento); });
