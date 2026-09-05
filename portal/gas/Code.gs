@@ -29,6 +29,7 @@ function doPost(e) {
 
     switch (data.action) {
       case 'getVagas':  return _resp(getVagas());
+      case 'getCursos': return _resp(getCursos());
       case 'getMinhas': return _resp(getMinhas(v.email));
       case 'inscrever': return _resp(inscrever(v.email, v.nome, data.payload));
       case 'cancelar':  return _resp(cancelar(v.email, data.payload));

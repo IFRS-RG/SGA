@@ -63,6 +63,7 @@ function prepararPortal(email) {
   requirePerfil(email, ['Admin']);
   const book = _portalBook();
   Object.keys(PORTAL_HEADERS).forEach(n => _portalTab(book, n));
+  _publicarCursos(book);
   ['Página1', 'Sheet1', 'Planilha1'].forEach(n => {
     const s = book.getSheetByName(n);
     if (s && s.getLastRow() === 0 && book.getSheets().length > 1) book.deleteSheet(s);
@@ -82,15 +83,29 @@ function publicarSelecao(id, email) {
   _portalUpsert(selSheet, PORTAL_HEADERS.Selecao, id,
     [[id, full.Nome, full.Status, full.maxVagasAluno || 1, now]]);
   const rows = (full.vagas || []).map(v => [
-    id, v.ID, v.Titulo, v.Tipo, v.acaoTitulo || '', v.editalLabel || '',
+    id, v.ID, v.Titulo, v.Tipo, v.segmento || '', v.acaoTitulo || '', v.editalLabel || '',
     JSON.stringify(v.faixas || []),
     JSON.stringify(Object.assign({}, v.requisitos || {}, { cursosNomes: v.cursosNomes || [] })),
     JSON.stringify(v.criterios || [])
   ]);
   _portalUpsert(vagasSheet, PORTAL_HEADERS.Vagas, id, rows);
+  _publicarCursos(book);
   const idx = findRowIndex('Selecoes', id);
   if (idx !== -1) getSheet('Selecoes').getRange(idx, COL.Selecoes.PublicadoEm + 1).setValue(now);
   return { ok: true, url: book.getUrl(), vagas: rows.length };
+}
+
+// Publica a lista de cursos (id + nome) na planilha do portal (dropdown do aluno).
+function _portalRewrite(sheet, headers, rows) {
+  sheet.clearContents();
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  if (rows.length) sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+}
+
+function _publicarCursos(book) {
+  const sh = _portalTab(book, 'Cursos');
+  const rows = sheetRows('Cursos').filter(c => String(c.Status || '') !== 'Inativo').map(c => [c.ID, c.Nome]);
+  _portalRewrite(sh, PORTAL_HEADERS.Cursos, rows);
 }
 
 function despublicarSelecao(id, email) {

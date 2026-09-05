@@ -13,12 +13,17 @@ function getVagas() {
       try { req = JSON.parse(v.RequisitosJSON || '{}'); } catch (e) {}
       try { crit = JSON.parse(v.CriteriosJSON || '[]'); } catch (e) {}
       return {
-        vagaId: v.VagaID, titulo: v.Titulo, tipo: v.Tipo, acao: v.Acao, edital: v.Edital,
-        faixas: faixas, requisitos: req, criterios: crit
+        vagaId: v.VagaID, titulo: v.Titulo, tipo: v.Tipo, segmento: v.Segmento || '',
+        acao: v.Acao, edital: v.Edital, faixas: faixas, requisitos: req, criterios: crit
       };
     });
     return { selecaoId: s.SelecaoID, nome: s.Nome, maxVagasAluno: Number(s.MaxVagasAluno) || 1, vagas: vs };
   });
+}
+
+// Lista de cursos (publicada pelo SGA na planilha do portal).
+function getCursos() {
+  return _objs('Cursos').map(c => ({ id: c.ID, nome: c.Nome })).filter(c => c.nome);
 }
 
 // Inscrições do aluno logado.

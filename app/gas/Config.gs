@@ -112,8 +112,9 @@ const PORTAL_SHEET_ID_DEFAULT = '1yBRRO9xeM75U2czJYTWFGlP0VujJ4YN4mKJACejYMl4';
 // Abas que o SGA cria/gerencia na planilha do portal.
 const PORTAL_HEADERS = {
   Selecao: ['SelecaoID', 'Nome', 'Status', 'MaxVagasAluno', 'PublicadoEm'],
-  Vagas: ['SelecaoID', 'VagaID', 'Titulo', 'Tipo', 'Acao', 'Edital', 'FaixasJSON', 'RequisitosJSON', 'CriteriosJSON'],
-  Inscricoes: ['SelecaoID', 'VagaID', 'FaixaCH', 'Nome', 'Matricula', 'Curso', 'Email', 'EmailAluno', 'DataInscricao']
+  Vagas: ['SelecaoID', 'VagaID', 'Titulo', 'Tipo', 'Segmento', 'Acao', 'Edital', 'FaixasJSON', 'RequisitosJSON', 'CriteriosJSON'],
+  Inscricoes: ['SelecaoID', 'VagaID', 'FaixaCH', 'Nome', 'Matricula', 'Curso', 'Email', 'EmailAluno', 'DataInscricao'],
+  Cursos: ['ID', 'Nome']
 };
 
 // ── Comissões ────────────────────────────────────────────────

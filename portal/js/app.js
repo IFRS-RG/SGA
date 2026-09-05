@@ -1,12 +1,16 @@
 // ============================================================
 // Portal do Aluno — App (login @aluno, vagas, inscrição)
 // ============================================================
+const SEGMENTOS_PORTAL = ['Ensino', 'Pesquisa', 'Extensão', 'Indissociável'];
+
 const Portal = {
   token: null,
   user: null,          // { email, nome }
   tab: 'vagas',
   vagas: [],           // processos publicados com suas vagas
   minhas: [],
+  cursos: [],
+  segAtivo: {},        // segmento ativo por processo (selecaoId -> segmento)
   _modalOk: null,
 
   // ── util ──────────────────────────────────────────────
@@ -66,8 +70,8 @@ const Portal = {
     const panel = document.getElementById('panel');
     panel.innerHTML = '<div class="spin"></div>';
     try {
-      const [vagas, minhas] = await Promise.all([this.gasCall('getVagas'), this.gasCall('getMinhas')]);
-      this.vagas = vagas || []; this.minhas = minhas || [];
+      const [vagas, minhas, cursos] = await Promise.all([this.gasCall('getVagas'), this.gasCall('getMinhas'), this.gasCall('getCursos')]);
+      this.vagas = vagas || []; this.minhas = minhas || []; this.cursos = cursos || [];
     } catch (e) { panel.innerHTML = `<div class="empty">${this.esc(e.message)}</div>`; return; }
     this.render();
   },
@@ -92,36 +96,60 @@ const Portal = {
 
   _fmtMoney(v) { const n = Number(v); return isNaN(n) ? '' : n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); },
 
+  // Card recolhido de uma vaga (expande ao clicar no cabeçalho).
+  _vagaCard(proc, v) {
+    const faixas = (v.faixas || []).map(f => `<tr><td>${this.esc(f.ch)}h</td><td>${v.tipo === 'Bolsista' && f.valor !== '' && f.valor != null ? this._fmtMoney(f.valor) : '—'}</td><td>${this.esc(f.quantidade)}</td></tr>`).join('');
+    const req = this._reqList(v.requisitos);
+    const reqH = req.length ? '<ul>' + req.map(x => `<li>${this.esc(x)}</li>`).join('') + '</ul>' : '<p class="muted">Sem requisitos eliminatórios.</p>';
+    const crit = (v.criterios || []);
+    const critH = crit.length ? `<table class="table"><thead><tr><th>Critério</th><th>Peso</th></tr></thead><tbody>${crit.map(c => `<tr><td>${this.esc(c.criterio || c.categoria)}</td><td>${this.esc(c.peso)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">Sem critérios.</p>';
+    const inscrito = this._inscritoEm(v.vagaId);
+    const btn = inscrito
+      ? `<button class="btn btn-ghost btn-sm" disabled>✓ Inscrito</button>`
+      : `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();Portal.abrirInscricao('${proc.selecaoId}','${v.vagaId}')">Inscrever-se</button>`;
+    const totalVagas = (v.faixas || []).reduce((s, f) => s + (Number(f.quantidade) || 0), 0);
+    return `<div class="card">
+      <div class="card-head vg-toggle" onclick="Portal.toggleVaga('${proc.selecaoId}','${v.vagaId}')">
+        <div><h3>${v.tipo === 'Bolsista' ? '🎓' : '🙌'} ${this.esc(v.titulo)} <span class="chev" id="chev-${proc.selecaoId}-${v.vagaId}">▸</span></h3>
+          <span class="tag">${this.esc(v.tipo)}</span> <span class="muted">· ${totalVagas} vaga(s)</span></div>
+        ${btn}
+      </div>
+      <div class="vg-body" id="body-${proc.selecaoId}-${v.vagaId}" hidden>
+        <p class="kv"><b>Ação:</b> ${this.esc(v.acao || '—')}${v.edital ? ' · <b>Edital:</b> ' + this.esc(v.edital) : ''}</p>
+        <table class="table"><thead><tr><th>CH</th><th>Valor da bolsa</th><th>Vagas</th></tr></thead><tbody>${faixas || '<tr><td colspan="3">—</td></tr>'}</tbody></table>
+        <details><summary>Requisitos</summary>${reqH}</details>
+        <details><summary>Critérios de seleção</summary>${critH}</details>
+      </div>
+    </div>`;
+  },
+
   renderVagas() {
     if (!this.vagas.length) return '<div class="empty">Nenhuma vaga aberta no momento.</div>';
     return this.vagas.map(proc => {
-      const cards = (proc.vagas || []).map(v => {
-        const faixas = (v.faixas || []).map(f => `<tr><td>${this.esc(f.ch)}h</td><td>${v.tipo === 'Bolsista' && f.valor !== '' && f.valor != null ? this._fmtMoney(f.valor) : '—'}</td><td>${this.esc(f.quantidade)}</td></tr>`).join('');
-        const req = this._reqList(v.requisitos);
-        const reqH = req.length ? '<ul>' + req.map(x => `<li>${this.esc(x)}</li>`).join('') + '</ul>' : '<p class="muted">Sem requisitos eliminatórios.</p>';
-        const crit = (v.criterios || []);
-        const critH = crit.length ? `<table class="table"><thead><tr><th>Critério</th><th>Peso</th></tr></thead><tbody>${crit.map(c => `<tr><td>${this.esc(c.criterio || c.categoria)}</td><td>${this.esc(c.peso)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">Sem critérios.</p>';
-        const inscrito = this._inscritoEm(v.vagaId);
-        const btn = inscrito
-          ? `<button class="btn btn-ghost btn-sm" disabled>✓ Inscrito</button>`
-          : `<button class="btn btn-primary btn-sm" onclick="Portal.abrirInscricao('${proc.selecaoId}','${v.vagaId}')">Inscrever-se</button>`;
-        return `<div class="card">
-          <div class="card-head">
-            <div><h3>${v.tipo === 'Bolsista' ? '🎓' : '🙌'} ${this.esc(v.titulo)}</h3>
-              <span class="tag">${this.esc(v.tipo)}</span></div>
-            ${btn}
-          </div>
-          <p class="kv"><b>Ação:</b> ${this.esc(v.acao || '—')}${v.edital ? ' · <b>Edital:</b> ' + this.esc(v.edital) : ''}</p>
-          <table class="table"><thead><tr><th>CH</th><th>Valor da bolsa</th><th>Vagas</th></tr></thead><tbody>${faixas || '<tr><td colspan="3">—</td></tr>'}</tbody></table>
-          <details><summary>Requisitos</summary>${reqH}</details>
-          <details><summary>Critérios de seleção</summary>${critH}</details>
-        </div>`;
-      }).join('');
+      const vagasSeg = {};
+      SEGMENTOS_PORTAL.forEach(s => { vagasSeg[s] = (proc.vagas || []).filter(v => v.segmento === s); });
+      // segmento ativo: o guardado, ou o primeiro com vagas, ou o primeiro da lista.
+      let seg = this.segAtivo[proc.selecaoId];
+      if (!seg || !SEGMENTOS_PORTAL.includes(seg)) seg = SEGMENTOS_PORTAL.find(s => vagasSeg[s].length) || SEGMENTOS_PORTAL[0];
+      const subtabs = SEGMENTOS_PORTAL.map(s =>
+        `<button class="tab ${s === seg ? 'active' : ''}" onclick="Portal.switchSeg('${proc.selecaoId}','${s}')">${this.esc(s)} <span class="muted">(${vagasSeg[s].length})</span></button>`).join('');
+      const lista = vagasSeg[seg].length
+        ? vagasSeg[seg].map(v => this._vagaCard(proc, v)).join('')
+        : '<div class="empty">Nenhuma vaga neste segmento.</div>';
       const rest = proc.maxVagasAluno - this._naSelecao(proc.selecaoId);
       return `<div class="proc"><h2>${this.esc(proc.nome)}</h2>
         <p class="sub">Você pode se inscrever em até <b>${this.esc(proc.maxVagasAluno)}</b> vaga(s) deste processo · restam <b>${rest > 0 ? rest : 0}</b>.</p>
-        ${cards || '<div class="empty">Sem vagas.</div>'}</div>`;
+        <div class="tabs subtabs">${subtabs}</div>
+        ${lista}</div>`;
     }).join('');
+  },
+
+  switchSeg(selId, seg) { this.segAtivo[selId] = seg; this.render(); },
+
+  toggleVaga(selId, vagaId) {
+    const body = document.getElementById('body-' + selId + '-' + vagaId);
+    const chev = document.getElementById('chev-' + selId + '-' + vagaId);
+    if (body) { body.hidden = !body.hidden; if (chev) chev.textContent = body.hidden ? '▸' : '▾'; }
   },
 
   renderMinhas() {
@@ -146,11 +174,14 @@ const Portal = {
     const faixaField = faixas.length > 1
       ? `<div class="field"><label>Carga horária *</label><select class="input" id="i-faixa">${faixas.map(f => `<option value="${this.esc(f.ch)}">${this.esc(f.ch)}h/semana${vaga.tipo === 'Bolsista' && f.valor ? ' · ' + this._fmtMoney(f.valor) : ''}</option>`).join('')}</select></div>`
       : `<input type="hidden" id="i-faixa" value="${faixas[0] ? this.esc(faixas[0].ch) : ''}">`;
+    const cursoField = (this.cursos && this.cursos.length)
+      ? `<div class="field"><label>Curso *</label><select class="input" id="i-curso"><option value="">— selecione —</option>${this.cursos.map(c => `<option value="${this.esc(c.nome)}">${this.esc(c.nome)}</option>`).join('')}</select></div>`
+      : `<div class="field"><label>Curso *</label><input class="input" id="i-curso" placeholder="seu curso"></div>`;
     const body = `
       <p class="kv"><b>${this.esc(vaga.titulo)}</b> · ${this.esc(vaga.tipo)}<br><span class="muted">${this.esc(vaga.acao || '')}</span></p>
       ${faixaField}
       <div class="field"><label>Matrícula *</label><input class="input" id="i-mat" placeholder="sua matrícula"></div>
-      <div class="field"><label>Curso *</label><input class="input" id="i-curso" placeholder="seu curso"></div>`;
+      ${cursoField}`;
     this.openModal('Confirmar inscrição', body, async () => {
       const faixaCH = (document.getElementById('i-faixa') || {}).value || '';
       const matricula = (document.getElementById('i-mat') || {}).value.trim();
