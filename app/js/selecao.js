@@ -185,6 +185,13 @@ const Selecao = {
       </tr>`).join('')}</tbody></table></div>`;
   },
 
+  _habBlock(h) {
+    h = h || {};
+    if (!h.soft && !h.hard) return '<p class="field-hint">Nenhuma habilidade informada.</p>';
+    return `${h.soft ? `<p class="kv"><span class="dk">Soft skills</span> <span class="dv">${esc(h.soft)}</span></p>` : ''}
+      ${h.hard ? `<p class="kv"><span class="dk">Hard skills</span> <span class="dv">${esc(h.hard)}</span></p>` : ''}`;
+  },
+
   _vagaCard(v) {
     const req = this._reqResumo(v.requisitos, v.cursosNomes);
     const reqHtml = req.length ? '<ul style="margin:4px 0 0 18px">' + req.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>'
@@ -209,11 +216,9 @@ const Selecao = {
         <p class="kv"><span class="dk">Coordenador</span> <span class="dv">${esc(v.coordNome || '—')}${v.coordEmail ? ' · ' + esc(v.coordEmail) : ''}</span></p>
         ${v.resumo ? `<div class="seg-head">Resumo da ação</div><p style="white-space:pre-wrap;margin:4px 0 0">${esc(v.resumo)}</p>` : ''}
         <div class="seg-head" style="margin-top:10px">Faixas ofertadas</div>${this._faixasTable(v)}
-        ${(v.habilidades && (v.habilidades.soft || v.habilidades.hard)) ? `<div class="seg-head" style="margin-top:10px">Habilidades desejadas</div>
-          ${v.habilidades.soft ? `<p class="kv"><span class="dk">Soft skills</span> <span class="dv">${esc(v.habilidades.soft)}</span></p>` : ''}
-          ${v.habilidades.hard ? `<p class="kv"><span class="dk">Hard skills</span> <span class="dv">${esc(v.habilidades.hard)}</span></p>` : ''}` : ''}
         <div class="seg-head" style="margin-top:10px">Requisitos de participação</div>${reqHtml}
         <div class="seg-head" style="margin-top:10px">Critérios de seleção e classificação</div>${critHtml}
+        <div class="seg-head" style="margin-top:10px">Habilidades desejadas</div>${this._habBlock(v.habilidades)}
         <div class="seg-head" style="margin-top:10px">Inscritos <span class="badge badge-muted">${nIns}</span></div>${this._inscritosTable(v)}
       </div>
     </details>`;
