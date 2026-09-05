@@ -137,7 +137,7 @@ const Selecao = {
   // ── Detalhe em tela cheia (portfólio de vagas + inscritos) ──
   async openDetail(id) {
     this.container.innerHTML = '<div class="loading-page"><div class="spinner"></div><p>Carregando…</p></div>';
-    try { this.detail = await API.getSelecao(id); this.view = 'detail'; }
+    try { this.detail = await API.getSelecao(id); this.view = 'detail'; this.detailSub = 'painel'; }
     catch (e) { toast(e.message, 'error'); this.view = 'list'; this.renderList(); return; }
     this.renderDetail();
   },
@@ -227,23 +227,13 @@ const Selecao = {
   renderDetail() {
     const d = this.detail;
     const w = this.canWrite();
-    const vagas = d.vagas || [];
-    const totalVagas = vagas.reduce((s, v) => s + (v.faixas || []).reduce((a, f) => a + (Number(f.quantidade) || 0), 0), 0);
-    // Resumo por situação (visão do gestor).
-    const porSitu = {};
-    vagas.forEach(v => (v.inscritos || []).forEach(c => { const k = c.situacao || 'Inscrito'; porSitu[k] = (porSitu[k] || 0) + 1; }));
-    const situChips = SITUACAO_INSCRICAO.filter(s => porSitu[s]).map(s => `<span class="badge badge-muted">${esc(s)}: ${porSitu[s]}</span>`).join(' ')
-      || '<span class="cell-sub">sem inscritos</span>';
-    // Agrupa vagas por ação.
-    const byAcao = {};
-    vagas.forEach(v => { (byAcao[v.acaoTitulo || '(sem ação)'] = byAcao[v.acaoTitulo || '(sem ação)'] || []).push(v); });
-    const grupos = Object.keys(byAcao).map(ak =>
-      `<h3 style="margin:14px 0 6px">${esc(ak)}</h3>${byAcao[ak].map(v => this._vagaCard(v)).join('')}`).join('')
-      || emptyState('Este processo não tem vagas.');
-
+    const sub = this.detailSub || 'painel';
     const pub = d.publicadoEm
-      ? `<span class="badge badge-ok">publicado no portal</span> <span class="cell-sub">${esc(this._br(d.publicadoEm) || d.publicadoEm)}</span>`
+      ? `<span class="badge badge-ok">publicado</span> <span class="cell-sub">${esc(this._br(d.publicadoEm) || d.publicadoEm)}</span>`
       : '<span class="badge badge-muted">não publicado</span>';
+    const subtabs = [['painel', '📊 Painel'], ['vagas', '📋 Vagas & inscritos']].map(([k, label]) =>
+      `<button type="button" class="ftab ${sub === k ? 'active' : ''}" onclick="Selecao.switchDetailSub('${k}')">${label}</button>`).join('');
+    const panel = sub === 'vagas' ? this._vagasPanel(d) : this._painelPanel(d);
     this.container.innerHTML = `
       <div class="page-actions">
         <button class="btn btn-ghost" onclick="Selecao.back()">← Voltar</button>
@@ -253,14 +243,130 @@ const Selecao = {
         ${w ? `<button class="btn btn-ghost btn-xs" id="sel-sync-btn" onclick="Selecao.sincronizar()">🔄 Sincronizar inscrições</button>` : ''}
       </div>
       <h2 style="margin:6px 0 2px">${esc(d.Nome)} <span class="badge ${d.Status === 'Aberta' ? 'badge-ok' : 'badge-muted'}">${esc(d.Status)}</span></h2>
-      <div class="detail-grid" style="margin:8px 0 12px">
-        <div><span class="dk">Vagas ofertadas</span><span class="dv">${vagas.length} vaga(s) · ${totalVagas} posição(ões)</span></div>
-        <div><span class="dk">Inscritos</span><span class="dv">${d.totalInscritos || 0}</span></div>
-        <div><span class="dk">Máx. por aluno</span><span class="dv">${esc(String(d.maxVagasAluno || 1))}</span></div>
-        <div><span class="dk">Portal</span><span class="dv">${pub}</span></div>
-        <div><span class="dk">Situação dos inscritos</span><span class="dv">${situChips}</span></div>
+      <p class="section-sub" style="margin:2px 0 10px">Portal: ${pub} · Máx. por aluno: <strong>${esc(String(d.maxVagasAluno || 1))}</strong></p>
+      <div class="ftabs">${subtabs}</div>
+      <div style="margin-top:12px">${panel}</div>`;
+  },
+
+  switchDetailSub(s) { this.detailSub = s; this.renderDetail(); },
+
+  _vagasPanel(d) {
+    const vagas = d.vagas || [];
+    const byAcao = {};
+    vagas.forEach(v => { (byAcao[v.acaoTitulo || '(sem ação)'] = byAcao[v.acaoTitulo || '(sem ação)'] || []).push(v); });
+    return Object.keys(byAcao).map(ak =>
+      `<h3 style="margin:14px 0 6px">${esc(ak)}</h3>${byAcao[ak].map(v => this._vagaCard(v)).join('')}`).join('')
+      || emptyState('Este processo não tem vagas.');
+  },
+
+  // Agregações para o painel.
+  _stats(d) {
+    const vagas = d.vagas || [];
+    let posicoes = 0, inscritos = 0, semInscritos = 0;
+    const porSitu = {}, porSeg = {}, porTipo = {}, porCurso = {}, porFaixa = {};
+    const vagasTab = [];
+    vagas.forEach(v => {
+      const pos = (v.faixas || []).reduce((s, f) => s + (Number(f.quantidade) || 0), 0);
+      const ins = (v.inscritos || []).length;
+      posicoes += pos; inscritos += ins; if (ins === 0) semInscritos++;
+      const seg = v.segmento || '—';
+      porSeg[seg] = porSeg[seg] || { vagas: 0, posicoes: 0, inscritos: 0 };
+      porSeg[seg].vagas++; porSeg[seg].posicoes += pos; porSeg[seg].inscritos += ins;
+      const tp = v.Tipo || '—';
+      porTipo[tp] = porTipo[tp] || { vagas: 0, posicoes: 0, inscritos: 0 };
+      porTipo[tp].vagas++; porTipo[tp].posicoes += pos; porTipo[tp].inscritos += ins;
+      (v.inscritos || []).forEach(c => {
+        porSitu[c.situacao || 'Inscrito'] = (porSitu[c.situacao || 'Inscrito'] || 0) + 1;
+        porCurso[c.curso || '—'] = (porCurso[c.curso || '—'] || 0) + 1;
+        const fx = c.faixaCH ? String(c.faixaCH) + 'h' : '—';
+        porFaixa[fx] = (porFaixa[fx] || 0) + 1;
+      });
+      vagasTab.push({ titulo: v.Titulo, tipo: v.Tipo, segmento: seg, posicoes: pos, inscritos: ins, conc: pos ? ins / pos : 0 });
+    });
+    return { nVagas: vagas.length, posicoes, inscritos, semInscritos, porSitu, porSeg, porTipo, porCurso, porFaixa, vagasTab };
+  },
+
+  _num(n) { return (Math.round(n * 10) / 10).toString().replace('.', ','); },
+
+  _painelPanel(d) {
+    const s = this._stats(d);
+    const conc = s.posicoes ? s.inscritos / s.posicoes : 0;
+    const selec = s.porSitu['Selecionado'] || 0;
+    const preench = s.posicoes ? Math.round((selec / s.posicoes) * 100) : 0;
+    const media = s.nVagas ? s.inscritos / s.nVagas : 0;
+    const cursosOrd = Object.keys(s.porCurso).sort((a, b) => s.porCurso[b] - s.porCurso[a]);
+    const topCurso = cursosOrd.length ? cursosOrd[0] + ' (' + s.porCurso[cursosOrd[0]] + ')' : '—';
+
+    const kpi = (l, v, sub) => `<div class="kpi"><span class="kpi-v">${esc(String(v))}</span><span class="kpi-l">${esc(l)}</span>${sub ? `<span class="kpi-s">${esc(sub)}</span>` : ''}</div>`;
+    const cards = [
+      kpi('Vagas ofertadas', s.nVagas),
+      kpi('Posições', s.posicoes),
+      kpi('Inscritos', s.inscritos),
+      kpi('Concorrência', this._num(conc) + '×', 'inscritos por posição'),
+      kpi('Selecionados', selec, s.posicoes ? 'preenchimento ' + preench + '%' : ''),
+      kpi('Média por vaga', this._num(media), s.semInscritos + ' vaga(s) sem inscritos'),
+      kpi('Curso + inscritos', topCurso)
+    ].join('');
+
+    const situ = SITUACAO_INSCRICAO.map(k => `<span class="badge badge-muted">${esc(k)}: ${s.porSitu[k] || 0}</span>`).join(' ');
+
+    const tbl = (titulo, headers, rows) => `<div><div class="seg-head">${esc(titulo)}</div>
+      <div class="table-wrap"><table class="data-table"><thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead>
+      <tbody>${rows.length ? rows.map(r => '<tr>' + r.map(c => `<td>${esc(String(c))}</td>`).join('') + '</tr>').join('') : `<tr><td colspan="${headers.length}" class="cell-sub">sem dados</td></tr>`}</tbody></table></div></div>`;
+
+    const segRows = Object.keys(s.porSeg).map(k => [k, s.porSeg[k].vagas, s.porSeg[k].posicoes, s.porSeg[k].inscritos]);
+    const tipoRows = Object.keys(s.porTipo).map(k => [k, s.porTipo[k].vagas, s.porTipo[k].posicoes, s.porTipo[k].inscritos]);
+    const vagaRows = s.vagasTab.map(v => [v.titulo, v.tipo, v.posicoes, v.inscritos, this._num(v.conc) + '×']);
+    const cursoRows = cursosOrd.map(k => [k, s.porCurso[k]]);
+    const faixaRows = Object.keys(s.porFaixa).map(k => [k, s.porFaixa[k]]);
+
+    const w = this.canWrite();
+    const toolbar = `<div class="page-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+      <span class="cell-sub">Exportar:</span>
+      <button class="btn btn-ghost btn-xs" onclick="Selecao.expInscritos('xls')">⬇ Inscritos (XLS)</button>
+      <button class="btn btn-ghost btn-xs" onclick="Selecao.expInscritos('pdf')">⬇ Inscritos (PDF)</button>
+      <button class="btn btn-ghost btn-xs" onclick="Selecao.expResumo('xls')">⬇ Resumo por vaga (XLS)</button>
+      <button class="btn btn-ghost btn-xs" onclick="Selecao.expResumo('pdf')">⬇ Resumo por vaga (PDF)</button>
+    </div>`;
+
+    return `${toolbar}
+      <div class="kpi-row">${cards}</div>
+      <div class="seg-head">Situação dos inscritos</div><p style="margin:6px 0">${situ}</p>
+      ${tbl('Por vaga', ['Vaga', 'Tipo', 'Posições', 'Inscritos', 'Concorrência'], vagaRows)}
+      <div class="dash-cols" style="margin-top:12px">
+        ${tbl('Por segmento', ['Segmento', 'Vagas', 'Posições', 'Inscritos'], segRows)}
+        ${tbl('Por tipo', ['Tipo', 'Vagas', 'Posições', 'Inscritos'], tipoRows)}
       </div>
-      ${grupos}`;
+      <div class="dash-cols" style="margin-top:12px">
+        ${tbl('Inscritos por curso', ['Curso', 'Inscritos'], cursoRows)}
+        ${tbl('Inscritos por faixa (CH)', ['Faixa', 'Inscritos'], faixaRows)}
+      </div>`;
+  },
+
+  // ── Exports (client-side, reusa exportXLS/exportPDF do ui.js) ──
+  _inscritosRows() {
+    const rows = [];
+    (this.detail.vagas || []).forEach(v => (v.inscritos || []).forEach(c => {
+      rows.push([v.acaoTitulo || '', v.Titulo, v.Tipo, v.segmento || '', c.nome || '', c.matricula || '',
+        c.curso || '', c.faixaCH ? c.faixaCH + 'h' : '', (c.notaFinal != null ? c.notaFinal : ''), c.situacao || 'Inscrito']);
+    }));
+    return rows;
+  },
+  _resumoRows() {
+    return this._stats(this.detail).vagasTab.map(v => [v.titulo, v.tipo, v.segmento, v.posicoes, v.inscritos, this._num(v.conc) + '×']);
+  },
+  expInscritos(fmt) {
+    const headers = ['Ação', 'Vaga', 'Tipo', 'Segmento', 'Nome', 'Matrícula', 'Curso', 'Faixa', 'Nota', 'Situação'];
+    const rows = this._inscritosRows();
+    if (!rows.length) { toast('Nenhum inscrito para exportar.', 'error'); return; }
+    const nome = 'Inscritos — ' + (this.detail.Nome || 'Seleção');
+    if (fmt === 'pdf') exportPDF(nome, headers, rows); else exportXLS(headers, rows, nome);
+  },
+  expResumo(fmt) {
+    const headers = ['Vaga', 'Tipo', 'Segmento', 'Posições', 'Inscritos', 'Concorrência'];
+    const rows = this._resumoRows();
+    const nome = 'Resumo por vaga — ' + (this.detail.Nome || 'Seleção');
+    if (fmt === 'pdf') exportPDF(nome, headers, rows); else exportXLS(headers, rows, nome);
   },
 
   publicar(id) {
