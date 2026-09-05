@@ -1006,6 +1006,13 @@ const Acoes = {
     }).join(', ');
   },
 
+  _habHtml(h) {
+    h = h || {};
+    if (!h.soft && !h.hard) return '<p class="field-hint">Nenhuma habilidade informada.</p>';
+    return `${h.soft ? `<p style="margin:4px 0 0"><strong>Soft skills:</strong> ${esc(h.soft)}</p>` : ''}
+      ${h.hard ? `<p style="margin:4px 0 0"><strong>Hard skills:</strong> ${esc(h.hard)}</p>` : ''}`;
+  },
+
   // Sub-aba: Requisitos e critérios = criação/edição das VAGAS.
   _selReqPanel() {
     const w = this.canWrite();
@@ -1034,6 +1041,7 @@ const Acoes = {
         <p class="section-sub" style="margin:4px 0">${esc(v.Tipo)} · ${esc(faixasTxt)} · ${esc(String(totalVagas))} vaga(s)</p>
         <details><summary style="cursor:pointer">Requisitos eliminatórios</summary>${reqHtml}</details>
         <details style="margin-top:6px"><summary style="cursor:pointer">Critérios classificatórios (com peso)</summary><div class="table-wrap">${critRows}</div></details>
+        <details style="margin-top:6px"><summary style="cursor:pointer">Habilidades desejadas</summary>${this._habHtml(v.habilidades)}</details>
       </div>`;
     }).join('');
     const list = vs.length ? cards : emptyState('Nenhuma vaga criada. Cada vaga tem seus próprios requisitos e critérios.');
@@ -1253,7 +1261,8 @@ const Acoes = {
     const body = `
       <p class="section-sub"><strong>${esc(v.Tipo)}</strong> · ${esc(this._faixasResumo(v))} · <span class="badge ${v.Status === 'Aberta' ? 'badge-ok' : 'badge-muted'}">${esc(v.Status)}</span></p>
       <div class="seg-head">Requisitos de participação</div>${reqHtml}
-      <div class="seg-head" style="margin-top:10px">Critérios de seleção e classificação</div>${critHtml}`;
+      <div class="seg-head" style="margin-top:10px">Critérios de seleção e classificação</div>${critHtml}
+      <div class="seg-head" style="margin-top:10px">Habilidades desejadas</div>${this._habHtml(v.habilidades)}`;
     openModal(v.Titulo, body, null, { hideConfirm: true, cancelLabel: 'Fechar' });
   },
 
