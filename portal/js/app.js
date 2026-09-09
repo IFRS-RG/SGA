@@ -132,11 +132,18 @@ const Portal = {
     if (!this.vagas.length) return '<div class="empty">Nenhuma vaga aberta no momento.</div>';
     return this.vagas.map(proc => {
       const vagasSeg = {};
-      SEGMENTOS_PORTAL.forEach(s => { vagasSeg[s] = (proc.vagas || []).filter(v => v.segmento === s); });
+      SEGMENTOS_PORTAL.forEach(s => { vagasSeg[s] = []; });
+      const outros = [];
+      (proc.vagas || []).forEach(v => {
+        if (SEGMENTOS_PORTAL.indexOf(v.segmento) !== -1) vagasSeg[v.segmento].push(v);
+        else outros.push(v);   // segmento vazio/desconhecido não some: cai em "Outros"
+      });
+      const segs = SEGMENTOS_PORTAL.slice();
+      if (outros.length) { vagasSeg['Outros'] = outros; segs.push('Outros'); }
       // segmento ativo: o guardado, ou o primeiro com vagas, ou o primeiro da lista.
       let seg = this.segAtivo[proc.selecaoId];
-      if (!seg || !SEGMENTOS_PORTAL.includes(seg)) seg = SEGMENTOS_PORTAL.find(s => vagasSeg[s].length) || SEGMENTOS_PORTAL[0];
-      const subtabs = SEGMENTOS_PORTAL.map(s =>
+      if (!seg || segs.indexOf(seg) === -1) seg = segs.find(s => vagasSeg[s].length) || segs[0];
+      const subtabs = segs.map(s =>
         `<button class="tab ${s === seg ? 'active' : ''}" onclick="Portal.switchSeg('${proc.selecaoId}','${s}')">${this.esc(s)} <span class="muted">(${vagasSeg[s].length})</span></button>`).join('');
       const lista = vagasSeg[seg].length
         ? vagasSeg[seg].map(v => this._vagaCard(proc, v)).join('')
