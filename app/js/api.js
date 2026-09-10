@@ -111,6 +111,12 @@ const API = {
   despublicarSelecao:   (id) => gasCall('despublicarSelecao', { id }),
   sincronizarInscricoes:()   => gasCall('sincronizarInscricoes'),
 
+  // Avaliação dos inscritos (na aba Seleção da ação)
+  getInscritosDaAcao: (acaoId)      => gasCall('getInscritosDaAcao', { acaoId }),
+  saveAvaliacao:      (id, payload) => gasCall('saveAvaliacao', { id, payload }),
+  uploadAtaAvaliacao: (id, payload) => gasCall('uploadAtaAvaliacao', { id, payload }),
+  indicarVaga:        (vagaId)      => gasCall('indicarVaga', { vagaId }),
+
   // Comissões
   getComissoes:      ()               => gasCall('getComissoes'),
   addComissao:       (payload, reqId) => gasCall('addComissao', { payload, reqId }),

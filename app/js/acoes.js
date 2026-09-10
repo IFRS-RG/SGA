@@ -17,6 +17,7 @@ const Acoes = {
   voluntarios: [],
   colaboradores: [],
   vagas: [],
+  inscritos: [],
   cursos: [],
   financeiro: null,
   certificados: [],
@@ -115,8 +116,8 @@ const Acoes = {
   async openDetail(id) {
     this.container.innerHTML = '<div class="loading-page"><div class="spinner"></div><p>Carregando…</p></div>';
     try {
-      const [rec, docs, bols, vols, fin, certs, colabs, vagas] = await Promise.all([API.getAcao(id), API.getAcaoDocs(id), API.getBolsistas(id), API.getVoluntarios(id), API.getAcaoFinanceiro(id), API.getCertificadosDaAcao(id), API.getColaboradores(id), API.getVagas(id)]);
-      this.detail = rec; this.docs = docs || []; this.bolsistas = bols || []; this.voluntarios = vols || []; this.financeiro = fin || {}; this.certificados = certs || []; this.colaboradores = colabs || []; this.vagas = vagas || []; this.currentId = id; this.detailTab = 'dados'; this.selTab = 'requisitos'; this.view = 'detail';
+      const [rec, docs, bols, vols, fin, certs, colabs, vagas, inscritos] = await Promise.all([API.getAcao(id), API.getAcaoDocs(id), API.getBolsistas(id), API.getVoluntarios(id), API.getAcaoFinanceiro(id), API.getCertificadosDaAcao(id), API.getColaboradores(id), API.getVagas(id), API.getInscritosDaAcao(id)]);
+      this.detail = rec; this.docs = docs || []; this.bolsistas = bols || []; this.voluntarios = vols || []; this.financeiro = fin || {}; this.certificados = certs || []; this.colaboradores = colabs || []; this.vagas = vagas || []; this.inscritos = inscritos || []; this.currentId = id; this.detailTab = 'dados'; this.selTab = 'requisitos'; this.view = 'detail';
     } catch (e) { toast(e.message, 'error'); this.view = 'list'; this.renderList(); return; }
     this.renderDetail();
   },
@@ -1049,16 +1050,142 @@ const Acoes = {
       <div class="page-actions">${w ? `<button class="btn btn-primary" onclick="Acoes.openVaga()">+ Adicionar vaga</button>` : ''}</div>${list}`;
   },
 
-  // Sub-aba: Seleção = avaliação dos candidatos (etapa posterior).
+  // Sub-aba: Seleção = avaliação dos candidatos inscritos (por vaga).
+  _situBadgeSel(s) {
+    const ok = { 'Selecionado': 'badge-ok', 'Classificado': 'badge-ok' };
+    return `<span class="badge ${ok[s] || 'badge-muted'}">${esc(s || 'Inscrito')}</span>`;
+  },
+
   _selCandPanel() {
+    const w = this.canWrite();
     const vs = this.vagas || [];
-    const resumo = vs.length ? `<div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Vaga</th><th>Tipo</th><th>Vagas</th><th>Candidatos</th></tr></thead>
-      <tbody>${vs.map(v => `<tr><td><strong>${esc(v.Titulo)}</strong></td><td>${esc(v.Tipo)}</td><td>${esc(String((v.faixas || []).reduce((s, f) => s + (Number(f.quantidade) || 0), 0) || v.Quantidade || 0))}</td><td class="cell-sub">— aguardando importação —</td></tr>`).join('')}</tbody></table></div>`
-      : emptyState('Crie ao menos uma vaga na aba "Requisitos e critérios".');
-    return `<div class="upload-box"><div class="seg-head">Seleção de candidatos</div>
-      <p class="field-hint">A lista de candidatos será <strong>importada automaticamente</strong> de outra planilha. Aqui será feita a avaliação por critério (soma ponderada), com o sistema <strong>indicando</strong> os classificados — a decisão final permanece com o coordenador. Etapa em construção.</p></div>
-      ${resumo}`;
+    if (!vs.length) return emptyState('Crie ao menos uma vaga na aba "Requisitos e critérios".');
+    const cards = vs.map(v => {
+      const ins = (this.inscritos || []).filter(i => String(i.vagaId) === String(v.ID))
+        .sort((a, b) => (Number(b.notaFinal) || 0) - (Number(a.notaFinal) || 0));
+      const posic = (v.faixas || []).reduce((s, f) => s + (Number(f.quantidade) || 0), 0) || Number(v.Quantidade) || 0;
+      const rows = ins.length ? ins.map(i => `<tr>
+        <td><strong>${esc(i.nome || '—')}</strong></td>
+        <td>${esc(i.matricula || '—')}</td>
+        <td class="cell-sub">${esc(i.curso || '—')}</td>
+        <td>${i.faixaCH ? esc(String(i.faixaCH)) + 'h' : '—'}</td>
+        <td><strong>${i.notaFinal !== '' && i.notaFinal != null ? esc(String(i.notaFinal)) : '—'}</strong></td>
+        <td>${this._situBadgeSel(i.situacao)}</td>
+        <td>${i.ataUrl ? `<a href="${esc(i.ataUrl)}" target="_blank" rel="noopener">ata</a>` : '—'}</td>
+        ${w ? `<td class="col-actions"><button class="btn btn-ghost btn-xs" onclick="Acoes.openAvaliacao('${i.ID}')">✏️ Avaliar</button></td>` : ''}
+      </tr>`).join('') : `<tr><td colspan="${w ? 8 : 7}" class="cell-sub">Nenhum inscrito ainda (as inscrições vêm do portal via sincronização).</td></tr>`;
+      return `<div class="upload-box" style="margin-bottom:12px">
+        <div class="seg-head" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <span>${v.Tipo === 'Bolsista' ? '🎓' : '🙌'} ${esc(v.Titulo)} <span class="cell-sub">· ${posic} vaga(s) · ${ins.length} inscrito(s)</span></span>
+          ${w && ins.length ? `<button class="btn btn-ghost btn-xs" onclick="Acoes.indicarVaga('${v.ID}')">⭐ Indicar por nota</button>` : ''}
+        </div>
+        <div class="table-wrap"><table class="data-table">
+          <thead><tr><th>Nome</th><th>Matrícula</th><th>Curso</th><th>Faixa</th><th>Nota</th><th>Situação</th><th>Ata</th>${w ? '<th class="col-actions"></th>' : ''}</tr></thead>
+          <tbody>${rows}</tbody></table></div>
+      </div>`;
+    }).join('');
+    return `<p class="field-hint" style="margin:2px 0 10px">Avalie os inscritos: lance a <strong>nota por critério</strong> (soma ponderada automática), marque <strong>requisitos/habilidades</strong> (atende/não), anexe a <strong>ata</strong> e defina a <strong>situação</strong>. "Indicar por nota" marca os primeiros como Selecionado/Suplente (você ajusta depois).</p>${cards}`;
+  },
+
+  async _refreshInscritos() {
+    try { this.inscritos = await API.getInscritosDaAcao(this.currentId) || []; } catch (e) {}
+  },
+
+  openAvaliacao(id) {
+    if (!this.canWrite()) return;
+    const i = (this.inscritos || []).find(x => String(x.ID) === String(id));
+    if (!i) return;
+    const v = (this.vagas || []).find(x => String(x.ID) === String(i.vagaId));
+    const criterios = (v && v.criterios) || [];
+    const notasHtml = criterios.length ? criterios.map((c, idx) => `<tr>
+      <td>${esc(c.criterio || c.categoria)} <span class="cell-sub">(peso ${esc(String(c.peso))})</span></td>
+      <td style="width:110px"><input class="input av-nota" data-idx="${idx}" data-peso="${esc(String(c.peso || 0))}" type="number" min="0" max="10" step="0.1" value="${esc(i.notas && i.notas[idx] != null ? String(i.notas[idx]) : '')}" oninput="Acoes._avNotaSum()"></td>
+    </tr>`).join('') : '<tr><td class="cell-sub">Esta vaga não tem critérios classificatórios.</td></tr>';
+
+    // Checklist de requisitos + habilidades (atende/não).
+    const itens = this._avItens(v);
+    const marks = i.checklist || {};
+    const checkHtml = itens.length ? itens.map((label, k) => `<label class="chk-item"><input type="checkbox" class="av-chk" data-label="${esc(label)}" ${marks[label] ? 'checked' : ''}> ${esc(label)}</label>`).join('')
+      : '<span class="field-hint">Sem requisitos/habilidades cadastrados.</span>';
+
+    const situOpts = SITUACAO_INSCRICAO.map(s => `<option ${i.situacao === s ? 'selected' : ''}>${esc(s)}</option>`).join('');
+    const body = `
+      <p class="section-sub"><strong>${esc(i.nome || '')}</strong> · ${esc(i.matricula || '')} · ${esc(i.curso || '')}${i.faixaCH ? ' · ' + esc(String(i.faixaCH)) + 'h' : ''}</p>
+      <div class="seg-head">Notas por critério</div>
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>Critério</th><th>Nota (0–10)</th></tr></thead>
+        <tbody>${notasHtml}</tbody>
+        <tfoot><tr><td style="text-align:right"><strong>Nota final (soma ponderada)</strong></td><td><strong id="av-nf">${esc(String(i.notaFinal || 0))}</strong></td></tr></tfoot></table></div>
+      <div class="seg-head" style="margin-top:10px">Requisitos e habilidades (atende)</div>
+      <div class="chk-list">${checkHtml}</div>
+      <div class="form-grid" style="margin-top:10px">
+        <div class="fg"><label>Situação</label><select class="input" id="av-situ">${situOpts}</select></div>
+        <div class="fg"><label>Ata de avaliação (PDF)</label>
+          ${i.ataUrl ? `<div class="field-hint"><a href="${esc(i.ataUrl)}" target="_blank" rel="noopener">ata atual</a> · <label class="chk-item" style="display:inline-flex"><input type="checkbox" id="av-ata-remove"> remover</label></div>` : ''}
+          <input type="file" accept="application/pdf,.pdf" class="input" id="av-ata"></div>
+      </div>`;
+    openModal('Avaliar inscrito', body, async () => { await this.saveAvaliacao(id); }, { confirmLabel: 'Salvar avaliação' });
+    setTimeout(() => this._avNotaSum(), 40);
+  },
+
+  // Itens marcáveis (atende/não) a partir dos requisitos + habilidades da vaga.
+  _avItens(v) {
+    const out = [];
+    const r = (v && v.requisitos) || {};
+    if (r.modalidade && r.modalidade.length) out.push('Modalidade: ' + r.modalidade.join(', '));
+    if (r.cursos === 'todos') out.push('Curso: qualquer');
+    else if (v && v.cursosNomes && v.cursosNomes.length) out.push('Curso: ' + v.cursosNomes.join(', '));
+    if (r.periodoMin) out.push('Período/semestre mínimo: ' + r.periodoMin);
+    if (r.assistencia) out.push('Beneficiário de assistência estudantil');
+    (r.demais || []).forEach(d => { if (d.requisito) out.push('Requisito: ' + d.requisito); });
+    const h = (v && v.habilidades) || {};
+    if (h.soft) out.push('Soft skills: ' + h.soft);
+    if (h.hard) out.push('Hard skills: ' + h.hard);
+    return out;
+  },
+
+  _avNotaSum() {
+    let s = 0;
+    document.querySelectorAll('.av-nota').forEach(el => { const n = parseFloat(el.value); if (!isNaN(n)) s += n * (parseFloat(el.getAttribute('data-peso')) || 0); });
+    const el = document.getElementById('av-nf');
+    if (el) el.textContent = (Math.round(s * 100) / 100).toString().replace('.', ',');
+  },
+
+  async saveAvaliacao(id) {
+    const notas = {};
+    document.querySelectorAll('.av-nota').forEach(el => { const idx = el.getAttribute('data-idx'); if (el.value !== '') notas[idx] = parseFloat(el.value); });
+    const checklist = {};
+    document.querySelectorAll('.av-chk').forEach(el => { checklist[el.getAttribute('data-label')] = el.checked; });
+    const situacao = val('av-situ');
+    const fileEl = document.getElementById('av-ata');
+    const file = fileEl && fileEl.files[0];
+    const remove = document.getElementById('av-ata-remove') && document.getElementById('av-ata-remove').checked;
+    let ataB64 = null, ataName = null;
+    if (file) {
+      if (!/\.pdf$/i.test(file.name) || (file.type && file.type !== 'application/pdf')) { toast('A ata deve ser um PDF.', 'error'); return; }
+      ataB64 = await fileToBase64(file); ataName = file.name;
+    }
+    setBusy(true);
+    try {
+      await API.saveAvaliacao(id, { notas: notas, checklist: checklist, situacao: situacao });
+      if (remove && !ataB64) await API.uploadAtaAvaliacao(id, { remove: true });
+      if (ataB64) await API.uploadAtaAvaliacao(id, { fileName: ataName, base64: ataB64 });
+      toast('Avaliação salva.', 'success');
+      closeModal();
+      await this._refreshInscritos();
+      this.renderDetail();
+    } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
+  },
+
+  indicarVaga(vagaId) {
+    if (!window.confirm('Indicar automaticamente por nota (Selecionado/Suplente)? Você pode ajustar depois.')) return;
+    (async () => {
+      try {
+        const r = await API.indicarVaga(vagaId);
+        toast('Indicados ' + (r.indicados || 0) + ' de ' + (r.total || 0) + '.', 'success');
+        await this._refreshInscritos();
+        this.renderDetail();
+      } catch (e) { toast(e.message, 'error'); }
+    })();
   },
 
   switchVagaTab(t) {

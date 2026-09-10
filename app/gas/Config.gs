@@ -225,7 +225,8 @@ const COL = {
   // Inscrições (candidatos por vaga+faixa). Import vem de fora; avaliação = notas.
   Inscricoes: {
     ID: 0, SelecaoID: 1, VagaID: 2, FaixaCH: 3, CandidatoNome: 4, Matricula: 5, Curso: 6,
-    Email: 7, DataInscricao: 8, NotasJSON: 9, NotaFinal: 10, Situacao: 11
+    Email: 7, DataInscricao: 8, NotasJSON: 9, NotaFinal: 10, Situacao: 11,
+    ChecklistJSON: 12, AtaFileId: 13, AtaUrl: 14
   },
   // Certificados (upload de PDF; arquivo em {Segmento}/Certificados + atalho na ação).
   Certificados: {
@@ -283,7 +284,8 @@ const HEADERS = {
               'MembrosJSON', 'CamarasJSON', 'CriadoEm', 'CriadoPor'],
   Selecoes: ['ID', 'Nome', 'VagasJSON', 'Status', 'CriadoEm', 'CriadoPor', 'MaxVagasAluno', 'PublicadoEm', 'CronogramaJSON'],
   Inscricoes: ['ID', 'SelecaoID', 'VagaID', 'FaixaCH', 'CandidatoNome', 'Matricula', 'Curso',
-               'Email', 'DataInscricao', 'NotasJSON', 'NotaFinal', 'Situacao']
+               'Email', 'DataInscricao', 'NotasJSON', 'NotaFinal', 'Situacao',
+               'ChecklistJSON', 'AtaFileId', 'AtaUrl']
 };
 
 // ── Helpers genéricos ────────────────────────────────────────
