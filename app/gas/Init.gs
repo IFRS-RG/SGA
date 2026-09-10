@@ -25,12 +25,15 @@ function initSheets() {
       }
     } else {
       // Já há dados: ADITIVO SEGURO — se o cabeçalho atual for um prefixo do schema
-      // e houver colunas novas ao final, acrescenta-as sem tocar nos dados existentes.
-      const cur = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+      // e houver colunas novas (ou células de cabeçalho em branco) ao final, preenche-as
+      // sem tocar nos dados. Ignora rótulos vazios no fim (ex.: colunas órfãs criadas
+      // por escritas anteriores antes de o cabeçalho existir).
+      const raw = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), headers.length)).getValues()[0].map(String);
+      let n = raw.length; while (n > 0 && raw[n - 1] === '') n--;
+      const cur = raw.slice(0, n);
       const isPrefix = cur.length <= headers.length && cur.every((h, i) => h === headers[i]);
       if (isPrefix && headers.length > cur.length) {
-        const extra = headers.slice(cur.length);
-        sh.getRange(1, cur.length + 1, 1, extra.length).setValues([extra]);
+        sh.getRange(1, cur.length + 1, 1, headers.length - cur.length).setValues([headers.slice(cur.length)]);
       }
     }
     sh.getRange(1, 1, 1, headers.length)
