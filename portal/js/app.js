@@ -239,17 +239,20 @@ const Portal = {
     const body = `
       <p class="kv"><b>${this.esc(vaga.titulo)}</b> · ${this.esc(vaga.tipo)}<br><span class="muted">${this.esc(vaga.acao || '')}</span></p>
       ${faixaField}
+      <div class="field"><label>Nome completo *</label><input class="input" id="i-nome" value="${this.esc((this.user && this.user.nome) || '')}" placeholder="seu nome completo"></div>
       <div class="field"><label>Matrícula *</label><input class="input" id="i-mat" placeholder="sua matrícula"></div>
       ${cursoField}`;
     this.openModal('Confirmar inscrição', body, async () => {
       const faixaCH = (document.getElementById('i-faixa') || {}).value || '';
+      const nome = (document.getElementById('i-nome') || {}).value.trim();
       const matricula = (document.getElementById('i-mat') || {}).value.trim();
       const curso = (document.getElementById('i-curso') || {}).value.trim();
+      if (!nome) { this.toast('Informe seu nome completo.', 'err'); return; }
       if (!matricula) { this.toast('Informe sua matrícula.', 'err'); return; }
       if (!curso) { this.toast('Informe seu curso.', 'err'); return; }
       const ok = document.getElementById('modal-ok'); if (ok) { ok.disabled = true; ok.textContent = 'Enviando…'; }
       try {
-        await this.gasCall('inscrever', { payload: { selecaoId: selId, vagaId: vagaId, faixaCH, matricula, curso } });
+        await this.gasCall('inscrever', { payload: { selecaoId: selId, vagaId: vagaId, faixaCH, nome, matricula, curso } });
         this.toast('Inscrição confirmada!', 'ok');
         this.closeModal();
         this.minhas = await this.gasCall('getMinhas') || [];

@@ -63,8 +63,10 @@ function inscrever(email, nome, p) {
   const selId = String(p.selecaoId || '');
   const vagaId = String(p.vagaId || '');
   const faixa = String(p.faixaCH || '');
+  const nomeCompleto = String(p.nome || '').trim() || String(nome || '').trim();
   const mat = String(p.matricula || '').trim();
   const curso = String(p.curso || '').trim();
+  if (!nomeCompleto) throw _uErr('Informe seu nome completo.');
   if (!mat) throw _uErr('Informe sua matrícula.');
   if (!curso) throw _uErr('Informe seu curso.');
 
@@ -84,7 +86,7 @@ function inscrever(email, nome, p) {
   const max = Number(sel.MaxVagasAluno) || 1;
   if (naSel >= max) throw _uErr('Limite de ' + max + ' vaga(s) por aluno neste processo.');
 
-  _sheet('Inscricoes').appendRow([selId, vagaId, faixa, nome, mat, curso, email, email, _now()]);
+  _sheet('Inscricoes').appendRow([selId, vagaId, faixa, nomeCompleto, mat, curso, email, email, _now()]);
   return { ok: true };
 }
 
