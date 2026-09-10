@@ -44,6 +44,20 @@ function _acaoRow(id, p, criadoEm, criadoPor, driveFolderId, logoFileId, logoUrl
   ];
 }
 
+// Bootstrap da tela de Ações: tudo numa chamada só (evita 5 requisições
+// paralelas que revalidam o token e estouram o timeout quando o GAS está lento).
+function getAcoesBootstrap(email) {
+  requirePerfil(email, ACAO_READERS);
+  const safe = function (fn) { try { return fn() || []; } catch (e) { return []; } };
+  return {
+    acoes: safe(function () { return getAcoes(email); }),
+    editais: safe(function () { return getEditais(email); }),
+    servidores: safe(function () { return getServidores(email); }),
+    alunos: safe(function () { return getAlunos(email); }),
+    cursos: safe(function () { return getCursos(email); })
+  };
+}
+
 // ── Listar (enriquecido com rótulos) ──────────────────────────
 function getAcoes(email) {
   requirePerfil(email, ACAO_READERS);

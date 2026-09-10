@@ -32,10 +32,8 @@ const Acoes = {
     this.view = 'list';
     this.container.innerHTML = '<div class="loading-page"><div class="spinner"></div><p>Carregando…</p></div>';
     try {
-      const [ac, ed, sv, al, cu] = await Promise.all([
-        API.getAcoes(), API.getEditais(), API.getServidores(), API.getAlunos(), API.getCursos()
-      ]);
-      this.acoes = ac || []; this.editais = ed || []; this.servidores = sv || []; this.alunos = al || []; this.cursos = cu || [];
+      const b = await API.getAcoesBootstrap();
+      this.acoes = b.acoes || []; this.editais = b.editais || []; this.servidores = b.servidores || []; this.alunos = b.alunos || []; this.cursos = b.cursos || [];
     } catch (e) {
       this.container.innerHTML = emptyState('Erro ao carregar: ' + (e && e.message ? e.message : e));
       return;

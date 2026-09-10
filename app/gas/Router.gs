@@ -111,6 +111,8 @@ function doPost(e) {
         return respond(saveFinanceiro(data.tipo, data.refId, data.payload, userEmail));
 
       // ── Ações ──
+      case 'getAcoesBootstrap':
+        return respond(getAcoesBootstrap(userEmail));
       case 'getAcoes':
         return respond(getAcoes(userEmail));
       case 'getAcao':

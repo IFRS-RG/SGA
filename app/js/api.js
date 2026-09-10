@@ -8,7 +8,7 @@ async function gasCall(action, extra = {}) {
 
   let resp;
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 30000);
+  const timer = setTimeout(() => ctrl.abort(), 60000);
   try {
     try {
       resp = await fetch(SGA_CONFIG.GAS_URL, {
@@ -70,6 +70,7 @@ const API = {
   deleteAluno:(id)              => gasCall('deleteAluno', { id }),
 
   // Ações
+  getAcoesBootstrap: ()        => gasCall('getAcoesBootstrap'),
   getAcoes:   ()               => gasCall('getAcoes'),
   getAcao:    (id)             => gasCall('getAcao', { id }),
   addAcao:    (payload, reqId) => gasCall('addAcao', { payload, reqId }),
