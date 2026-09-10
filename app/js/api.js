@@ -118,6 +118,7 @@ const API = {
   saveAvaliacao:      (id, payload) => gasCall('saveAvaliacao', { id, payload }),
   uploadAtaAvaliacao: (id, payload) => gasCall('uploadAtaAvaliacao', { id, payload }),
   indicarVaga:        (vagaId)      => gasCall('indicarVaga', { vagaId }),
+  aprovarVaga:        (vagaId)      => gasCall('aprovarVaga', { vagaId }),
 
   // Comissões
   getComissoes:      ()               => gasCall('getComissoes'),

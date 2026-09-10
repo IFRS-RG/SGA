@@ -1075,7 +1075,9 @@ const Acoes = {
       return `<div class="upload-box" style="margin-bottom:12px">
         <div class="seg-head" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
           <span>${v.Tipo === 'Bolsista' ? '🎓' : '🙌'} ${esc(v.Titulo)} <span class="cell-sub">· ${posic} vaga(s) · ${ins.length} inscrito(s)</span></span>
-          ${w && ins.length ? `<button class="btn btn-ghost btn-xs" onclick="Acoes.indicarVaga('${v.ID}')">⭐ Indicar por nota</button>` : ''}
+          ${w && ins.length ? `<span style="white-space:nowrap">
+            <button class="btn btn-ghost btn-xs" onclick="Acoes.indicarVaga('${v.ID}')">⭐ Indicar por nota</button>
+            <button class="btn btn-primary btn-xs" onclick="Acoes.aprovarVaga('${v.ID}')">✔️ Aprovar e promover</button></span>` : ''}
         </div>
         <div class="table-wrap"><table class="data-table">
           <thead><tr><th>Nome</th><th>Matrícula</th><th>Curso</th><th>Faixa</th><th>Nota</th><th>Situação</th><th>Ata</th>${w ? '<th class="col-actions"></th>' : ''}</tr></thead>
@@ -1172,6 +1174,21 @@ const Acoes = {
       await this._refreshInscritos();
       this.renderDetail();
     } catch (e) { toast(e.message, 'error'); } finally { setBusy(false); }
+  },
+
+  aprovarVaga(vagaId) {
+    if (!window.confirm('Aprovar a classificação desta vaga?\n\nOs candidatos "Selecionado" viram Bolsista/Voluntário na ação e são cadastrados em Participantes (casando pela matrícula). Reaprovar não duplica.')) return;
+    (async () => {
+      try {
+        const r = await API.aprovarVaga(vagaId);
+        toast('Aprovado: ' + (r.promovidos || 0) + ' promovido(s)' +
+          (r.jaExistiam ? ', ' + r.jaExistiam + ' já existia(m)' : '') +
+          (r.novosAlunos ? ', ' + r.novosAlunos + ' novo(s) participante(s)' : '') + '.', 'success');
+        const d = await API.getAcaoDetalhe(this.currentId);
+        this.inscritos = d.inscritos || []; this.bolsistas = d.bolsistas || []; this.voluntarios = d.voluntarios || [];
+        this.renderDetail();
+      } catch (e) { toast(e.message, 'error'); }
+    })();
   },
 
   indicarVaga(vagaId) {

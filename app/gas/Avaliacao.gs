@@ -77,6 +77,78 @@ function uploadAtaAvaliacao(id, p, email) {
   return { ok: true, url: file.getUrl() };
 }
 
+// Curso (nome) → CursoID cadastrado (para pré-cadastrar o aluno).
+function _cursoIdPorNome(nome) {
+  if (!nome) return '';
+  const c = sheetRows('Cursos').find(x => String(x.Nome).trim().toLowerCase() === String(nome).trim().toLowerCase());
+  return c ? c.ID : '';
+}
+
+// Garante o aluno em Participantes (casa por matrícula; cria "pré-cadastro" se não existir).
+function _garantirAluno(insc, email) {
+  const mat = String(insc.Matricula || '').trim();
+  const existente = mat ? sheetRows('Alunos').find(x => String(x.Matricula).trim() === mat) : null;
+  if (existente) return { id: existente.ID, novo: false };
+  const id = genId();
+  const C = COL.Alunos;
+  const row = new Array(HEADERS.Alunos.length).fill('');
+  row[C.ID] = id;
+  row[C.Nome] = String(insc.CandidatoNome || '').trim();
+  row[C.Matricula] = mat;
+  row[C.CursoID] = _cursoIdPorNome(insc.Curso);
+  row[C.Email] = String(insc.Email || '').trim();
+  row[C.Status] = 'Ativo';
+  row[C.CriadoEm] = nowBR();
+  row[C.CriadoPor] = email + ' (seleção)';
+  getSheet('Alunos').appendRow(row);
+  return { id: id, novo: true };
+}
+
+// Aprovação final da vaga (Gestor): promove os SELECIONADOS a Bolsista/Voluntário
+// e garante o cadastro em Participantes. Idempotente (não duplica ao reaprovar).
+function aprovarVaga(vagaId, email) {
+  const info = requirePerfil(email, ACAO_WRITERS);
+  const vaga = sheetRows('SelVagas').find(v => String(v.ID) === String(vagaId));
+  if (!vaga) throw userError('Vaga não encontrada.');
+  const acao = sheetRows('Acoes').find(a => String(a.ID) === String(vaga.AcaoID));
+  if (!acao) throw userError('Ação não encontrada.');
+  _assertSegmentoAcao(info, acao.Segmento);
+  const edital = sheetRows('Editais').find(e => String(e.ID) === String(acao.EditalID));
+  const selec = sheetRows('Inscricoes').filter(i => String(i.VagaID) === String(vagaId) && String(i.Situacao) === 'Selecionado');
+  if (!selec.length) throw userError('Nenhum candidato "Selecionado" nesta vaga. Ajuste as situações (ou use "Indicar por nota") antes de aprovar.');
+
+  const bolsRows = sheetRows('AcaoBolsistas');
+  const volRows = sheetRows('AcaoVoluntarios');
+  let promovidos = 0, jaExistiam = 0, novosAlunos = 0;
+
+  selec.forEach(insc => {
+    const al = _garantirAluno(insc, email);
+    if (al.novo) novosAlunos++;
+    if (vaga.Tipo === 'Bolsista') {
+      if (bolsRows.some(b => String(b.AcaoID) === String(acao.ID) && String(b.AlunoID) === String(al.id))) { jaExistiam++; return; }
+      const ch = insc.FaixaCH || vaga.CH;
+      const valor = _valorBolsaEdital(edital, ch, acao.Segmento);
+      const C = COL.AcaoBolsistas;
+      const row = new Array(HEADERS.AcaoBolsistas.length).fill('');
+      row[C.ID] = genId(); row[C.AcaoID] = acao.ID; row[C.AlunoID] = al.id; row[C.EditalBolsaID] = acao.EditalID || '';
+      row[C.CHBolsa] = ch; row[C.ValorBolsa] = (valor !== '' && valor != null) ? valor : '';
+      row[C.StatusSIGAA] = 'Não cadastrado'; row[C.StatusRelatorio] = 'Não entregue'; row[C.Status] = 'Ativo';
+      row[C.Observacoes] = 'Promovido da seleção'; row[C.CriadoEm] = nowBR(); row[C.CriadoPor] = email;
+      getSheet('AcaoBolsistas').appendRow(row); promovidos++;
+    } else {
+      if (volRows.some(v => String(v.AcaoID) === String(acao.ID) && String(v.AlunoID) === String(al.id))) { jaExistiam++; return; }
+      const ch = insc.FaixaCH || vaga.CH;
+      const C = COL.AcaoVoluntarios;
+      const row = new Array(HEADERS.AcaoVoluntarios.length).fill('');
+      row[C.ID] = genId(); row[C.AcaoID] = acao.ID; row[C.AlunoID] = al.id; row[C.CHVoluntariado] = ch;
+      row[C.StatusSIGAA] = 'Não cadastrado'; row[C.StatusRelatorio] = 'Não entregue'; row[C.Status] = 'Ativo';
+      row[C.Observacoes] = 'Promovido da seleção'; row[C.CriadoEm] = nowBR(); row[C.CriadoPor] = email;
+      getSheet('AcaoVoluntarios').appendRow(row); promovidos++;
+    }
+  });
+  return { ok: true, promovidos: promovidos, jaExistiam: jaExistiam, novosAlunos: novosAlunos, total: selec.length, tipo: vaga.Tipo };
+}
+
 // Indicação automática por nota: N primeiros (N = posições da vaga) = Selecionado; demais = Suplente.
 function indicarVaga(vagaId, email) {
   const info = requirePerfil(email, ACAO_WRITERS);
