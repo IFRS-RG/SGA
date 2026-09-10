@@ -20,7 +20,7 @@ function getVagas() {
       };
     });
     return { selecaoId: s.SelecaoID, nome: s.Nome, maxVagasAluno: Number(s.MaxVagasAluno) || 1, vagas: vs };
-  });
+  }).filter(p => p.vagas.length);   // não mostra processo sem vagas (resquício de publicação antiga)
 }
 
 // Lista de cursos (publicada pelo SGA na planilha do portal).

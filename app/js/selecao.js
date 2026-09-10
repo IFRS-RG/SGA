@@ -42,13 +42,14 @@ const Selecao = {
         <td class="cell-sub">${acoes}</td>
         <td>${(s.vagas || []).length} vaga(s)</td>
         <td><span class="badge ${s.Status === 'Aberta' ? 'badge-ok' : 'badge-muted'}">${esc(s.Status || '—')}</span></td>
+        <td><span class="badge ${s.publicadoEm ? 'badge-ok' : 'badge-muted'}">${s.publicadoEm ? 'Publicado' : 'Não publicado'}</span></td>
         ${menu}
       </tr>`;
     }).join('');
 
     const table = (this.selecoes || []).length ? `
       <div class="table-wrap menus"><table class="data-table">
-        <thead><tr><th>Processo seletivo</th><th>Ações</th><th>Vagas</th><th>Status</th>${w ? '<th class="col-actions">Ações</th>' : ''}</tr></thead>
+        <thead><tr><th>Processo seletivo</th><th>Ações</th><th>Vagas</th><th>Status</th><th>Portal</th>${w ? '<th class="col-actions">Ações</th>' : ''}</tr></thead>
         <tbody>${rows}</tbody></table></div>`
       : emptyState('Nenhum processo seletivo criado ainda.');
 

@@ -105,7 +105,7 @@ const Portal = {
     const critH = crit.length ? `<table class="table"><thead><tr><th>Critério</th><th>Peso</th></tr></thead><tbody>${crit.map(c => `<tr><td>${this.esc(c.criterio || c.categoria)}</td><td>${this.esc(c.peso)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">Sem critérios.</p>';
     const inscrito = this._inscritoEm(v.vagaId);
     const btn = inscrito
-      ? `<button class="btn btn-ghost btn-sm" disabled>✓ Inscrito</button>`
+      ? `<span class="tag tag-ok">✓ Inscrito</span>`
       : `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();Portal.abrirInscricao('${proc.selecaoId}','${v.vagaId}')">Inscrever-se</button>`;
     const totalVagas = (v.faixas || []).reduce((s, f) => s + (Number(f.quantidade) || 0), 0);
     return `<div class="card">
