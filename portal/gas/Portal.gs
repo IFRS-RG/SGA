@@ -2,11 +2,25 @@
 // Portal do Aluno — Regras (lê Selecao/Vagas, grava Inscricoes)
 // ============================================================
 
-// Vagas dos processos PUBLICADOS e Abertos.
+// Hoje em yyyy-mm-dd (fuso America/Sao_Paulo).
+function _hoje() { return Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd'); }
+
+// Inscrições abertas? status Aberta E (se houver datas) dentro do período.
+function _inscricoesAbertas(status, cron) {
+  if (String(status) !== 'Aberta') return false;
+  cron = cron || {};
+  const h = _hoje();
+  if (cron.inicioInsc && h < cron.inicioInsc) return false;
+  if (cron.fimInsc && h > cron.fimInsc) return false;
+  return true;
+}
+
+// Vagas de TODOS os processos publicados (Abertos e Encerrados = histórico).
 function getVagas() {
-  const sels = _objs('Selecao').filter(s => String(s.Status) === 'Aberta');
+  const sels = _objs('Selecao');
   const vagas = _objs('Vagas');
   return sels.map(s => {
+    let cron = {}; try { cron = JSON.parse(s.CronogramaJSON || '{}'); } catch (e) {}
     const vs = vagas.filter(v => String(v.SelecaoID) === String(s.SelecaoID)).map(v => {
       let faixas = [], req = {}, crit = [], hab = {};
       try { faixas = JSON.parse(v.FaixasJSON || '[]'); } catch (e) {}
@@ -19,7 +33,11 @@ function getVagas() {
         coordNome: v.CoordNome || '', coordEmail: v.CoordEmail || '', resumo: v.Resumo || '', habilidades: hab
       };
     });
-    return { selecaoId: s.SelecaoID, nome: s.Nome, maxVagasAluno: Number(s.MaxVagasAluno) || 1, vagas: vs };
+    return {
+      selecaoId: s.SelecaoID, nome: s.Nome, status: s.Status || 'Aberta',
+      maxVagasAluno: Number(s.MaxVagasAluno) || 1, cronograma: cron,
+      inscricoesAbertas: _inscricoesAbertas(s.Status, cron), vagas: vs
+    };
   }).filter(p => p.vagas.length);   // não mostra processo sem vagas (resquício de publicação antiga)
 }
 
@@ -52,6 +70,8 @@ function inscrever(email, nome, p) {
 
   const sel = _objs('Selecao').find(s => String(s.SelecaoID) === selId && String(s.Status) === 'Aberta');
   if (!sel) throw _uErr('Este processo não está disponível.');
+  let cron = {}; try { cron = JSON.parse(sel.CronogramaJSON || '{}'); } catch (e) {}
+  if (!_inscricoesAbertas(sel.Status, cron)) throw _uErr('As inscrições deste processo não estão abertas no momento.');
   const vaga = _objs('Vagas').find(v => String(v.SelecaoID) === selId && String(v.VagaID) === vagaId);
   if (!vaga) throw _uErr('Vaga indisponível.');
 

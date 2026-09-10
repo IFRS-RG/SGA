@@ -2,6 +2,15 @@
 // Portal do Aluno — App (login @aluno, vagas, inscrição)
 // ============================================================
 const SEGMENTOS_PORTAL = ['Ensino', 'Pesquisa', 'Extensão', 'Indissociável'];
+const CRONOGRAMA_PORTAL = [
+  ['inicioInsc', 'Início das inscrições'],
+  ['fimInsc', 'Fim das inscrições'],
+  ['homologacao', 'Homologação das inscrições'],
+  ['resultadoParcial', 'Resultado parcial'],
+  ['prazoRecurso', 'Prazo de recurso'],
+  ['resultadoFinal', 'Resultado final'],
+  ['inicioAtividades', 'Início das atividades']
+];
 
 const Portal = {
   token: null,
@@ -11,7 +20,10 @@ const Portal = {
   minhas: [],
   cursos: [],
   segAtivo: {},        // segmento ativo por processo (selecaoId -> segmento)
+  procAberto: {},      // processo expandido/recolhido (selecaoId -> bool)
   _modalOk: null,
+
+  _br(iso) { if (!iso) return ''; const p = String(iso).slice(0, 10).split('-'); return p[2] ? `${p[2]}/${p[1]}/${p[0]}` : iso; },
 
   // ── util ──────────────────────────────────────────────
   esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); },
@@ -106,7 +118,9 @@ const Portal = {
     const inscrito = this._inscritoEm(v.vagaId);
     const btn = inscrito
       ? `<span class="tag tag-ok">✓ Inscrito</span>`
-      : `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();Portal.abrirInscricao('${proc.selecaoId}','${v.vagaId}')">Inscrever-se</button>`;
+      : (proc.inscricoesAbertas
+        ? `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();Portal.abrirInscricao('${proc.selecaoId}','${v.vagaId}')">Inscrever-se</button>`
+        : `<span class="tag">Inscrições fechadas</span>`);
     const totalVagas = (v.faixas || []).reduce((s, f) => s + (Number(f.quantidade) || 0), 0);
     return `<div class="card">
       <div class="card-head vg-toggle" onclick="Portal.toggleVaga('${proc.selecaoId}','${v.vagaId}')">
@@ -128,19 +142,31 @@ const Portal = {
     </div>`;
   },
 
+  _cronogramaHtml(cron) {
+    cron = cron || {};
+    const rows = CRONOGRAMA_PORTAL.filter(([k]) => cron[k])
+      .map(([k, label]) => `<tr><td>${this.esc(label)}</td><td>${this.esc(this._br(cron[k]))}</td></tr>`).join('');
+    if (!rows) return '';
+    return `<details style="margin:6px 0"><summary>📅 Cronograma</summary>
+      <table class="table"><tbody>${rows}</tbody></table></details>`;
+  },
+
   renderVagas() {
     if (!this.vagas.length) return '<div class="empty">Nenhuma vaga aberta no momento.</div>';
-    return this.vagas.map(proc => {
+    // Abertos primeiro; encerrados depois (histórico).
+    const procs = this.vagas.slice().sort((a, b) => (a.status === 'Aberta' ? 0 : 1) - (b.status === 'Aberta' ? 0 : 1));
+    return procs.map(proc => {
+      const aberto = proc.status === 'Aberta';
+      const expanded = this.procAberto[proc.selecaoId] !== undefined ? this.procAberto[proc.selecaoId] : aberto;
       const vagasSeg = {};
       SEGMENTOS_PORTAL.forEach(s => { vagasSeg[s] = []; });
       const outros = [];
       (proc.vagas || []).forEach(v => {
         if (SEGMENTOS_PORTAL.indexOf(v.segmento) !== -1) vagasSeg[v.segmento].push(v);
-        else outros.push(v);   // segmento vazio/desconhecido não some: cai em "Outros"
+        else outros.push(v);
       });
       const segs = SEGMENTOS_PORTAL.slice();
       if (outros.length) { vagasSeg['Outros'] = outros; segs.push('Outros'); }
-      // segmento ativo: o guardado, ou o primeiro com vagas, ou o primeiro da lista.
       let seg = this.segAtivo[proc.selecaoId];
       if (!seg || segs.indexOf(seg) === -1) seg = segs.find(s => vagasSeg[s].length) || segs[0];
       const subtabs = segs.map(s =>
@@ -149,11 +175,30 @@ const Portal = {
         ? vagasSeg[seg].map(v => this._vagaCard(proc, v)).join('')
         : '<div class="empty">Nenhuma vaga neste segmento.</div>';
       const rest = proc.maxVagasAluno - this._naSelecao(proc.selecaoId);
-      return `<div class="proc"><h2>${this.esc(proc.nome)}</h2>
-        <p class="sub">Você pode se inscrever em até <b>${this.esc(proc.maxVagasAluno)}</b> vaga(s) deste processo · restam <b>${rest > 0 ? rest : 0}</b>.</p>
-        <div class="tabs subtabs">${subtabs}</div>
-        ${lista}</div>`;
+      const statusTag = aberto
+        ? (proc.inscricoesAbertas ? `<span class="tag tag-ok">Inscrições abertas</span>` : `<span class="tag">Inscrições fechadas</span>`)
+        : `<span class="tag">Encerrada</span>`;
+      return `<div class="proc">
+        <div class="proc-head" onclick="Portal.toggleProc('${proc.selecaoId}')">
+          <h2 style="margin:0">${this.esc(proc.nome)} ${statusTag}</h2>
+          <span class="chev" id="pchev-${proc.selecaoId}">${expanded ? '▾' : '▸'}</span>
+        </div>
+        <div class="proc-body" id="pbody-${proc.selecaoId}" ${expanded ? '' : 'hidden'}>
+          <p class="sub">Você pode se inscrever em até <b>${this.esc(proc.maxVagasAluno)}</b> vaga(s) deste processo · restam <b>${rest > 0 ? rest : 0}</b>.</p>
+          ${this._cronogramaHtml(proc.cronograma)}
+          <div class="tabs subtabs">${subtabs}</div>
+          ${lista}
+        </div></div>`;
     }).join('');
+  },
+
+  toggleProc(selId) {
+    const cur = document.getElementById('pbody-' + selId);
+    const chev = document.getElementById('pchev-' + selId);
+    const open = cur ? cur.hidden : false;   // vai abrir se estava escondido
+    this.procAberto[selId] = open;
+    if (cur) cur.hidden = !open;
+    if (chev) chev.textContent = open ? '▾' : '▸';
   },
 
   switchSeg(selId, seg) { this.segAtivo[selId] = seg; this.render(); },
@@ -166,12 +211,14 @@ const Portal = {
 
   renderMinhas() {
     if (!this.minhas.length) return '<div class="empty">Você ainda não se inscreveu em nenhuma vaga.</div>';
-    return `<div class="card"><table class="table">
-      <thead><tr><th>Vaga</th><th>Faixa</th><th>Data</th><th></th></tr></thead>
+    return `<p class="sub" style="margin:0 0 10px">Todas as suas inscrições abaixo estão <b>válidas</b>. Para trocar de vaga, cancele uma e inscreva-se em outra.</p>
+      <div class="card"><table class="table">
+      <thead><tr><th>Vaga</th><th>Faixa</th><th>Data</th><th>Situação</th><th></th></tr></thead>
       <tbody>${this.minhas.map(i => `<tr>
         <td>${this.esc(i.titulo)}</td>
         <td>${i.faixaCH ? this.esc(i.faixaCH) + 'h' : '—'}</td>
-        <td>${this.esc(String(i.data || '').slice(0, 10))}</td>
+        <td>${this.esc(this._br(i.data))}</td>
+        <td><span class="tag tag-ok">✓ Válida</span></td>
         <td><button class="btn btn-danger btn-sm" onclick="Portal.cancelar('${i.selecaoId}','${i.vagaId}')">Cancelar</button></td>
       </tr>`).join('')}</tbody></table></div>`;
   },

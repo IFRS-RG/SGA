@@ -5,6 +5,14 @@
 // é etapa posterior. Reusa ACAO_READERS/ACAO_WRITERS (Acoes.gs).
 // ============================================================
 
+// Cronograma (datas) normalizado para yyyy-mm-dd.
+function _cronograma(c) {
+  c = c || {};
+  const out = {};
+  CRONOGRAMA_CAMPOS.forEach(function (par) { out[par[0]] = _dateStr(c[par[0]]) || ''; });
+  return out;
+}
+
 // Vagas já usadas em algum processo (exceto o que está sendo editado).
 function _selUsadas(exceptId) {
   const usadas = {};
@@ -55,6 +63,7 @@ function getSelecoes(email) {
     return {
       ID: s.ID, Nome: s.Nome, Status: s.Status, vagas: vgs,
       maxVagasAluno: Number(s.MaxVagasAluno) || 1, publicadoEm: s.PublicadoEm || '',
+      cronograma: (function () { try { return JSON.parse(s.CronogramaJSON || '{}'); } catch (e) { return {}; } })(),
       acoes: Object.keys(acoesDist).map(k => acoesDist[k]), segmentos: Object.keys(segs)
     };
   }).filter(s => info.role === 'Admin' || info.segmento === 'Todos' || s.segmentos.indexOf(info.segmento) !== -1);
@@ -134,9 +143,10 @@ function getSelecao(id, email) {
     throw userError('Você não tem acesso a esta seleção.');
   }
   const totalInscritos = vagas.reduce((t, v) => t + v.inscritos.length, 0);
+  let cronograma = {}; try { cronograma = JSON.parse(s.CronogramaJSON || '{}'); } catch (e) {}
   return {
     ID: s.ID, Nome: s.Nome, Status: s.Status, vagas: vagas, totalInscritos: totalInscritos,
-    maxVagasAluno: Number(s.MaxVagasAluno) || 1, publicadoEm: s.PublicadoEm || ''
+    maxVagasAluno: Number(s.MaxVagasAluno) || 1, publicadoEm: s.PublicadoEm || '', cronograma: cronograma
   };
 }
 
@@ -152,7 +162,8 @@ function addSelecao(p, email, reqId) {
   const id = genId();
   const maxV = Math.max(1, Number(p.maxVagasAluno) || 1);
   getSheet('Selecoes').appendRow([id, nome, JSON.stringify(vagas),
-    STATUS_VAGA.indexOf(p.status) !== -1 ? p.status : 'Aberta', nowBR(), email, maxV, '']);
+    STATUS_VAGA.indexOf(p.status) !== -1 ? p.status : 'Aberta', nowBR(), email, maxV, '',
+    JSON.stringify(_cronograma(p.cronograma))]);
   _idempotentStore(reqId, id);
   return { ok: true, id: id };
 }
@@ -171,7 +182,8 @@ function updateSelecao(id, p, email) {
   const maxV = Math.max(1, Number(p.maxVagasAluno) || Number(old[COL.Selecoes.MaxVagasAluno]) || 1);
   const row = [id, nome, JSON.stringify(vagas),
     STATUS_VAGA.indexOf(p.status) !== -1 ? p.status : old[COL.Selecoes.Status],
-    old[COL.Selecoes.CriadoEm], old[COL.Selecoes.CriadoPor], maxV, old[COL.Selecoes.PublicadoEm]];
+    old[COL.Selecoes.CriadoEm], old[COL.Selecoes.CriadoPor], maxV, old[COL.Selecoes.PublicadoEm],
+    JSON.stringify(_cronograma(p.cronograma))];
   sh.getRange(idx, 1, 1, row.length).setValues([row]);
   return { ok: true };
 }

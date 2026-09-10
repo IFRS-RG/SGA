@@ -96,6 +96,9 @@ const Selecao = {
     const nome = s ? s.Nome : this._suggestNome();
     const statusOpts = STATUS_VAGA.map(o => `<option ${s && s.Status === o ? 'selected' : ''}>${esc(o)}</option>`).join('');
     const maxV = s && s.maxVagasAluno ? s.maxVagasAluno : 1;
+    const cron = (s && s.cronograma) || {};
+    const cronFields = CRONOGRAMA_CAMPOS.map(([k, label]) =>
+      `<div class="fg"><label>${esc(label)}</label><input class="input" type="date" id="sel-cron-${k}" value="${esc(cron[k] || '')}"></div>`).join('');
     const body = `
       <div class="form-grid">
         <div class="fg"><label>Nome do processo *</label><input class="input" id="sel-nome" value="${esc(nome)}"></div>
@@ -104,7 +107,10 @@ const Selecao = {
       <div class="fg" style="max-width:260px"><label>Máx. de vagas por aluno</label>
         <input class="input" id="sel-maxv" type="number" min="1" value="${esc(String(maxV))}">
         <span class="field-hint">Quantas vagas deste processo um aluno pode se inscrever.</span></div>
-      <div class="fg"><label>Vagas ativas (de qualquer ação) *</label>
+      <div class="seg-head">Cronograma</div>
+      <span class="field-hint">As inscrições no portal abrem/fecham automaticamente entre "Início" e "Fim das inscrições".</span>
+      <div class="form-grid">${cronFields}</div>
+      <div class="fg" style="margin-top:10px"><label>Vagas ativas (de qualquer ação) *</label>
         <input class="input" id="sel-busca" placeholder="filtrar por título/ação/edital…" oninput="Selecao.filterVagas(this.value)">
         <div class="chk-list" id="sel-vagas" style="max-height:260px">${this._vagasChecklist(vagas, chosen)}</div></div>`;
     openModal((id ? 'Editar ' : 'Nova ') + 'seleção', body, async () => { await this.save(id); }, { confirmLabel: id ? 'Salvar' : 'Criar seleção' });
@@ -121,13 +127,18 @@ const Selecao = {
     const nome = val('sel-nome');
     const status = val('sel-status');
     const maxVagasAluno = Math.max(1, parseInt(val('sel-maxv'), 10) || 1);
+    const cronograma = {};
+    CRONOGRAMA_CAMPOS.forEach(([k]) => { cronograma[k] = val('sel-cron-' + k); });
     const vagas = Array.from(document.querySelectorAll('.sel-vaga:checked')).map(i => i.value);
     if (!nome.trim()) { toast('Informe o nome do processo.', 'error'); return; }
     if (!vagas.length) { toast('Escolha ao menos uma vaga.', 'error'); return; }
+    if (cronograma.inicioInsc && cronograma.fimInsc && cronograma.fimInsc < cronograma.inicioInsc) {
+      toast('O fim das inscrições não pode ser antes do início.', 'error'); return;
+    }
     setBusy(true);
     try {
-      if (id) await API.updateSelecao(id, { nome: nome, vagas: vagas, status: status, maxVagasAluno: maxVagasAluno });
-      else await API.addSelecao({ nome: nome, vagas: vagas, status: status, maxVagasAluno: maxVagasAluno }, this._reqId());
+      if (id) await API.updateSelecao(id, { nome: nome, vagas: vagas, status: status, maxVagasAluno: maxVagasAluno, cronograma: cronograma });
+      else await API.addSelecao({ nome: nome, vagas: vagas, status: status, maxVagasAluno: maxVagasAluno, cronograma: cronograma }, this._reqId());
       toast(id ? 'Seleção atualizada.' : 'Seleção criada.', 'success');
       closeModal();
       this.selecoes = await API.getSelecoes() || [];
@@ -330,9 +341,13 @@ const Selecao = {
       <button class="btn btn-ghost btn-xs" onclick="Selecao.expResumo('pdf')">⬇ Resumo por vaga (PDF)</button>
     </div>`;
 
+    const cronRows = CRONOGRAMA_CAMPOS.filter(([k]) => d.cronograma && d.cronograma[k])
+      .map(([k, label]) => [label, this._br(d.cronograma[k])]);
+
     return `${toolbar}
       <div class="kpi-row">${cards}</div>
-      <div class="seg-head">Situação dos inscritos</div><p style="margin:6px 0">${situ}</p>
+      ${cronRows.length ? tbl('Cronograma', ['Etapa', 'Data'], cronRows) : ''}
+      <div class="seg-head" style="margin-top:12px">Situação dos inscritos</div><p style="margin:6px 0">${situ}</p>
       ${tbl('Por vaga', ['Vaga', 'Tipo', 'Posições', 'Inscritos', 'Concorrência'], vagaRows)}
       <div class="dash-cols" style="margin-top:12px">
         ${tbl('Por segmento', ['Segmento', 'Vagas', 'Posições', 'Inscritos'], segRows)}

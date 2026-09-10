@@ -99,6 +99,16 @@ const TIPO_VAGA = ['Bolsista', 'Voluntário'];
 const STATUS_VAGA = ['Aberta', 'Encerrada'];
 // Modalidade/nível exigível como requisito de vínculo acadêmico.
 const MODALIDADE_VAGA = ['Integrado', 'Subsequente', 'Superior'];
+// Cronograma do processo seletivo (datas). Ordem cronológica.
+const CRONOGRAMA_CAMPOS = [
+  ['inicioInsc', 'Início das inscrições'],
+  ['fimInsc', 'Fim das inscrições'],
+  ['homologacao', 'Homologação das inscrições'],
+  ['resultadoParcial', 'Resultado parcial'],
+  ['prazoRecurso', 'Prazo de recurso'],
+  ['resultadoFinal', 'Resultado final'],
+  ['inicioAtividades', 'Início das atividades']
+];
 // Categorias sugeridas para os critérios classificatórios (com peso).
 const CATEGORIA_CRITERIO = ['Entrevista', 'Análise documental', 'Conhecimentos e competências',
   'Experiência e trajetória', 'Formação complementar', 'Disponibilidade', 'Avaliação prática', 'Outros'];
@@ -111,7 +121,7 @@ const SITUACAO_INSCRICAO = ['Inscrito', 'Classificado', 'Selecionado', 'Suplente
 const PORTAL_SHEET_ID_DEFAULT = '1yBRRO9xeM75U2czJYTWFGlP0VujJ4YN4mKJACejYMl4';
 // Abas que o SGA cria/gerencia na planilha do portal.
 const PORTAL_HEADERS = {
-  Selecao: ['SelecaoID', 'Nome', 'Status', 'MaxVagasAluno', 'PublicadoEm'],
+  Selecao: ['SelecaoID', 'Nome', 'Status', 'MaxVagasAluno', 'PublicadoEm', 'CronogramaJSON'],
   Vagas: ['SelecaoID', 'VagaID', 'Titulo', 'Tipo', 'Segmento', 'Acao', 'Edital', 'FaixasJSON', 'RequisitosJSON', 'CriteriosJSON', 'CoordNome', 'CoordEmail', 'Resumo', 'HabilidadesJSON'],
   Inscricoes: ['SelecaoID', 'VagaID', 'FaixaCH', 'Nome', 'Matricula', 'Curso', 'Email', 'EmailAluno', 'DataInscricao'],
   Cursos: ['ID', 'Nome']
@@ -211,7 +221,7 @@ const COL = {
     MembrosJSON: 6, CamarasJSON: 7, CriadoEm: 8, CriadoPor: 9
   },
   // Seleções (processo seletivo nomeado): agrega vagas de qualquer ação.
-  Selecoes: { ID: 0, Nome: 1, VagasJSON: 2, Status: 3, CriadoEm: 4, CriadoPor: 5, MaxVagasAluno: 6, PublicadoEm: 7 },
+  Selecoes: { ID: 0, Nome: 1, VagasJSON: 2, Status: 3, CriadoEm: 4, CriadoPor: 5, MaxVagasAluno: 6, PublicadoEm: 7, CronogramaJSON: 8 },
   // Inscrições (candidatos por vaga+faixa). Import vem de fora; avaliação = notas.
   Inscricoes: {
     ID: 0, SelecaoID: 1, VagaID: 2, FaixaCH: 3, CandidatoNome: 4, Matricula: 5, Curso: 6,
@@ -271,7 +281,7 @@ const HEADERS = {
              'RequisitosJSON', 'CriteriosJSON', 'Status', 'CriadoEm', 'CriadoPor', 'FaixasJSON', 'HabilidadesJSON'],
   Comissoes: ['ID', 'Tipo', 'PortariaFileId', 'PortariaUrl', 'DataInicio', 'DataFim',
               'MembrosJSON', 'CamarasJSON', 'CriadoEm', 'CriadoPor'],
-  Selecoes: ['ID', 'Nome', 'VagasJSON', 'Status', 'CriadoEm', 'CriadoPor', 'MaxVagasAluno', 'PublicadoEm'],
+  Selecoes: ['ID', 'Nome', 'VagasJSON', 'Status', 'CriadoEm', 'CriadoPor', 'MaxVagasAluno', 'PublicadoEm', 'CronogramaJSON'],
   Inscricoes: ['ID', 'SelecaoID', 'VagaID', 'FaixaCH', 'CandidatoNome', 'Matricula', 'Curso',
                'Email', 'DataInscricao', 'NotasJSON', 'NotaFinal', 'Situacao']
 };

@@ -81,7 +81,7 @@ function publicarSelecao(id, email) {
   _portalTab(book, 'Inscricoes');
   const now = nowBR();
   _portalUpsert(selSheet, PORTAL_HEADERS.Selecao, id,
-    [[id, full.Nome, full.Status, full.maxVagasAluno || 1, now]]);
+    [[id, full.Nome, full.Status, full.maxVagasAluno || 1, now, JSON.stringify(full.cronograma || {})]]);
   const rows = (full.vagas || []).map(v => [
     id, v.ID, v.Titulo, v.Tipo, v.segmento || '', v.acaoTitulo || '', v.editalLabel || '',
     JSON.stringify(v.faixas || []),

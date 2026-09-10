@@ -57,6 +57,16 @@ const CH_BOLSA = ['4', '8', '12', '16'];
 const TIPO_VAGA = ['Bolsista', 'Voluntário'];
 const STATUS_VAGA = ['Aberta', 'Encerrada'];
 const MODALIDADE_VAGA = ['Integrado', 'Subsequente', 'Superior'];
+// Cronograma do processo seletivo (datas). Ordem cronológica.
+const CRONOGRAMA_CAMPOS = [
+  ['inicioInsc', 'Início das inscrições'],
+  ['fimInsc', 'Fim das inscrições'],
+  ['homologacao', 'Homologação das inscrições'],
+  ['resultadoParcial', 'Resultado parcial'],
+  ['prazoRecurso', 'Prazo de recurso'],
+  ['resultadoFinal', 'Resultado final'],
+  ['inicioAtividades', 'Início das atividades']
+];
 // Período/semestre mínimo (lista suspensa; ajustável).
 const PERIODO_MINIMO = ['1º', '2º', '3º', '4º', '5º', '6º', '7º', '8º', '9º', '10º'];
 const CATEGORIA_CRITERIO = ['Entrevista', 'Análise documental', 'Conhecimentos e competências',
