@@ -73,6 +73,7 @@ const API = {
   getAcoesBootstrap: ()        => gasCall('getAcoesBootstrap'),
   getAcoes:   ()               => gasCall('getAcoes'),
   getAcao:    (id)             => gasCall('getAcao', { id }),
+  getAcaoDetalhe: (id)         => gasCall('getAcaoDetalhe', { id }),
   addAcao:    (payload, reqId) => gasCall('addAcao', { payload, reqId }),
   updateAcao: (id, payload)    => gasCall('updateAcao', { id, payload }),
   deleteAcao: (id)             => gasCall('deleteAcao', { id }),

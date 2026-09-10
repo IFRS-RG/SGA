@@ -58,6 +58,24 @@ function getAcoesBootstrap(email) {
   };
 }
 
+// Bootstrap do DETALHE da ação: tudo numa chamada só (evita 9 requisições
+// paralelas que revalidam o token e travam quando o GAS está lento).
+function getAcaoDetalhe(id, email) {
+  requirePerfil(email, ACAO_READERS);
+  const safe = function (fn, d) { try { const r = fn(); return r == null ? d : r; } catch (e) { return d; } };
+  return {
+    acao: getAcao(id, email),
+    docs: safe(function () { return getAcaoDocs(id, email); }, []),
+    bolsistas: safe(function () { return getBolsistas(id, email); }, []),
+    voluntarios: safe(function () { return getVoluntarios(id, email); }, []),
+    financeiro: safe(function () { return getAcaoFinanceiro(id, email); }, {}),
+    certificados: safe(function () { return getCertificadosDaAcao(id, email); }, []),
+    colaboradores: safe(function () { return getColaboradores(id, email); }, []),
+    vagas: safe(function () { return getVagas(id, email); }, []),
+    inscritos: safe(function () { return getInscritosDaAcao(id, email); }, [])
+  };
+}
+
 // ── Listar (enriquecido com rótulos) ──────────────────────────
 function getAcoes(email) {
   requirePerfil(email, ACAO_READERS);

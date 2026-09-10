@@ -114,8 +114,8 @@ const Acoes = {
   async openDetail(id) {
     this.container.innerHTML = '<div class="loading-page"><div class="spinner"></div><p>Carregando…</p></div>';
     try {
-      const [rec, docs, bols, vols, fin, certs, colabs, vagas, inscritos] = await Promise.all([API.getAcao(id), API.getAcaoDocs(id), API.getBolsistas(id), API.getVoluntarios(id), API.getAcaoFinanceiro(id), API.getCertificadosDaAcao(id), API.getColaboradores(id), API.getVagas(id), API.getInscritosDaAcao(id)]);
-      this.detail = rec; this.docs = docs || []; this.bolsistas = bols || []; this.voluntarios = vols || []; this.financeiro = fin || {}; this.certificados = certs || []; this.colaboradores = colabs || []; this.vagas = vagas || []; this.inscritos = inscritos || []; this.currentId = id; this.detailTab = 'dados'; this.selTab = 'requisitos'; this.view = 'detail';
+      const d = await API.getAcaoDetalhe(id);
+      this.detail = d.acao; this.docs = d.docs || []; this.bolsistas = d.bolsistas || []; this.voluntarios = d.voluntarios || []; this.financeiro = d.financeiro || {}; this.certificados = d.certificados || []; this.colaboradores = d.colaboradores || []; this.vagas = d.vagas || []; this.inscritos = d.inscritos || []; this.currentId = id; this.detailTab = 'dados'; this.selTab = 'requisitos'; this.view = 'detail';
     } catch (e) { toast(e.message, 'error'); this.view = 'list'; this.renderList(); return; }
     this.renderDetail();
   },

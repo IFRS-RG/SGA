@@ -117,6 +117,8 @@ function doPost(e) {
         return respond(getAcoes(userEmail));
       case 'getAcao':
         return respond(getAcao(data.id, userEmail));
+      case 'getAcaoDetalhe':
+        return respond(getAcaoDetalhe(data.id, userEmail));
       case 'addAcao':
         return respond(addAcao(data.payload, userEmail, data.reqId));
       case 'updateAcao':
